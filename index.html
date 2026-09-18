@@ -13,7 +13,7 @@
   <!-- Including Modular Stylesheet -->
   <?!= include('css'); ?>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row relative">
+<body class="min-h-screen flex flex-col md:flex-row relative pb-24 md:pb-0">
 
   <!-- ANIMATED GLASSMORPHISM AUTH OVERLAY -->
   <div id="authOverlay" class="fixed inset-0 z-50 auth-bg-gradient flex items-center justify-center p-4 overflow-y-auto">
@@ -127,7 +127,8 @@
 
   </div>
 
-  <aside class="w-full md:w-64 bg-white border-r border-gray-100 flex-shrink-0 p-5 flex flex-col justify-between">
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="hidden md:flex w-64 bg-white border-r border-gray-100 flex-shrink-0 p-5 flex-col justify-between">
     <div>
       <div class="flex items-center space-x-3 mb-8 px-2">
         <div class="w-10 h-10 rounded-xl bg-teal-banner flex items-center justify-center text-white font-bold text-xl shadow-md">
@@ -180,6 +181,40 @@
     </div>
   </aside>
 
+  <!-- MOBILE FLOATING BUBBLE BOTTOM NAVIGATION BAR -->
+  <nav class="md:hidden floating-bottom-nav">
+    <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="floating-nav-item active-mobile-nav">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-chart-pie"></i>
+      </div>
+      <span class="floating-label">Dashboard</span>
+    </button>
+    <button type="button" onclick="switchTab('katalog')" id="mobile-nav-katalog" class="floating-nav-item">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-book-open"></i>
+      </div>
+      <span class="floating-label">Katalog</span>
+    </button>
+    <button type="button" onclick="switchTab('karyawan')" id="mobile-nav-karyawan" class="floating-nav-item">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-address-card"></i>
+      </div>
+      <span class="floating-label">Karyawan</span>
+    </button>
+    <button type="button" onclick="switchTab('misi')" id="mobile-nav-misi" class="floating-nav-item">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-bullseye"></i>
+      </div>
+      <span class="floating-label">Misi</span>
+    </button>
+    <button type="button" onclick="switchTab('users')" id="mobile-nav-users" class="floating-nav-item hidden role-admin">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-users-gear"></i>
+      </div>
+      <span class="floating-label">Users</span>
+    </button>
+  </nav>
+
   <main class="flex-1 flex flex-col min-w-0">
     <header class="bg-white border-b border-gray-100 p-4 px-6 flex items-center justify-between">
       <div class="flex items-center space-x-4 flex-1 max-w-md">
@@ -189,11 +224,20 @@
         </div>
       </div>
 
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-3">
         <div class="text-right hidden sm:block">
           <p class="font-bold text-sm text-navy" id="userNameDisplay">Eko Tech Operator</p>
           <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold" id="userRoleBadge">Karyawan</span>
         </div>
+
+        <div class="md:hidden">
+          <select id="mobileRoleSelector" onchange="handleRoleChange(true)" class="p-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-gray-50 focus:outline-none">
+            <option value="Karyawan">Karyawan</option>
+            <option value="Project Manager">PM</option>
+            <option value="Super Admin">Admin</option>
+          </select>
+        </div>
+
         <div class="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md">
           EO
         </div>
@@ -202,58 +246,132 @@
 
     <div class="p-6 space-y-6 flex-1 overflow-y-auto">
 
-      <!-- 1. DASHBOARD VIEW -->
+      <!-- 1. DASHBOARD VIEW (COMPACT BANNER + DRILL-DOWN STAT CARDS + PM HEATMAP + PER-SITE ANALYTICS) -->
       <section id="view-dashboard" class="space-y-6">
-        <div class="bg-teal-banner rounded-2xl p-6 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
-          <div class="space-y-2 z-10 max-w-lg">
-            <span class="bg-white/20 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">e-LMS Data Center System</span>
-            <h2 class="text-2xl font-bold">Tingkatkan Kompetensi Operasional Data Center Tier III/IV</h2>
-            <p class="text-sm text-white/80">Selesaikan minimal 2 materi wajib setiap bulannya untuk menjaga standar SLA dan efisiensi sistem pendingin & kelistrikan.</p>
+        
+        <!-- COMPACT BANNER -->
+        <div class="bg-teal-banner rounded-2xl p-4 md:p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+          <div class="space-y-1 z-10 max-w-xl">
+            <div class="flex items-center space-x-2">
+              <span class="bg-white/20 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-semibold">Data Center Competency</span>
+              <span class="text-xs text-teal-100 font-semibold"><i class="fa-solid fa-bullseye text-amber-300 mr-1"></i> Target: 2 Materi / Bulan</span>
+            </div>
+            <h2 class="text-xl font-bold leading-tight">Ringkasan Knowledge & Kepatuhan Operasional</h2>
+            <p class="text-xs text-white/80">Monitor pemenuhan SLA, kelistrikan & pendingin Tier III/IV. <span class="font-bold underline cursor-pointer" onclick="switchTab('katalog')">Klik card di bawah</span> untuk melihat tabel detail sumber data.</p>
           </div>
-          <div class="mt-4 md:mt-0 z-10">
-            <button type="button" onclick="switchTab('katalog')" class="bg-white text-teal-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-md hover:bg-gray-50 transition">
-              Mulai Belajar Sekarang <i class="fa-solid fa-arrow-right ml-1"></i>
+          <div class="mt-3 md:mt-0 z-10 flex-shrink-0">
+            <button type="button" onclick="switchTab('katalog')" class="bg-white text-teal-700 font-bold px-4 py-2 rounded-xl text-xs shadow-md hover:bg-gray-50 transition flex items-center space-x-1">
+              <span>Mulai Belajar</span>
+              <i class="fa-solid fa-arrow-right text-xs"></i>
             </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
-            <div class="w-12 h-12 rounded-xl bg-yellow-100 text-yellow-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-graduation-cap"></i>
+        <!-- 4 INTERACTIVE STAT METRIC CARDS (CLICK TO OPEN TABLE MODAL) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          
+          <!-- CARD 1: MISI BULANAN (2 MATERI/BULAN) -->
+          <div onclick="openDashboardDetailModal('mission')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-teal-200">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">
+                <i class="fa-solid fa-bullseye"></i>
+              </div>
+              <div>
+                <p class="text-[11px] text-muted-grey font-semibold">Misi Wajib (2/Bulan)</p>
+                <h3 class="text-lg font-bold text-navy" id="statMissionStatus">0 / 2 Selesai</h3>
+              </div>
             </div>
+            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+          </div>
+
+          <!-- CARD 2: TOTAL MATERI SELESAI -->
+          <div onclick="openDashboardDetailModal('completed')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-blue-200">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <div>
+                <p class="text-[11px] text-muted-grey font-semibold">Materi Selesai</p>
+                <h3 class="text-xl font-bold text-navy" id="statCompleted">0</h3>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+          </div>
+
+          <!-- CARD 3: RATA-RATA NILAI KUIS -->
+          <div onclick="openDashboardDetailModal('score')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-pink-200">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-lg font-bold">
+                <i class="fa-solid fa-chart-line"></i>
+              </div>
+              <div>
+                <p class="text-[11px] text-muted-grey font-semibold">Rata-Rata Nilai Kuis</p>
+                <h3 class="text-xl font-bold text-navy" id="statAvgScore">0</h3>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+          </div>
+
+          <!-- CARD 4: KEPATUHAN PER-SITE -->
+          <div onclick="openDashboardDetailModal('site')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-indigo-200">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold">
+                <i class="fa-solid fa-building-user"></i>
+              </div>
+              <div>
+                <p class="text-[11px] text-muted-grey font-semibold">Kepatuhan Per-Site</p>
+                <h3 class="text-sm font-bold text-navy">Lihat Rincian Site</h3>
+              </div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+          </div>
+
+        </div>
+
+        <!-- PIVOT MODUL 1: DATA CENTER COMPETENCY HEATMAP (PM & ADMIN EXCLUSIVE) -->
+        <div id="pmHeatmapSection" class="bg-white p-6 rounded-2xl card-shadow space-y-4 hidden role-pm role-admin">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
             <div>
-              <p class="text-xs text-muted-grey font-semibold">Materi Selesai</p>
-              <h3 class="text-2xl font-bold text-navy" id="statCompleted">0</h3>
+              <h3 class="font-bold text-navy text-base flex items-center space-x-2">
+                <i class="fa-solid fa-fire-flame-curved text-rose-500"></i>
+                <span>Data Center Competency Heatmap (Risk Command Center)</span>
+              </h3>
+              <p class="text-xs text-muted-grey">Matriks Pemetaan Risiko Competency Per-Site Berdasarkan 4 Pilar Utama Operasional</p>
+            </div>
+            <div class="flex items-center space-x-2 text-[10px] font-bold">
+              <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700">🔴 Tinggi (&lt; 70)</span>
+              <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700">🟡 Sedang (70-84)</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">🟢 Aman (&ge; 85)</span>
             </div>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
-            <div class="w-12 h-12 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-chart-line"></i>
-            </div>
-            <div>
-              <p class="text-xs text-muted-grey font-semibold">Rata-Rata Nilai Kuis</p>
-              <h3 class="text-2xl font-bold text-navy" id="statAvgScore">0</h3>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
-            <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-bullseye"></i>
-            </div>
-            <div>
-              <p class="text-xs text-muted-grey font-semibold">Status Misi Bulanan</p>
-              <h3 class="text-lg font-bold text-navy" id="statMissionStatus">In Progress</h3>
-            </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-100 text-[11px] font-bold text-muted-grey uppercase">
+                  <th class="py-3 px-3">LOKASI SITE</th>
+                  <th class="py-3 px-3 text-center">COOLING SYSTEM</th>
+                  <th class="py-3 px-3 text-center">POWER DISTRIBUTION</th>
+                  <th class="py-3 px-3 text-center">FIRE &amp; SAFETY (K3)</th>
+                  <th class="py-3 px-3 text-center">NETWORK &amp; CABLING</th>
+                  <th class="py-3 px-3 text-center">AKSI INTERVENSI</th>
+                </tr>
+              </thead>
+              <tbody id="heatmapTableBody" class="text-xs font-semibold">
+              </tbody>
+            </table>
           </div>
         </div>
 
+        <!-- GRAFIK RATA-RATA NILAI & KEPATUHAN PER-SITE -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4">
             <div class="flex items-center justify-between">
-              <h3 class="font-bold text-navy text-base">Grafik Perkembangan Nilai & Progress</h3>
-              <span class="text-xs text-muted-grey font-semibold">Periode berjalan</span>
+              <div>
+                <h3 class="font-bold text-navy text-base">Grafik Performa & Kepatuhan Belajar Per-Site</h3>
+                <p class="text-xs text-muted-grey">Perbandingan Rata-Rata Nilai & Kepatuhan Target 2 Materi (Site CGK1 - CGK4)</p>
+              </div>
+              <span class="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full">Data Realtime</span>
             </div>
             <div class="h-64 relative">
               <canvas id="monthlyChart"></canvas>
@@ -314,7 +432,7 @@
                   <th class="py-3.5 px-4">JENIS / GROUP</th>
                   <th class="py-3.5 px-4">JUDUL MATERI</th>
                   <th class="py-3.5 px-4">PEMBUAT MATERI</th>
-                  <th class="py-3.5 px-4 text-center">PESERTA</th>
+                  <th class="py-3.5 px-4 text-center" id="thPesertaStatus">PESERTA</th>
                   <th class="py-3.5 px-4 text-center">NILAI RATA-RATA</th>
                   <th class="py-3.5 px-4 text-center">MEDIA / AKSI</th>
                 </tr>
@@ -376,12 +494,12 @@
         </div>
       </section>
 
-      <!-- 4. MISI BULANAN VIEW -->
+      <!-- 4. MISI BULANAN VIEW (EXCLUSIVITY PIVOT MODUL 2 SMART MISSION DISPATCHER) -->
       <section id="view-misi" class="space-y-6 hidden">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h2 class="text-xl font-bold text-navy">Misi Bulanan Karyawan</h2>
-            <p class="text-xs text-muted-grey">Setiap karyawan diwajibkan menyelesaikan minimal 2 materi pelatihan acak per bulan.</p>
+            <p class="text-xs text-muted-grey">Setiap karyawan diwajibkan menyelesaikan minimal 2 materi pelatihan per bulan.</p>
           </div>
 
           <div class="flex items-center space-x-3">
@@ -392,6 +510,69 @@
               <option value="2026-07">Juli 2026</option>
             </select>
           </div>
+        </div>
+
+        <!-- PIVOT MODUL 2: SMART MISSION DISPATCHER CARD (PM & ADMIN EXCLUSIVE) -->
+        <div id="smartMissionDispatcherCard" class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-5 card-shadow space-y-4 hidden role-pm role-admin">
+          <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/30 flex items-center justify-center text-xl text-blue-300 font-bold">
+                <i class="fa-solid fa-paper-plane"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-base">Smart Mission Dispatcher (PM Presisi Penugasan)</h3>
+                <p class="text-xs text-blue-200">Tetapkan 2 materi wajib secara presisi berdasarkan Target Site &amp; Departemen Karyawan</p>
+              </div>
+            </div>
+            <span class="text-xs bg-blue-500/30 text-blue-200 px-3 py-1 rounded-full font-bold">PM Command Control</span>
+          </div>
+
+          <form onsubmit="handleSmartMissionDispatch(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+            <div>
+              <label class="block font-bold text-blue-200 mb-1">Target Site</label>
+              <select id="dispatchSite" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
+                <option value="ALL" class="text-navy">Semua Site Lokasi</option>
+                <option value="CGK1" class="text-navy">Site CGK1</option>
+                <option value="CGK2" class="text-navy">Site CGK2</option>
+                <option value="CGK3" class="text-navy">Site CGK3</option>
+                <option value="CGK3A" class="text-navy">Site CGK3A</option>
+                <option value="CGK4" class="text-navy">Site CGK4</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-blue-200 mb-1">Target Departemen</label>
+              <select id="dispatchDept" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
+                <option value="ALL" class="text-navy">Semua Departemen</option>
+                <option value="Operations" class="text-navy">Operations</option>
+                <option value="Power & Cooling" class="text-navy">Power & Cooling</option>
+                <option value="Network & Cabling" class="text-navy">Network & Cabling</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-blue-200 mb-1">Materi Wajib #1</label>
+              <select id="dispatchCourse1" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
+                <option value="CRS-0001" class="text-navy">CRS-0001: Cooling CRAH & Chiller SOP</option>
+                <option value="CRS-0002" class="text-navy">CRS-0002: Redundansi UPS N+1</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-blue-200 mb-1">Materi Wajib #2</label>
+              <select id="dispatchCourse2" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
+                <option value="CRS-0002" class="text-navy">CRS-0002: Redundansi UPS N+1</option>
+                <option value="CRS-0001" class="text-navy">CRS-0001: Cooling CRAH & Chiller SOP</option>
+              </select>
+            </div>
+
+            <div class="flex items-end">
+              <button type="submit" id="btnSubmitDispatch" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition flex items-center justify-center space-x-1.5 shadow-lg">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Kirim Misi Target</span>
+              </button>
+            </div>
+          </form>
         </div>
 
         <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 text-white card-shadow flex items-center justify-between">
@@ -494,6 +675,62 @@
     </div>
   </main>
 
+  <!-- MODAL DETAIL STAT DASHBOARD (DRILL-DOWN TABLE WHEN CARDS ARE CLICKED) -->
+  <div id="dashboardDetailModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 card-shadow space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold" id="dashDetailModalIcon">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-navy text-lg" id="dashDetailModalTitle">Rincian Data Stats</h3>
+            <p class="text-xs text-muted-grey" id="dashDetailModalSubtitle">Detail sumber resume kalkulasi statistik</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDashboardDetailModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto overflow-x-auto min-h-0">
+        <table class="w-full text-left border-collapse">
+          <thead id="dashDetailTableHead">
+          </thead>
+          <tbody id="dashDetailTableBody" class="text-xs text-navy divide-y divide-gray-50">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pt-3 border-t border-gray-100 flex justify-end flex-shrink-0">
+        <button type="button" onclick="closeDashboardDetailModal()" class="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition">Tutup Detail</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Hapus Materi (Custom Modal) -->
+  <div id="deleteCourseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
+      <div class="flex items-center space-x-3 text-rose-600 border-b border-gray-100 pb-3">
+        <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="font-bold text-navy text-lg">Konfirmasi Hapus Materi</h3>
+      </div>
+
+      <div class="space-y-2 text-xs text-muted-grey">
+        <p>Apakah Anda yakin ingin menghapus materi pelatihan ini secara permanen?</p>
+        <p class="font-bold text-navy bg-gray-50 p-2.5 rounded-xl border border-gray-200" id="deleteCourseTitleDisplay"></p>
+        <p class="text-rose-500 font-semibold text-[11px]"><i class="fa-solid fa-circle-info mr-1"></i> Tindakan ini akan menghapus dokumen, video, kuis, dan riwayat progress terkait dari database.</p>
+      </div>
+
+      <div class="pt-2 flex justify-end space-x-2">
+        <button type="button" onclick="closeDeleteCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+        <button type="button" id="btnConfirmDeleteCourse" onclick="executeDeleteCourse()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition">
+          Hapus Permanen
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Kuis -->
   <div id="quizModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-xl w-full p-6 card-shadow space-y-4">
@@ -512,7 +749,7 @@
     </div>
   </div>
 
-  <!-- Modal Viewer PDF SOP (PDF.js Canvas Reader Engine) -->
+  <!-- Modal Viewer PDF SOP (PDF.js Canvas & Embed Fallback Reader Engine) -->
   <div id="pdfModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-4xl w-full h-[88vh] p-6 card-shadow flex flex-col space-y-3 relative">
       <div class="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -525,6 +762,7 @@
 
       <div id="pdfCanvasContainer" class="flex-1 w-full bg-slate-900 rounded-xl overflow-y-auto flex flex-col items-center justify-start p-4 relative min-h-0">
         <canvas id="pdfRenderCanvas" class="shadow-2xl rounded max-w-full"></canvas>
+        <iframe id="pdfFallbackIframe" class="w-full h-full rounded-xl border-0 hidden" src="" allow="autoplay"></iframe>
       </div>
 
       <!-- Navigation & Page Tracking Bar -->
@@ -801,7 +1039,7 @@ D. 35-40°C
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-5 right-5 bg-navy text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold hidden transition z-50">
+  <div id="toast" class="fixed bottom-20 md:bottom-5 right-5 bg-navy text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold hidden transition z-50">
     <span id="toastMsg">Notifikasi</span>
   </div>
 
