@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>e-LMS Data Center Zettbos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Including Modular Stylesheet -->
+  <?!= include('css'); ?>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row relative">
+
+  <!-- ANIMATED GLASSMORPHISM AUTH OVERLAY -->
+  <div id="authOverlay" class="fixed inset-0 z-50 auth-bg-gradient flex items-center justify-center p-4 overflow-y-auto">
+    
+    <!-- LOGIN FORM CARD -->
+    <div id="loginCard" class="glass-card w-full max-w-md p-8 text-white relative">
+      <div class="text-center mb-6 space-y-1">
+        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mx-auto text-xl font-bold mb-3 shadow-lg">
+          DC
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight">Selamat Datang</h2>
+        <p class="text-xs text-white/70">Masuk ke Portal e-LMS Data Center Zettbos</p>
+      </div>
+
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div class="relative">
+          <input type="email" id="loginEmail" required placeholder="Alamat Email" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <i class="fa-regular fa-envelope absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        </div>
+
+        <div class="relative">
+          <input type="password" id="loginPassword" required placeholder="Password" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <i class="fa-solid fa-lock absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-white/80 pt-1">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input type="checkbox" class="rounded bg-white/20 border-none text-purple-600 focus:ring-0">
+            <span>Ingat Saya</span>
+          </label>
+          <a href="#" onclick="showToast('Silakan hubungi Super Admin untuk reset password.')" class="hover:underline">Lupa Password?</a>
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
+          Masuk Sekarang <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
+        </button>
+
+        <div class="mt-4 p-3 rounded-xl bg-white/10 text-[11px] text-white/80 space-y-1 text-left border border-white/15">
+          <p class="font-bold text-white text-xs mb-1 flex items-center"><i class="fa-solid fa-key text-amber-300 mr-1.5"></i> Akun Pengetesan (Deploy):</p>
+          <p><span class="font-semibold text-amber-200">Super Admin:</span> admin@datacenter.com | admin123</p>
+          <p><span class="font-semibold text-amber-200">Project Manager:</span> pm.budi@datacenter.com | pm123</p>
+          <p><span class="font-semibold text-amber-200">Karyawan:</span> eko.tech@datacenter.com | eko123</p>
+        </div>
+
+        <p class="text-center text-xs text-white/70 pt-3">
+          Belum punya akun? <a href="#" onclick="toggleAuthMode('register')" class="font-bold text-white hover:underline">Daftar Karyawan</a>
+        </p>
+      </form>
+    </div>
+
+    <!-- REGISTER FORM CARD -->
+    <div id="registerCard" class="glass-card w-full max-w-md p-8 text-white relative hidden">
+      <button type="button" onclick="toggleAuthMode('login')" class="absolute top-4 right-4 text-white/60 hover:text-white transition">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-6 space-y-1">
+        <h2 class="text-2xl font-bold tracking-tight">Registration</h2>
+        <p class="text-xs text-white/70">Buat Akun Karyawan Data Center Baru</p>
+      </div>
+
+      <form onsubmit="handleRegister(event)" class="space-y-4">
+        <div class="relative">
+          <input type="text" id="regName" required placeholder="Name" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <i class="fa-regular fa-user absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        </div>
+
+        <div class="relative">
+          <input type="email" id="regEmail" required placeholder="Email" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <i class="fa-regular fa-envelope absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        </div>
+
+        <div class="relative">
+          <input type="password" id="regPassword" required placeholder="Password" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <i class="fa-solid fa-lock absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        </div>
+
+        <div>
+          <select id="regDept" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-purple-900/40 text-white focus:bg-purple-900">
+            <option value="Operations" class="text-navy">Operations</option>
+            <option value="Power & Cooling" class="text-navy">Power & Cooling</option>
+            <option value="Network & Cabling" class="text-navy">Network & Cabling</option>
+            <option value="IT Infrastructure" class="text-navy">IT Infrastructure</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="regSite" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-purple-900/40 text-white focus:bg-purple-900">
+            <option value="CGK1" class="text-navy">Site CGK1</option>
+            <option value="CGK2" class="text-navy">Site CGK2</option>
+            <option value="CGK3" class="text-navy">Site CGK3</option>
+            <option value="CGK3A" class="text-navy">Site CGK3A</option>
+            <option value="CGK4" class="text-navy">Site CGK4</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2 text-xs text-white/80 pt-1">
+          <input type="checkbox" id="regAgree" required class="rounded bg-white/20 border-none text-purple-600 focus:ring-0">
+          <label for="regAgree">I Agree to the Terms & Conditions</label>
+        </div>
+
+        <button type="submit" id="btnRegisterSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
+          Register
+        </button>
+
+        <p class="text-center text-xs text-white/70 pt-3">
+          Already have an account? <a href="#" onclick="toggleAuthMode('login')" class="font-bold text-white hover:underline">Login</a>
+        </p>
+      </form>
+    </div>
+
+  </div>
+
+  <aside class="w-full md:w-64 bg-white border-r border-gray-100 flex-shrink-0 p-5 flex flex-col justify-between">
+    <div>
+      <div class="flex items-center space-x-3 mb-8 px-2">
+        <div class="w-10 h-10 rounded-xl bg-teal-banner flex items-center justify-center text-white font-bold text-xl shadow-md">
+          DC
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-navy leading-tight">e-LMS Zettbos</h1>
+          <p class="text-xs text-muted-grey">Data Center Learning</p>
+        </div>
+      </div>
+
+      <nav class="space-y-2">
+        <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition active-nav">
+          <i class="fa-solid fa-chart-pie w-5"></i>
+          <span>Dashboard</span>
+        </button>
+        <button type="button" onclick="switchTab('katalog')" id="nav-katalog" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+          <i class="fa-solid fa-book-open w-5"></i>
+          <span>Katalog Materi</span>
+        </button>
+        <button type="button" onclick="switchTab('karyawan')" id="nav-karyawan" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+          <i class="fa-solid fa-address-card w-5"></i>
+          <span>Data Karyawan</span>
+        </button>
+        <button type="button" onclick="switchTab('misi')" id="nav-misi" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+          <i class="fa-solid fa-bullseye w-5"></i>
+          <span>Misi Bulanan</span>
+        </button>
+        <button type="button" onclick="switchTab('users')" id="nav-users" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition hidden role-admin">
+          <i class="fa-solid fa-users-gear w-5"></i>
+          <span>Manajemen User</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="pt-6 border-t border-gray-100 space-y-3">
+      <div>
+        <label class="text-[11px] font-semibold text-muted-grey uppercase tracking-wider block mb-1.5">Simulasi Akses Peran:</label>
+        <select id="roleSelector" onchange="handleRoleChange()" class="w-full p-2 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-gray-50 focus:outline-none">
+          <option value="Karyawan">Karyawan (Eko)</option>
+          <option value="Project Manager">Project Manager (Budi)</option>
+          <option value="Super Admin">Super Admin</option>
+        </select>
+      </div>
+
+      <button type="button" onclick="logoutUser()" class="w-full py-2 px-3 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 text-xs font-bold transition flex items-center justify-center space-x-2">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>Keluar / Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col min-w-0">
+    <header class="bg-white border-b border-gray-100 p-4 px-6 flex items-center justify-between">
+      <div class="flex items-center space-x-4 flex-1 max-w-md">
+        <div class="relative w-full">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-grey"></i>
+          <input type="text" id="globalSearchInput" onkeyup="handleSearch()" placeholder="Cari materi Data Center..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="text-right hidden sm:block">
+          <p class="font-bold text-sm text-navy" id="userNameDisplay">Eko Tech Operator</p>
+          <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold" id="userRoleBadge">Karyawan</span>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md">
+          EO
+        </div>
+      </div>
+    </header>
+
+    <div class="p-6 space-y-6 flex-1 overflow-y-auto">
+
+      <!-- 1. DASHBOARD VIEW -->
+      <section id="view-dashboard" class="space-y-6">
+        <div class="bg-teal-banner rounded-2xl p-6 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+          <div class="space-y-2 z-10 max-w-lg">
+            <span class="bg-white/20 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">e-LMS Data Center System</span>
+            <h2 class="text-2xl font-bold">Tingkatkan Kompetensi Operasional Data Center Tier III/IV</h2>
+            <p class="text-sm text-white/80">Selesaikan minimal 2 materi wajib setiap bulannya untuk menjaga standar SLA dan efisiensi sistem pendingin & kelistrikan.</p>
+          </div>
+          <div class="mt-4 md:mt-0 z-10">
+            <button type="button" onclick="switchTab('katalog')" class="bg-white text-teal-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-md hover:bg-gray-50 transition">
+              Mulai Belajar Sekarang <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-yellow-100 text-yellow-600 flex items-center justify-center text-xl font-bold">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+              <p class="text-xs text-muted-grey font-semibold">Materi Selesai</p>
+              <h3 class="text-2xl font-bold text-navy" id="statCompleted">0</h3>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-xl font-bold">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+              <p class="text-xs text-muted-grey font-semibold">Rata-Rata Nilai Kuis</p>
+              <h3 class="text-2xl font-bold text-navy" id="statAvgScore">0</h3>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl font-bold">
+              <i class="fa-solid fa-bullseye"></i>
+            </div>
+            <div>
+              <p class="text-xs text-muted-grey font-semibold">Status Misi Bulanan</p>
+              <h3 class="text-lg font-bold text-navy" id="statMissionStatus">In Progress</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-navy text-base">Grafik Perkembangan Nilai & Progress</h3>
+              <span class="text-xs text-muted-grey font-semibold">Periode berjalan</span>
+            </div>
+            <div class="h-64 relative">
+              <canvas id="monthlyChart"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl card-shadow space-y-4">
+            <h3 class="font-bold text-navy text-base">Rekomendasi Topik Utama</h3>
+            <div class="space-y-3" id="recommendedCourses">
+              <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                <div>
+                  <p class="font-bold text-xs text-navy">Cooling System Tier III</p>
+                  <p class="text-[11px] text-muted-grey">SOP Chiller & CRAH</p>
+                </div>
+                <span class="text-xs font-bold text-teal-600">Wajib</span>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                <div>
+                  <p class="font-bold text-xs text-navy">Redundansi UPS N+1</p>
+                  <p class="text-[11px] text-muted-grey">Power Distribution</p>
+                </div>
+                <span class="text-xs font-bold text-teal-600">Wajib</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. KATALOG MATERI VIEW -->
+      <section id="view-katalog" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-navy">Katalog Materi Data Center</h2>
+            <p class="text-xs text-muted-grey">Pilih materi pelatihan berdasarkan Group untuk memenuhi misi bulanan Anda.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="categoryFilter" onchange="loadCourses(1)" class="p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white focus:outline-none">
+              <option value="all">Semua Group</option>
+              <option value="Introduction">Introduction</option>
+              <option value="Elementary">Elementary</option>
+              <option value="Data Center Fundamental (Basic)">Data Center Fundamental (Basic)</option>
+              <option value="Tools">Tools</option>
+            </select>
+
+            <button type="button" onclick="openCreateCourseModal()" class="btn-primary px-4 py-2.5 rounded-xl text-xs font-bold hidden role-pm role-admin">
+              <i class="fa-solid fa-plus mr-1"></i> Tambah Materi Baru
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
+                  <th class="py-3.5 px-4 w-12 text-center">NO.</th>
+                  <th class="py-3.5 px-4">JENIS / GROUP</th>
+                  <th class="py-3.5 px-4">JUDUL MATERI</th>
+                  <th class="py-3.5 px-4">PEMBUAT MATERI</th>
+                  <th class="py-3.5 px-4 text-center">PESERTA</th>
+                  <th class="py-3.5 px-4 text-center">NILAI RATA-RATA</th>
+                  <th class="py-3.5 px-4 text-center">MEDIA / AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="courseTableBody" class="text-sm text-navy divide-y divide-gray-50">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-white p-4 rounded-2xl card-shadow">
+          <p class="text-xs text-muted-grey" id="paginationInfo">Menampilkan 0 dari 0 materi</p>
+          <div class="flex space-x-2" id="paginationControls">
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. DATA KARYAWAN VIEW -->
+      <section id="view-karyawan" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-navy">Data Karyawan Data Center</h2>
+            <p class="text-xs text-muted-grey">Daftar lengkap karyawan terdaftar, site lokasi, dan progress aktivitas belajar.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="downloadEmployeeTemplate()" class="px-3 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Unduh Template CSV">
+              <i class="fa-solid fa-download text-teal-600"></i> <span>Download Template</span>
+            </button>
+            <button type="button" onclick="openBulkEmployeeModal()" class="px-3 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Upload Bulk CSV">
+              <i class="fa-solid fa-file-csv text-teal-600"></i> <span>Upload Bulk Data</span>
+            </button>
+            <button type="button" onclick="openEmployeeModal()" class="btn-primary px-4 py-2.5 rounded-xl text-xs font-bold hidden role-pm role-admin">
+              <i class="fa-solid fa-user-plus mr-1"></i> Tambah Karyawan Baru
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
+                  <th class="py-3.5 px-3 w-10 text-center">NO.</th>
+                  <th class="py-3.5 px-3">NIK / ID KARYAWAN</th>
+                  <th class="py-3.5 px-3">NAMA LENGKAP</th>
+                  <th class="py-3.5 px-3">EMAIL</th>
+                  <th class="py-3.5 px-3">JABATAN</th>
+                  <th class="py-3.5 px-3">DEPARTEMEN</th>
+                  <th class="py-3.5 px-3 text-center">SITE</th>
+                  <th class="py-3.5 px-3 text-center">MATERI DOWNLOAD</th>
+                  <th class="py-3.5 px-3 text-center">MATERI SOAL</th>
+                </tr>
+              </thead>
+              <tbody id="employeeTableBody" class="text-xs text-navy divide-y divide-gray-50">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. MISI BULANAN VIEW -->
+      <section id="view-misi" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-navy">Misi Bulanan Karyawan</h2>
+            <p class="text-xs text-muted-grey">Setiap karyawan diwajibkan menyelesaikan minimal 2 materi pelatihan acak per bulan.</p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <label class="text-xs font-bold text-navy">Periode:</label>
+            <select id="missionPeriodFilter" onchange="loadMonthlyMissions()" class="p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white focus:outline-none">
+              <option value="2026-09">September 2026</option>
+              <option value="2026-08">Agustus 2026</option>
+              <option value="2026-07">Juli 2026</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 text-white card-shadow flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl font-bold">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-amber-100">Tenggat Waktu Misi Bulanan</p>
+              <p class="text-sm font-bold">Tersisa 13 Hari Sebelum Periode Berakhir</p>
+            </div>
+          </div>
+          <span class="bg-white/20 text-xs px-3 py-1 rounded-full font-bold">Status SLA Operational</span>
+        </div>
+
+        <div id="employeeMissionView" class="space-y-6 hidden">
+          <div class="bg-white p-5 rounded-2xl card-shadow flex items-center justify-between">
+            <div>
+              <p class="text-xs text-muted-grey font-semibold">Progress Misi Saya Bulan Ini</p>
+              <h3 class="text-xl font-bold text-navy" id="myMissionStatusText">Loading...</h3>
+            </div>
+            <span class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-sm font-bold" id="myMissionProgressBadge">0 / 2 Selesai</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="assignedCoursesContainer">
+          </div>
+        </div>
+
+        <div id="adminMissionView" class="space-y-6 hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-2xl card-shadow text-center">
+              <p class="text-xs text-muted-grey font-semibold">Total Karyawan</p>
+              <h4 class="text-xl font-bold text-navy" id="statMsnTotal">0</h4>
+            </div>
+            <div class="bg-white p-4 rounded-2xl card-shadow text-center">
+              <p class="text-xs text-muted-grey font-semibold">Tuntas Misi (2/2)</p>
+              <h4 class="text-xl font-bold text-emerald-600" id="statMsnSelesai">0</h4>
+            </div>
+            <div class="bg-white p-4 rounded-2xl card-shadow text-center">
+              <p class="text-xs text-muted-grey font-semibold">Dalam Proses (1/2)</p>
+              <h4 class="text-xl font-bold text-amber-500" id="statMsnProses">0</h4>
+            </div>
+            <div class="bg-white p-4 rounded-2xl card-shadow text-center">
+              <p class="text-xs text-muted-grey font-semibold">Belum Dimulai (0/2)</p>
+              <h4 class="text-xl font-bold text-rose-500" id="statMsnBelum">0</h4>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="font-bold text-navy text-sm">Tabel Monitoring Kepatuhan Belajar Karyawan</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
+                    <th class="py-3.5 px-3 w-10 text-center">NO.</th>
+                    <th class="py-3.5 px-3">NIK / KARYAWAN</th>
+                    <th class="py-3.5 px-3 text-center">SITE</th>
+                    <th class="py-3.5 px-3">2 MATERI DITUGASKAN</th>
+                    <th class="py-3.5 px-3 text-center">PROGRESS</th>
+                    <th class="py-3.5 px-3 text-center">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="adminMissionTableBody" class="text-xs text-navy divide-y divide-gray-50">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 5. MANAJEMEN USER VIEW -->
+      <section id="view-users" class="space-y-6 hidden">
+        <div class="bg-white p-6 rounded-2xl card-shadow space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold text-navy">Manajemen Pengguna System</h2>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-gray-100 text-xs font-bold text-muted-grey uppercase">
+                  <th class="py-3 px-2">ID</th>
+                  <th class="py-3 px-2">Nama Lengkap</th>
+                  <th class="py-3 px-2">Email</th>
+                  <th class="py-3 px-2">Role</th>
+                  <th class="py-3 px-2">Departemen</th>
+                  <th class="py-3 px-2 text-center">Status Verifikasi</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody" class="text-sm text-navy divide-y divide-gray-50">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modal Kuis -->
+  <div id="quizModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 card-shadow space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <h3 class="font-bold text-navy text-lg" id="quizModalTitle">Pengerjaan Kuis Materi</h3>
+        <button type="button" onclick="closeQuizModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div id="quizContent" class="space-y-4 max-h-96 overflow-y-auto">
+      </div>
+
+      <div class="pt-3 border-t border-gray-100 flex justify-end space-x-2">
+        <button type="button" onclick="closeQuizModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+        <button type="button" onclick="submitQuizAnswers()" class="btn-primary px-5 py-2 rounded-xl text-xs font-bold">Kirim Jawaban</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Viewer PDF SOP (PDF.js Canvas Reader Engine) -->
+  <div id="pdfModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full h-[88vh] p-6 card-shadow flex flex-col space-y-3 relative">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-3">
+          <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Dokumen SOP Pelatihan PDF</h3>
+          <span id="pdfScoreBadge" class="bg-red-50 text-red-600 px-3 py-0.5 rounded-full text-xs font-bold">Skor PDF: 0/10</span>
+        </div>
+        <button type="button" onclick="closePdfModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div id="pdfCanvasContainer" class="flex-1 w-full bg-slate-900 rounded-xl overflow-y-auto flex flex-col items-center justify-start p-4 relative min-h-0">
+        <canvas id="pdfRenderCanvas" class="shadow-2xl rounded max-w-full"></canvas>
+      </div>
+
+      <!-- Navigation & Page Tracking Bar -->
+      <div class="pt-2 flex items-center justify-between border-t border-gray-100">
+        <div class="flex items-center space-x-2 text-xs font-bold text-navy">
+          <button type="button" id="pdfPrevBtn" onclick="changePdfPage(-1)" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+          <span>Halaman <span id="pdfPageNum">1</span> / <span id="pdfTotalPages">1</span></span>
+          <button type="button" id="pdfNextBtn" onclick="changePdfPage(1)" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="closePdfModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Tutup Dokumen</button>
+          <button type="button" id="btnPdfNextVideo" onclick="nextFromPdfToVideo()" class="px-4 py-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold transition flex items-center space-x-1">
+            <span>Lanjut ke Video</span>
+            <i class="fa-solid fa-circle-play text-blue-500"></i>
+          </button>
+          <button type="button" id="btnPdfToQuiz" onclick="openQuizFromMedia()" class="px-4 py-2 rounded-xl btn-primary text-xs font-bold transition hidden flex items-center space-x-1">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Lanjut ke Kuis</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Viewer Video Player (Anti-Skip Duration Tracking Engine) -->
+  <div id="videoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full h-[85vh] p-6 card-shadow flex flex-col space-y-3 relative">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-3">
+          <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-play text-blue-500 mr-2"></i> Pemutar Video Tutorial Data Center</h3>
+          <span id="videoScoreBadge" class="bg-blue-50 text-blue-600 px-3 py-0.5 rounded-full text-xs font-bold">Skor Video: 0/10</span>
+        </div>
+        <button type="button" onclick="closeVideoModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="flex-1 w-full bg-black rounded-xl overflow-hidden relative flex items-center justify-center">
+        <video id="html5VideoPlayer" class="w-full h-full object-contain" controls controlsList="nodownload"></video>
+        <iframe id="videoFrame" class="w-full h-full border-0 hidden" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      </div>
+
+      <!-- Navigation Control Bar -->
+      <div class="pt-2 flex items-center justify-between border-t border-gray-100">
+        <button type="button" id="btnVideoBackPdf" onclick="backFromVideoToPdf()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition flex items-center space-x-1">
+          <i class="fa-solid fa-file-pdf text-red-500"></i>
+          <span>Kembali ke PDF</span>
+        </button>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="closeVideoModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Selesai Menonton</button>
+          <button type="button" id="btnVideoToQuiz" onclick="openQuizFromMedia()" class="px-4 py-2 rounded-xl btn-primary text-xs font-bold transition hidden flex items-center space-x-1">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Lanjut ke Kuis</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Forms for Course Editing and Creation -->
+  <div id="editCourseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+        <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-pen text-amber-500 mr-2"></i> Edit Materi Pelatihan</h3>
+        <button type="button" onclick="closeEditCourseModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form onsubmit="handleEditCourse(event)" class="space-y-4">
+        <input type="hidden" id="editCourseId">
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Judul Materi Pelatihan</label>
+          <input type="text" id="editTitle" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Group</label>
+          <select id="editCategory" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-navy bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="Introduction">Introduction</option>
+            <option value="Elementary">Elementary</option>
+            <option value="Data Center Fundamental (Basic)">Data Center Fundamental (Basic)</option>
+            <option value="Tools">Tools</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Ganti File PDF Dokumen SOP (Opsional)</label>
+          <input type="file" id="editPdfFileInput" accept="application/pdf" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Tautan / Link Video Pelatihan</label>
+          <input type="url" id="editVideoUrlInput" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Text-Parser Kuis (Copas / Edit Soal)</label>
+          <textarea id="editQuizTextInput" rows="4" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-gray-700 bg-gray-50/50"></textarea>
+        </div>
+
+        <div id="editUploadIndicator" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-sm"></i>
+            <span class="font-bold">Memperbarui materi & kuis...</span>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeEditCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="submit" id="btnSubmitEdit" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
+            <i class="fa-solid fa-floppy-disk mr-1"></i> <span>Simpan Perubahan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Forms for Employee Upload & Course Creation -->
+  <div id="employeeModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+        <h3 class="font-bold text-navy text-lg">Tambah Data Karyawan Baru</h3>
+        <button type="button" onclick="closeEmployeeModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form onsubmit="handleSaveEmployee(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-navy mb-1">NIK / No. Induk Karyawan</label>
+          <input type="text" id="empNik" required placeholder="Contoh: 317101990001" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Nama Lengkap</label>
+          <input type="text" id="empNama" required placeholder="Nama lengkap karyawan" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Email Perusahaan</label>
+          <input type="email" id="empEmail" required placeholder="nama@datacenter.com" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Jabatan / Posisi</label>
+          <input type="text" id="empJabatan" required placeholder="Contoh: Senior Chiller Operator" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Departemen</label>
+          <select id="empDepartemen" required class="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white">
+            <option value="Operations">Operations</option>
+            <option value="Power & Cooling">Power & Cooling</option>
+            <option value="Network & Cabling">Network & Cabling</option>
+            <option value="IT Infrastructure">IT Infrastructure</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Site Lokasi</label>
+          <select id="empSite" required class="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white">
+            <option value="CGK1">CGK1</option>
+            <option value="CGK2">CGK2</option>
+            <option value="CGK3">CGK3</option>
+            <option value="CGK3A">CGK3A</option>
+            <option value="CGK4">CGK4</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Nomor WhatsApp / HP</label>
+          <input type="text" id="empNoHp" required placeholder="0812xxxxxxx" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="submit" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md">
+            Simpan Karyawan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="bulkEmployeeModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+        <h3 class="font-bold text-navy text-lg">Upload Bulk Data Karyawan</h3>
+        <button type="button" onclick="closeBulkEmployeeModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form onsubmit="handleBulkUploadEmployee(event)" class="space-y-4 text-xs">
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-blue-800 space-y-1">
+          <p class="font-bold"><i class="fa-solid fa-circle-info mr-1"></i> Petunjuk Upload Bulk:</p>
+          <p class="text-[11px] text-muted-grey">Gunakan template CSV dengan header: <code class="bg-white px-1 py-0.5 rounded text-navy">NIK,Nama Lengkap,Email,Jabatan,Departemen,Site,No HP</code></p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-navy mb-1">Pilih Berkas CSV</label>
+          <input type="file" id="csvFileInput" accept=".csv" required class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeBulkEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="submit" id="btnSubmitBulk" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
+            <i class="fa-solid fa-cloud-arrow-up mr-1"></i> <span>Proses Upload</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="courseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4">
+      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+        <h3 class="font-bold text-navy text-lg">Tambah Materi Pelatihan Baru</h3>
+        <button type="button" onclick="closeCourseModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <form onsubmit="handleCreateCourse(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Judul Materi Pelatihan</label>
+          <input type="text" id="newTitle" required placeholder="Contoh: Maintenance Battery UPS Tripping Emergency" class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Group</label>
+          <select id="newCategory" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-navy bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="Introduction">Introduction</option>
+            <option value="Elementary">Elementary</option>
+            <option value="Data Center Fundamental (Basic)">Data Center Fundamental (Basic)</option>
+            <option value="Tools">Tools</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Upload File Dokumen PDF</label>
+          <input type="file" id="pdfFileInput" accept="application/pdf" required class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-navy mb-1">Tautan / Link Video Pelatihan (Google Drive / YouTube)</label>
+          <input type="url" id="videoUrlInput" required placeholder="https://drive.google.com/file/d/.../view" class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <p class="text-[11px] text-muted-grey mt-1"><i class="fa-solid fa-link text-teal-600 mr-1"></i> Tempelkan link video Google Drive atau YouTube secara langsung.</p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-navy">Quick Text-Parser Kuis (Opsional - Copas Soal)</label>
+            <span class="text-[10px] text-teal-600 font-semibold bg-teal-50 px-2 py-0.5 rounded-md"><i class="fa-solid fa-bolt mr-1"></i>Parser Teks</span>
+          </div>
+          <textarea id="quizTextInput" rows="4" placeholder="Format Copas Soal:
+1. Berapa suhu ideal ASHRAE untuk Server Room?
+A. 10-15°C
+B. 18-27°C *
+C. 30-35°C
+D. 35-40°C
+
+*(Gunakan tanda * di akhir baris opsi sebagai kunci jawaban)" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-gray-700 bg-gray-50/50"></textarea>
+        </div>
+
+        <div id="uploadProgressIndicator" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-sm"></i>
+            <span class="font-bold">Mengunggah file & memproses materi...</span>
+          </div>
+          <p class="text-muted-grey text-[11px]">Mohon tunggu hingga penyimpanan file selesai.</p>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" id="btnCancelCreate" onclick="closeCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="submit" id="btnSubmitCreate" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
+            <i class="fa-solid fa-cloud-arrow-up mr-1"></i> <span>Simpan Materi</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-5 right-5 bg-navy text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold hidden transition z-50">
+    <span id="toastMsg">Notifikasi</span>
+  </div>
+
+  <?!= include('media_tracker'); ?>
+  <?!= include('javascript'); ?>
+</body>
+</html>
