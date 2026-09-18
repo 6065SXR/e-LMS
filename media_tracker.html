@@ -1,0 +1,169 @@
+<script>
+  /**
+   * PDF.js Engine & Anti-Skip Video Analytics Engine
+   * System: e-LMS Data Center Zettbos
+   */
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  var pdfDoc = null;
+  var pdfPageNum = 1;
+  var pdfPageRendering = false;
+  var pdfPageNumPending = null;
+  var pdfReadPages = new Set();
+  var pdfCurrentCourseId = null;
+  var pdfPageTimer = null;
+
+  function initPdfTracker(pdfUrl, courseId) {
+    pdfCurrentCourseId = courseId;
+    pdfPageNum = 1;
+    pdfReadPages.clear();
+
+    var container = document.getElementById("pdfCanvasContainer");
+    var canvas = document.getElementById("pdfRenderCanvas");
+    if (!canvas) return;
+
+    var urlToLoad = pdfUrl;
+    if (pdfUrl.indexOf("drive.google.com") !== -1) {
+      urlToLoad = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+    }
+
+    pdfjsLib.getDocument(urlToLoad).promise.then(function(pdfDoc_) {
+      pdfDoc = pdfDoc_;
+      document.getElementById("pdfTotalPages").innerText = pdfDoc.numPages;
+      renderPdfPage(pdfPageNum);
+    }).catch(function(err) {
+      console.warn("PDF.js fallbacked load error: " + err);
+    });
+  }
+
+  function renderPdfPage(num) {
+    pdfPageRendering = true;
+    pdfDoc.getPage(num).then(function(page) {
+      var canvas = document.getElementById("pdfRenderCanvas");
+      var ctx = canvas.getContext("2d");
+      var viewport = page.getViewport({ scale: 1.2 });
+
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      var renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+
+      var renderTask = page.render(renderContext);
+      renderTask.promise.then(function() {
+        pdfPageRendering = false;
+        if (pdfPageNumPending !== null) {
+          renderPdfPage(pdfPageNumPending);
+          pdfPageNumPending = null;
+        }
+
+        startPdfPageDwellTimer(num);
+      });
+    });
+
+    document.getElementById("pdfPageNum").innerText = num;
+  }
+
+  function queueRenderPdfPage(num) {
+    if (pdfPageRendering) {
+      pdfPageNumPending = num;
+    } else {
+      renderPdfPage(num);
+    }
+  }
+
+  function changePdfPage(delta) {
+    if (!pdfDoc) return;
+    if (pdfPageNum + delta <= 0 || pdfPageNum + delta > pdfDoc.numPages) return;
+    pdfPageNum += delta;
+    queueRenderPdfPage(pdfPageNum);
+  }
+
+  function startPdfPageDwellTimer(pageNum) {
+    if (pdfPageTimer) clearTimeout(pdfPageTimer);
+
+    pdfPageTimer = setTimeout(function() {
+      pdfReadPages.add(pageNum);
+      var totalPages = pdfDoc ? pdfDoc.numPages : 1;
+      var score = Math.round((pdfReadPages.size / totalPages) * 10);
+      
+      document.getElementById("pdfScoreBadge").innerText = "Skor PDF: " + score + "/10 (" + pdfReadPages.size + "/" + totalPages + " Hal)";
+      
+      if (score >= 8 || pdfReadPages.size >= totalPages) {
+        isCurrentPdfTracked = true;
+        updateMediaSequentialButtons();
+      }
+
+      var uid = currentUser ? currentUser.user_id : 'USR-0003';
+      callBackend('recordUserProgress', [{
+        user_id: uid,
+        course_id: pdfCurrentCourseId,
+        is_pdf_downloaded: true,
+        pdf_score: score,
+        pages_read_count: pdfReadPages.size,
+        total_pages: totalPages
+      }]);
+    }, 3000);
+  }
+
+  var videoCurrentCourseId = null;
+  var videoMaxWatchedTime = 0;
+
+  function initVideoTracker(videoUrl, courseId) {
+    videoCurrentCourseId = courseId;
+    videoMaxWatchedTime = 0;
+
+    var vPlayer = document.getElementById("html5VideoPlayer");
+    var vIframe = document.getElementById("videoFrame");
+
+    if (videoUrl.indexOf("drive.google.com") !== -1 || videoUrl.indexOf("youtube.com") !== -1) {
+      vPlayer.classList.add("hidden");
+      vIframe.classList.remove("hidden");
+      vIframe.src = convertToEmbedUrl(videoUrl);
+
+      document.getElementById("videoScoreBadge").innerText = "Skor Video: 10/10 (Tuntas)";
+      isCurrentVideoTracked = true;
+      updateMediaSequentialButtons();
+
+      var uid = currentUser ? currentUser.user_id : 'USR-0003';
+      callBackend('recordUserProgress', [{
+        user_id: uid,
+        course_id: videoCurrentCourseId,
+        is_video_watched: true,
+        video_score: 10
+      }]);
+    } else {
+      vIframe.classList.add("hidden");
+      vPlayer.classList.remove("hidden");
+      vPlayer.src = videoUrl;
+
+      vPlayer.ontimeupdate = function() {
+        if (!vPlayer.seeking) {
+          if (vPlayer.currentTime > videoMaxWatchedTime) {
+            videoMaxWatchedTime = vPlayer.currentTime;
+          }
+        }
+
+        var duration = vPlayer.duration || 1;
+        var score = Math.min(10, Math.round((videoMaxWatchedTime / duration) * 10));
+        document.getElementById("videoScoreBadge").innerText = "Skor Video: " + score + "/10";
+
+        if (score >= 8 || vPlayer.ended) {
+          isCurrentVideoTracked = true;
+          updateMediaSequentialButtons();
+        }
+      };
+
+      vPlayer.onseeking = function() {
+        if (vPlayer.currentTime > videoMaxWatchedTime + 2) {
+          vPlayer.currentTime = videoMaxWatchedTime;
+          showToast("Dilarang mempercepat video! Silakan tonton hingga selesai.");
+        }
+      };
+    }
+  }
+</script>
