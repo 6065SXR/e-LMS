@@ -1,0 +1,94 @@
+<style>
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #f4f7fe;
+    color: #1b2559;
+  }
+  
+  .bg-teal-banner {
+    background: linear-gradient(135deg, #2eb396 0%, #209279 100%);
+  }
+  .card-shadow {
+    box-shadow: 0px 18px 40px rgba(112, 144, 176, 0.12);
+    border-radius: 16px;
+  }
+  
+  .btn-primary {
+    background-color: #0095ff;
+    color: #ffffff;
+    transition: all 0.2s ease-in-out;
+  }
+  .btn-primary:hover {
+    background-color: #007ce6;
+    transform: translateY(-2px);
+  }
+  .text-navy {
+    color: #1b2559;
+  }
+  .text-muted-grey {
+    color: #a3aed0;
+  }
+  .active-nav {
+    background-color: #0095ff;
+    color: white !important;
+    box-shadow: 0px 10px 20px rgba(0, 149, 255, 0.2);
+  }
+
+  /* GLASSMORPHISM ANIMATED LOGIN/REGISTER OVERLAY */
+  .auth-bg-gradient {
+    background: linear-gradient(135deg, #1e0533 0%, #511246 45%, #942b58 80%, #cf4a54 100%);
+    background-size: 200% 200%;
+    animation: gradientMove 12s ease infinite;
+  }
+
+  @keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    animation: glassFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes glassFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.92) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+  }
+  .glass-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.7);
+    outline: none;
+  }
+
+  .glass-btn {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    box-shadow: 0 8px 20px rgba(37, 117, 252, 0.35);
+    transition: all 0.3s ease;
+  }
+  .glass-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(37, 117, 252, 0.5);
+  }
+</style>
