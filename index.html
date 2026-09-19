@@ -135,7 +135,7 @@
           DC
         </div>
         <div>
-          <h1 class="font-bold text-lg text-navy leading-tight">e-LMS Zettbos</h1>
+          <h1 class="font-bold text-lg text-navy leading-tight">e-LMS KSPS</h1>
           <p class="text-xs text-muted-grey">Data Center Learning</p>
         </div>
       </div>
@@ -426,16 +426,8 @@
         <div class="bg-white rounded-2xl card-shadow overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
-                  <th class="py-3.5 px-4 w-12 text-center">NO.</th>
-                  <th class="py-3.5 px-4">JENIS / GROUP</th>
-                  <th class="py-3.5 px-4">JUDUL MATERI</th>
-                  <th class="py-3.5 px-4">PEMBUAT MATERI</th>
-                  <th class="py-3.5 px-4 text-center" id="thPesertaStatus">PESERTA</th>
-                  <th class="py-3.5 px-4 text-center">NILAI RATA-RATA</th>
-                  <th class="py-3.5 px-4 text-center">MEDIA / AKSI</th>
-                </tr>
+              <thead id="courseTableHead">
+                <!-- Dynamically rendered by javascript.html based on user role (Karyawan vs PM/Admin) -->
               </thead>
               <tbody id="courseTableBody" class="text-sm text-navy divide-y divide-gray-50">
               </tbody>
@@ -702,6 +694,51 @@
 
       <div class="pt-3 border-t border-gray-100 flex justify-end flex-shrink-0">
         <button type="button" onclick="closeDashboardDetailModal()" class="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition">Tutup Detail</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PM DETAIL KARYAWAN PER MATERI (RINCIAN DURASI VIDEO & HALAMAN DIBACA + EXPORT CSV) -->
+  <div id="courseEmployeeDetailModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-6 card-shadow space-y-4 max-h-[88vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg font-bold">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-navy text-lg" id="courseDetailModalTitle">Laporan Detail Pembelajaran Karyawan</h3>
+            <p class="text-xs text-muted-grey">Monitoring nyata halaman PDF dibaca &amp; rata-rata durasi tonton video tiap teknisi</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto overflow-x-auto min-h-0">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-100 uppercase text-[11px] font-bold text-muted-grey">
+              <th class="py-2.5 px-3">NO.</th>
+              <th class="py-2.5 px-3">NAMA KARYAWAN</th>
+              <th class="py-2.5 px-3 text-center">SITE</th>
+              <th class="py-2.5 px-3">DEPARTEMEN</th>
+              <th class="py-2.5 px-3 text-center">HALAMAN DIBACA</th>
+              <th class="py-2.5 px-3 text-center">DURASI TONTON</th>
+              <th class="py-2.5 px-3 text-center">SKOR KUIS</th>
+              <th class="py-2.5 px-3 text-center">STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="courseDetailTableBody" class="text-xs text-navy divide-y divide-gray-50">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pt-3 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+        <button type="button" onclick="exportCourseEmployeeDetailCsv()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md">
+          <i class="fa-solid fa-file-excel"></i>
+          <span>Ekspor Detail ke Excel (CSV)</span>
+        </button>
+        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition">Tutup Modal</button>
       </div>
     </div>
   </div>
