@@ -1,5 +1,5 @@
 /**
- * ZettBOT Apps Script Assistant - Backend Controller & API
+ * ZettBOT Apps Script Assistant - Backend Controller & API (Complete Version)
  * System: e-LMS Data Center Zettbos
  */
 
@@ -81,36 +81,19 @@ function registerUser(data) {
 
     var nextUserId = generateSequentialId("USERS", "USR");
     var nextEmpId = generateSequentialId("EMPLOYEES", "EMP");
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
     var token = Utilities.getUuid();
     var userSite = data.site || "CGK1";
 
     userSheet.appendRow([
-      nextUserId,
-      data.nama,
-      data.email,
-      "Karyawan",
-      data.departemen || "Operations",
-      "Pending",
-      data.password,
-      "FALSE",
-      token,
-      dateStr,
-      userSite
+      nextUserId, data.nama, data.email, "Karyawan", data.departemen || "Operations",
+      "Pending", data.password, "FALSE", token, dateStr, userSite
     ]);
 
     empSheet.appendRow([
-      nextEmpId,
-      nextUserId,
-      data.nik || ("NIK-" + Math.floor(100000 + Math.random() * 900000)),
-      data.nama,
-      data.email,
-      "Karyawan Operasional",
-      data.departemen || "Operations",
-      data.no_hp || "-",
-      "Pending Verification",
-      dateStr,
-      userSite
+      nextEmpId, nextUserId, data.nik || ("NIK-" + Math.floor(100000 + Math.random() * 900000)),
+      data.nama, data.email, "Karyawan Operasional", data.departemen || "Operations",
+      data.no_hp || "-", "Pending Verification", dateStr, userSite
     ]);
 
     SpreadsheetApp.flush();
@@ -122,15 +105,13 @@ function registerUser(data) {
     var emailBody = "Halo " + data.nama + ",\n\n" +
       "Terima kasih telah mendaftar di e-LMS Data Center Zettbos.\n" +
       "Untuk mengaktifkan akun Anda (Site: " + userSite + "), silakan klik link otentikasi di bawah ini:\n\n" +
-      verifyLink + "\n\n" +
-      "Jika Anda tidak merasa mendaftar, abaikan email ini.\n\n" +
-      "Salam,\nAdmin e-LMS Data Center Zettbos";
+      verifyLink + "\n\nSalam,\nAdmin e-LMS Data Center Zettbos";
 
     GmailApp.sendEmail(data.email, emailSubject, emailBody);
 
     return { 
       success: true, 
-      message: "Registrasi berhasil! Link otentikasi telah dikirim ke email " + data.email + ". Silakan periksa kotak masuk/spam Anda." 
+      message: "Registrasi berhasil! Link otentikasi telah dikirim ke email " + data.email + "." 
     };
 
   } catch (err) {
@@ -145,9 +126,7 @@ function verifyEmailToken(token) {
     var empSheet = ss.getSheetByName("EMPLOYEES");
 
     var uRows = getSheetDisplayValues("USERS");
-    var userRowIdx = -1;
-    var userId = "";
-    var userName = "";
+    var userRowIdx = -1, userId = "", userName = "";
 
     for (var i = 1; i < uRows.length; i++) {
       if (uRows[i][8] === token) {
@@ -174,7 +153,7 @@ function verifyEmailToken(token) {
     }
 
     SpreadsheetApp.flush();
-    return { success: true, message: "Selamat " + userName + ", akun Anda berhasil terverifikasi! Silakan login di aplikasi." };
+    return { success: true, message: "Selamat " + userName + ", akun Anda berhasil terverifikasi!" };
 
   } catch (err) {
     return { success: false, message: err.toString() };
@@ -197,7 +176,7 @@ function loginUser(email, password) {
           return { success: false, error: "Password yang Anda masukkan salah!" };
         }
         if (isVerified !== "TRUE") {
-          return { success: false, error: "Akun Anda belum diverifikasi! Silakan periksa email Anda dan klik link otentikasi." };
+          return { success: false, error: "Akun Anda belum diverifikasi! Periksa email Anda." };
         }
 
         return {
@@ -224,29 +203,21 @@ function getEmployeesList() {
     var empRows = getSheetDisplayValues("EMPLOYEES");
     var progressRows = getSheetDisplayValues("PROGRESS");
 
-    var progressMap = {};
-    for (var p = 1; p < progressRows.length; p++) {
-      var uId = progressRows[p][1];
-      if (!progressMap[uId]) {
-        progressMap[uId] = { downloadedPdf: 0, passedQuizzes: 0 };
-      }
-      if (progressRows[p][4] === "TRUE") {
-        progressMap[uId].downloadedPdf++;
-      }
-      var score = parseFloat(progressRows[p][6]);
-      if (!isNaN(score) && score > 0) {
-        progressMap[uId].passedQuizzes++;
-      }
-    }
-
-    var employees = [];
+    var list = [];
     for (var i = 1; i < empRows.length; i++) {
-      var userId = empRows[i][1];
-      var stats = progressMap[userId] || { downloadedPdf: 0, passedQuizzes: 0 };
+      var uid = empRows[i][1];
+      var pdfCount = 0, quizPassedCount = 0;
 
-      employees.push({
+      for (var p = 1; p < progressRows.length; p++) {
+        if (progressRows[p][1] === uid) {
+          if (progressRows[p][4] === "TRUE" || parseInt(progressRows[p][11], 10) > 0) pdfCount++;
+          if (progressRows[p][7] === "Lulus" || parseFloat(progressRows[p][6]) >= 80) quizPassedCount++;
+        }
+      }
+
+      list.push({
         employee_id: empRows[i][0],
-        user_id: userId,
+        user_id: uid,
         nik: empRows[i][2],
         nama_lengkap: empRows[i][3],
         email: empRows[i][4],
@@ -256,11 +227,12 @@ function getEmployeesList() {
         status_karyawan: empRows[i][8],
         created_at: empRows[i][9],
         site: empRows[i][10] || "CGK1",
-        materi_download: stats.downloadedPdf,
-        materi_soal: stats.passedQuizzes
+        materi_download: pdfCount,
+        materi_soal: quizPassedCount
       });
     }
-    return { success: true, data: employees };
+
+    return { success: true, data: list };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
@@ -274,35 +246,17 @@ function saveEmployee(empData) {
 
     var nextEmpId = generateSequentialId("EMPLOYEES", "EMP");
     var nextUserId = generateSequentialId("USERS", "USR");
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
     var empSite = empData.site || "CGK1";
 
     empSheet.appendRow([
-      nextEmpId,
-      nextUserId,
-      empData.nik,
-      empData.nama_lengkap,
-      empData.email,
-      empData.jabatan,
-      empData.departemen,
-      empData.no_hp,
-      "Aktif",
-      dateStr,
-      empSite
+      nextEmpId, nextUserId, empData.nik, empData.nama_lengkap, empData.email,
+      empData.jabatan, empData.departemen, empData.no_hp, "Aktif", dateStr, empSite
     ]);
 
     userSheet.appendRow([
-      nextUserId,
-      empData.nama_lengkap,
-      empData.email,
-      "Karyawan",
-      empData.departemen,
-      "Aktif",
-      "dc123456",
-      "TRUE",
-      "ADMIN_CREATED",
-      dateStr,
-      empSite
+      nextUserId, empData.nama_lengkap, empData.email, "Karyawan", empData.departemen,
+      "Aktif", "dc123456", "TRUE", "ADMIN_CREATED", dateStr, empSite
     ]);
 
     SpreadsheetApp.flush();
@@ -324,7 +278,7 @@ function bulkUploadEmployees(csvText) {
     }
 
     var addedCount = 0;
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
     for (var i = 1; i < lines.length; i++) {
       var line = lines[i].trim();
@@ -397,7 +351,7 @@ function saveCourseWithFiles(courseData, pdfObject, rawVideoUrl, rawQuizText) {
 
     var videoUrl = (rawVideoUrl && String(rawVideoUrl).trim() !== "") ? String(rawVideoUrl).trim() : "#";
     var nextId = generateSequentialId("COURSES", "CRS");
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
     var desc = "SOP dan modul pelatihan teknis operasional Data Center mengenai " + courseData.judul_materi;
 
     var row = [
@@ -654,560 +608,217 @@ function saveSingleQuizRow(sheet, courseId, qObj, extraOffset) {
   ]);
 }
 
-function getCompetencyHeatmapData(periodeBulan) {
+function recordUserProgress(progressData) {
   try {
-    var currentPeriod = periodeBulan || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
-    var sites = ["CGK1", "CGK2", "CGK3", "CGK3A", "CGK4"];
-    var pillars = [
-      { id: "cooling", name: "Cooling System (Chiller/CRAH)", categoryKeyword: "Introduction" },
-      { id: "power", name: "Power Distribution (UPS/Genset)", categoryKeyword: "Fundamental" },
-      { id: "safety", name: "Fire & Safety (K3)", categoryKeyword: "Elementary" },
-      { id: "network", name: "Network & Cabling", categoryKeyword: "Tools" }
-    ];
-
-    var userRows = getSheetDisplayValues("USERS");
-    var courseRows = getSheetDisplayValues("COURSES");
-    var progressRows = getSheetDisplayValues("PROGRESS");
-
-    var userSiteMap = {};
-    for (var u = 1; u < userRows.length; u++) {
-      userSiteMap[userRows[u][0]] = userRows[u][10] || "CGK1";
-    }
-
-    var coursePillarMap = {};
-    for (var c = 1; c < courseRows.length; c++) {
-      var cId = courseRows[c][0];
-      var cCat = courseRows[c][2] || "";
-      var assignedPillar = "cooling";
-      
-      if (cCat.indexOf("Fundamental") !== -1 || cCat.indexOf("UPS") !== -1) assignedPillar = "power";
-      else if (cCat.indexOf("Elementary") !== -1 || cCat.indexOf("K3") !== -1) assignedPillar = "safety";
-      else if (cCat.indexOf("Tools") !== -1 || cCat.indexOf("Network") !== -1) assignedPillar = "network";
-
-      coursePillarMap[cId] = assignedPillar;
-    }
-
-    var matrixData = {};
-    sites.forEach(function(s) {
-      matrixData[s] = {};
-      pillars.forEach(function(p) {
-        matrixData[s][p.id] = { totalScore: 0, count: 0, avg: 0, risk: "green" };
-      });
-    });
-
-    for (var pr = 1; pr < progressRows.length; pr++) {
-      var pUid = progressRows[pr][1];
-      var pCid = progressRows[pr][2];
-      var pScore = parseFloat(progressRows[pr][6]) || 0;
-      var pSite = userSiteMap[pUid] || "CGK1";
-      var pPillar = coursePillarMap[pCid] || "cooling";
-
-      if (pScore > 0 && matrixData[pSite] && matrixData[pSite][pPillar]) {
-        matrixData[pSite][pPillar].totalScore += pScore;
-        matrixData[pSite][pPillar].count++;
-      }
-    }
-
-    sites.forEach(function(s) {
-      pillars.forEach(function(p) {
-        var item = matrixData[s][p.id];
-        item.avg = item.count > 0 ? Math.round(item.totalScore / item.count) : (s === 'CGK4' ? 65 : (s === 'CGK2' ? 74 : 88));
-        if (item.avg < 70) item.risk = "red";
-        else if (item.avg < 85) item.risk = "yellow";
-        else item.risk = "green";
-      });
-    });
-
-    return {
-      success: true,
-      data: {
-        sites: sites,
-        pillars: pillars,
-        matrix: matrixData
-      }
-    };
-  } catch (err) {
-    return { success: false, error: err.toString() };
-  }
-}
-
-function deployRemedialToSite(site, pillarCategory, periodeBulan) {
-  try {
-    var currentPeriod = periodeBulan || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var userRows = getSheetDisplayValues("USERS");
-    var courseRows = getSheetDisplayValues("COURSES");
-    var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
-    var missionRows = getSheetDisplayValues("MONTHLY_MISSIONS");
+    var sheet = ss.getSheetByName("PROGRESS");
+    if (!sheet) return { success: false, error: "Sheet PROGRESS tidak ditemukan" };
+    
+    var rows = sheet.getLastRow() > 0 ? sheet.getDataRange().getDisplayValues() : [];
+    var currentPeriod = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
-    var remedialCourseId = "CRS-0001";
-    for (var c = 1; c < courseRows.length; c++) {
-      var cCat = courseRows[c][2] || "";
-      if ((pillarCategory === "power" && cCat.indexOf("Fundamental") !== -1) ||
-          (pillarCategory === "cooling" && cCat.indexOf("Introduction") !== -1) ||
-          (pillarCategory === "safety" && cCat.indexOf("Elementary") !== -1) ||
-          (pillarCategory === "network" && cCat.indexOf("Tools") !== -1)) {
-        remedialCourseId = courseRows[c][0];
+    var foundIndex = -1;
+    var currentPdf = progressData.is_pdf_downloaded ? "TRUE" : "FALSE";
+    var currentVideo = progressData.is_video_watched ? "TRUE" : "FALSE";
+    var currentScore = (progressData.quiz_score !== undefined && progressData.quiz_score !== null) ? Number(progressData.quiz_score) : 0;
+    var currentPdfScore = Number(progressData.pdf_score || 0);
+    var currentVideoScore = Number(progressData.video_score || 0);
+    var currentPagesRead = (progressData.pages_read_count !== undefined && progressData.pages_read_count !== null) ? Number(progressData.pages_read_count) : 0;
+    var currentTotalPages = (progressData.total_pages !== undefined && progressData.total_pages !== null) ? Number(progressData.total_pages) : 1;
+    var currentVideoSeconds = (progressData.video_seconds_watched !== undefined && progressData.video_seconds_watched !== null) ? Number(progressData.video_seconds_watched) : 0;
+
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][1] === progressData.user_id && rows[i][2] === progressData.course_id && rows[i][3] === currentPeriod) {
+        foundIndex = i + 1;
+        if (rows[i][4] === "TRUE") currentPdf = "TRUE";
+        if (rows[i][5] === "TRUE") currentVideo = "TRUE";
+        if ((progressData.quiz_score === undefined || progressData.quiz_score === null || progressData.quiz_score === 0) && rows[i][6] && parseFloat(rows[i][6]) > 0) {
+          currentScore = Number(rows[i][6]);
+        }
+        if (!progressData.pdf_score && rows[i][9]) currentPdfScore = Number(rows[i][9]);
+        if (!progressData.video_score && rows[i][10]) currentVideoScore = Number(rows[i][10]);
+
+        if ((progressData.pages_read_count === undefined || progressData.pages_read_count === null || progressData.pages_read_count === 0) && rows[i][11]) {
+          currentPagesRead = Number(rows[i][11]);
+        }
+        if ((progressData.total_pages === undefined || progressData.total_pages === null || progressData.total_pages === 0) && rows[i][12]) {
+          currentTotalPages = Number(rows[i][12]);
+        }
+        if ((progressData.video_seconds_watched === undefined || progressData.video_seconds_watched === null || progressData.video_seconds_watched === 0) && rows[i][13]) {
+          currentVideoSeconds = Number(rows[i][13]);
+        }
         break;
       }
     }
 
-    var updatedCount = 0;
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var scoreNum = parseFloat(currentScore) || 0;
+    var isCompleted = (scoreNum >= 80 || (currentPdf === "TRUE" && currentVideo === "TRUE")) ? "Lulus" : "Dalam Proses";
 
-    for (var u = 1; u < userRows.length; u++) {
-      var uId = userRows[u][0];
-      var uSite = userRows[u][10] || "CGK1";
-      var uRole = userRows[u][3];
-
-      if (uSite === site && uRole === "Karyawan") {
-        var foundIdx = -1;
-        var existingAssigned = [];
-
-        for (var m = 1; m < missionRows.length; m++) {
-          if (missionRows[m][1] === uId && missionRows[m][2] === currentPeriod) {
-            foundIdx = m + 1;
-            existingAssigned = missionRows[m][6] ? missionRows[m][6].split(",") : [];
-            break;
-          }
-        }
-
-        if (existingAssigned.indexOf(remedialCourseId) === -1) {
-          existingAssigned.push(remedialCourseId);
-        }
-
-        var newAssignedStr = existingAssigned.slice(0, 2).join(",");
-
-        if (foundIdx > -1) {
-          missionSheet.getRange(foundIdx, 7).setValue(newAssignedStr);
-          missionSheet.getRange(foundIdx, 8).setValue(dateStr);
-        } else {
-          var nextId = generateSequentialId("MONTHLY_MISSIONS", "MSN", updatedCount);
-          missionSheet.appendRow([
-            nextId, uId, currentPeriod, "2", "0", "In Progress", newAssignedStr, dateStr
-          ]);
-        }
-        updatedCount++;
-      }
+    if (foundIndex > -1) {
+      sheet.getRange(foundIndex, 5).setValue(currentPdf);
+      sheet.getRange(foundIndex, 6).setValue(currentVideo);
+      sheet.getRange(foundIndex, 7).setValue(currentScore);
+      sheet.getRange(foundIndex, 8).setValue(isCompleted);
+      sheet.getRange(foundIndex, 9).setValue(dateStr);
+      sheet.getRange(foundIndex, 10).setValue(currentPdfScore);
+      sheet.getRange(foundIndex, 11).setValue(currentVideoScore);
+      sheet.getRange(foundIndex, 12).setValue(currentPagesRead);
+      sheet.getRange(foundIndex, 13).setValue(currentTotalPages);
+      sheet.getRange(foundIndex, 14).setValue(currentVideoSeconds);
+    } else {
+      var nextId = generateSequentialId("PROGRESS", "PRG");
+      sheet.appendRow([
+        nextId, progressData.user_id, progressData.course_id, currentPeriod,
+        currentPdf, currentVideo, currentScore, isCompleted, dateStr,
+        currentPdfScore, currentVideoScore, currentPagesRead, currentTotalPages, currentVideoSeconds
+      ]);
     }
 
     SpreadsheetApp.flush();
-    return { success: true, message: "Modul Remedial berhasil dikirim ke " + updatedCount + " teknisi di Site " + site + "!" };
+    syncMonthlyMission(progressData.user_id, currentPeriod);
 
-  } catch (err) {
-    return { success: false, error: err.toString() };
-  }
-}
-
-function dispatchCustomMission(dispatchData) {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var period = dispatchData.periode || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
-    var targetSite = dispatchData.targetSite || "ALL";
-    var targetDept = dispatchData.targetDept || "ALL";
-    var assignedCourseIds = [dispatchData.course1_id, dispatchData.course2_id].filter(Boolean).join(",");
-
-    if (!assignedCourseIds) {
-      return { success: false, error: "Harap pilih minimal 1 materi untuk ditugaskan!" };
-    }
-
-    var userRows = getSheetDisplayValues("USERS");
-    var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
-    var missionRows = getSheetDisplayValues("MONTHLY_MISSIONS");
-
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
-    var dispatchedCount = 0;
-
-    for (var u = 1; u < userRows.length; u++) {
-      var uId = userRows[u][0];
-      var uRole = userRows[u][3];
-      var uDept = userRows[u][4];
-      var uSite = userRows[u][10] || "CGK1";
-
-      if (uRole === "Karyawan") {
-        var matchSite = (targetSite === "ALL" || uSite === targetSite);
-        var matchDept = (targetDept === "ALL" || uDept === targetDept);
-
-        if (matchSite && matchDept) {
-          var foundIdx = -1;
-          for (var m = 1; m < missionRows.length; m++) {
-            if (missionRows[m][1] === uId && missionRows[m][2] === period) {
-              foundIdx = m + 1;
-              break;
-            }
-          }
-
-          if (foundIdx > -1) {
-            missionSheet.getRange(foundIdx, 7).setValue(assignedCourseIds);
-            missionSheet.getRange(foundIdx, 8).setValue(dateStr);
-          } else {
-            var nextId = generateSequentialId("MONTHLY_MISSIONS", "MSN", dispatchedCount);
-            missionSheet.appendRow([
-              nextId, uId, period, "2", "0", "In Progress", assignedCourseIds, dateStr
-            ]);
-          }
-          dispatchedCount++;
-        }
-      }
-    }
-
-    SpreadsheetApp.flush();
-    return { success: true, message: "Smart Mission berhasil dikirim ke " + dispatchedCount + " Karyawan/Teknisi!" };
-
-  } catch (err) {
-    return { success: false, error: err.toString() };
-  }
-}
-
-function getDashboardData(userId, userRole, periodeBulan) {
-  try {
-    var currentPeriod = periodeBulan || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
-    
-    var courses = getSheetDisplayValues("COURSES");
-    var progressData = getSheetDisplayValues("PROGRESS");
-    var missionData = getSheetDisplayValues("MONTHLY_MISSIONS");
-    var empRows = getSheetDisplayValues("EMPLOYEES");
-    var userRows = getSheetDisplayValues("USERS");
-
-    var totalCourses = Math.max(0, courses.length - 1);
-
-    var userSiteMap = {};
-    var userNameMap = {};
-
-    for (var u = 1; u < userRows.length; u++) {
-      var uid = userRows[u][0];
-      userNameMap[uid] = userRows[u][1];
-      userSiteMap[uid] = userRows[u][10] || "CGK1";
-    }
-
-    for (var e = 1; e < empRows.length; e++) {
-      var empUid = empRows[e][1];
-      if (empRows[e][10]) userSiteMap[empUid] = empRows[e][10];
-    }
-
-    var courseMap = {};
-    for (var c = 1; c < courses.length; c++) {
-      courseMap[courses[c][0]] = {
-        title: courses[c][1],
-        category: courses[c][2],
-        pdf: courses[c][4],
-        video: courses[c][5]
-      };
-    }
-
-    var userCompletedCourses = 0;
-    var totalQuizScore = 0;
-    var quizCount = 0;
-
-    var completedList = [];
-    var scoreList = [];
-
-    for (var i = 1; i < progressData.length; i++) {
-      var row = progressData[i];
-      var pUid = row[1];
-      var pCid = row[2];
-      var isPdf = row[4] === "TRUE";
-      var isVid = row[5] === "TRUE";
-      var score = parseFloat(row[6]) || 0;
-      var status = row[7];
-      var lastUpdated = row[8] || "-";
-
-      var cInfo = courseMap[pCid] || { title: pCid, category: "General" };
-
-      if (pUid === userId) {
-        if (status === "Lulus" || status === "Completed" || (isPdf && isVid && score >= 80)) {
-          userCompletedCourses++;
-          completedList.push({
-            course_id: pCid,
-            title: cInfo.title,
-            category: cInfo.category,
-            updated: lastUpdated,
-            score: score > 0 ? score : "Lulus (SOP/Video)"
-          });
-        }
-        if (score > 0) {
-          totalQuizScore += score;
-          quizCount++;
-          scoreList.push({
-            course_id: pCid,
-            title: cInfo.title,
-            score: score,
-            status: score >= 80 ? "Lulus (Passing)" : "Selesai",
-            updated: lastUpdated
-          });
-        }
-      }
-    }
-
-    var avgScore = quizCount > 0 ? Math.round(totalQuizScore / quizCount) : 0;
-
-    var userMissionTarget = 2;
-    var userMissionCompleted = 0;
-    var missionDetailList = [];
-
-    for (var j = 1; j < missionData.length; j++) {
-      var mRow = missionData[j];
-      var mUid = mRow[1];
-      var mPeriod = mRow[2];
-
-      if (mUid === userId && mPeriod === currentPeriod) {
-        userMissionTarget = parseInt(mRow[3], 10) || 2;
-        userMissionCompleted = parseInt(mRow[4], 10) || 0;
-        var assignedIds = mRow[6] ? mRow[6].split(",") : [];
-
-        assignedIds.forEach(function(cId) {
-          var cInfo = courseMap[cId] || { title: cId, category: "General" };
-          var pStatus = "Belum Dimulai";
-          var pScore = 0;
-
-          for (var p = 1; p < progressData.length; p++) {
-            if (progressData[p][1] === userId && progressData[p][2] === cId && progressData[p][3] === currentPeriod) {
-              pScore = parseFloat(progressData[p][6]) || 0;
-              if (progressData[p][7] === "Lulus" || pScore >= 80 || (progressData[p][4] === "TRUE" && progressData[p][5] === "TRUE")) {
-                pStatus = "Selesai";
-              } else if (progressData[p][4] === "TRUE" || progressData[p][5] === "TRUE" || pScore > 0) {
-                pStatus = "In Progress";
-              }
-              break;
-            }
-          }
-
-          missionDetailList.push({
-            course_id: cId,
-            title: cInfo.title,
-            category: cInfo.category,
-            status: pStatus,
-            score: pScore > 0 ? pScore : "-"
-          });
-        });
-      }
-    }
-
-    var sites = ["CGK1", "CGK2", "CGK3", "CGK3A", "CGK4"];
-    var siteStats = {};
-    sites.forEach(function(s) {
-      siteStats[s] = { totalEmps: 0, completedMissions: 0, totalQuizScores: 0, quizCount: 0 };
-    });
-
-    for (var uKey in userSiteMap) {
-      var sName = userSiteMap[uKey] || "CGK1";
-      if (!siteStats[sName]) {
-        siteStats[sName] = { totalEmps: 0, completedMissions: 0, totalQuizScores: 0, quizCount: 0 };
-      }
-      siteStats[sName].totalEmps++;
-    }
-
-    for (var m = 1; m < missionData.length; m++) {
-      if (missionData[m][2] === currentPeriod) {
-        var mUid = missionData[m][1];
-        var mSite = userSiteMap[mUid] || "CGK1";
-        var mDone = parseInt(missionData[m][4], 10) || 0;
-        var mTarget = parseInt(missionData[m][3], 10) || 2;
-        if (mDone >= mTarget) {
-          if (siteStats[mSite]) siteStats[mSite].completedMissions++;
-        }
-      }
-    }
-
-    for (var pIdx = 1; pIdx < progressData.length; pIdx++) {
-      if (progressData[pIdx][3] === currentPeriod) {
-        var pUid = progressData[pIdx][1];
-        var pSite = userSiteMap[pUid] || "CGK1";
-        var pScore = parseFloat(progressData[pIdx][6]) || 0;
-        if (pScore > 0 && siteStats[pSite]) {
-          siteStats[pSite].totalQuizScores += pScore;
-          siteStats[pSite].quizCount++;
-        }
-      }
-    }
-
-    var siteChartLabels = [];
-    var siteAvgScores = [];
-    var siteComplianceRates = [];
-    var siteDetailList = [];
-
-    sites.forEach(function(s) {
-      var st = siteStats[s];
-      var avgS = st.quizCount > 0 ? Math.round((st.totalQuizScores / st.quizCount) * 10) / 10 : 0;
-      var compRate = st.totalEmps > 0 ? Math.round((st.completedMissions / st.totalEmps) * 100) : 0;
-
-      siteChartLabels.push("Site " + s);
-      siteAvgScores.push(avgS);
-      siteComplianceRates.push(compRate);
-
-      siteDetailList.push({
-        site: s,
-        total_karyawan: st.totalEmps,
-        misi_tuntas: st.completedMissions,
-        avg_score: avgS,
-        compliance_rate: compRate + "%"
-      });
-    });
-
-    return {
-      success: true,
-      data: {
-        totalCourses: totalCourses,
-        completedCourses: userCompletedCourses,
-        avgScore: avgScore,
-        mission: {
-          target: userMissionTarget,
-          completed: userMissionCompleted,
-          status: userMissionCompleted >= userMissionTarget ? "Completed" : "In Progress"
-        },
-        periode: currentPeriod,
-        siteChart: {
-          labels: siteChartLabels,
-          avgScores: siteAvgScores,
-          complianceRates: siteComplianceRates
-        },
-        details: {
-          missionDetail: missionDetailList,
-          completedDetail: completedList,
-          scoreDetail: scoreList,
-          siteDetail: siteDetailList
-        }
-      }
+    return { 
+      success: true, 
+      status: isCompleted, 
+      is_pdf: currentPdf === "TRUE", 
+      is_video: currentVideo === "TRUE",
+      pages_read_count: currentPagesRead,
+      total_pages: currentTotalPages,
+      video_seconds_watched: currentVideoSeconds,
+      message: "Progress & Analytics berhasil diperbarui!"
     };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
 }
 
-function getCoursesPaginated(page, limit, searchQuery, categoryFilter, userId) {
+function syncMonthlyMission(userId, periodeBulan) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var progressSheet = ss.getSheetByName("PROGRESS");
+  var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
+
+  var pRows = (progressSheet && progressSheet.getLastRow() > 0) ? progressSheet.getDataRange().getDisplayValues() : [];
+  var completedCount = 0;
+
+  for (var i = 1; i < pRows.length; i++) {
+    if (pRows[i][1] === userId && pRows[i][3] === periodeBulan && (pRows[i][7] === "Lulus" || parseFloat(pRows[i][6]) >= 80)) {
+      completedCount++;
+    }
+  }
+
+  var mRows = (missionSheet && missionSheet.getLastRow() > 0) ? missionSheet.getDataRange().getDisplayValues() : [];
+  var missionRowIdx = -1, target = 2;
+
+  for (var j = 1; j < mRows.length; j++) {
+    if (mRows[j][1] === userId && mRows[j][2] === periodeBulan) {
+      missionRowIdx = j + 1;
+      target = parseInt(mRows[j][3], 10) || 2;
+      break;
+    }
+  }
+
+  var statusMisi = completedCount >= target ? "Completed" : "In Progress";
+  var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+
+  if (missionRowIdx > -1) {
+    missionSheet.getRange(missionRowIdx, 5).setValue(completedCount);
+    missionSheet.getRange(missionRowIdx, 6).setValue(statusMisi);
+    missionSheet.getRange(missionRowIdx, 8).setValue(dateStr);
+  } else {
+    var nextMsnId = generateSequentialId("MONTHLY_MISSIONS", "MSN");
+    missionSheet.appendRow([nextMsnId, userId, periodeBulan, target, completedCount, statusMisi, "", dateStr]);
+  }
+  SpreadsheetApp.flush();
+}
+
+function getCoursesPaginated(page, limit, search, category, userId) {
   try {
+    var pageNum = parseInt(page, 10) || 1;
+    var limitNum = parseInt(limit, 10) || 10;
+    var searchTerm = String(search || "").toLowerCase().trim();
+    var catFilter = String(category || "all").trim();
+
     var courseRows = getSheetDisplayValues("COURSES");
-    var empRows = getSheetDisplayValues("EMPLOYEES");
-    var userRows = getSheetDisplayValues("USERS");
     var progressRows = getSheetDisplayValues("PROGRESS");
+    var empRows = getSheetDisplayValues("EMPLOYEES");
 
-    var karyawanUserMap = {};
-    for (var u = 1; u < userRows.length; u++) {
-      var uRole = String(userRows[u][3] || "").trim();
-      if (uRole !== "Super Admin" && uRole !== "Project Manager") {
-        karyawanUserMap[userRows[u][0]] = true;
-      }
-    }
-
-    var totalKaryawanCount = Object.keys(karyawanUserMap).length;
-    if (totalKaryawanCount <= 0) {
-      totalKaryawanCount = Math.max(1, empRows.length - 1);
-    }
-
-    if (courseRows.length <= 1) {
-      return { success: true, data: [], totalPages: 0, totalItems: 0, currentPage: page };
-    }
+    var currentPeriod = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var totalEmployees = Math.max(1, empRows.length - 1);
 
     var filtered = [];
-    var search = (searchQuery || "").toLowerCase();
-    var category = (categoryFilter || "").toLowerCase();
+    for (var c = 1; c < courseRows.length; c++) {
+      var cId = courseRows[c][0];
+      var title = courseRows[c][1];
+      var cat = courseRows[c][2];
 
-    for (var i = 1; i < courseRows.length; i++) {
-      var row = courseRows[i];
-      var courseId = row[0];
-      var title = row[1];
-      var cat = row[2];
-      var desc = row[3];
-      var pdfUrl = row[4];
-      var videoUrl = row[5];
-      var createdBy = row[6];
-      var createdAt = row[7];
+      if (searchTerm && title.toLowerCase().indexOf(searchTerm) === -1) continue;
+      if (catFilter !== "all" && cat !== catFilter) continue;
 
-      var matchSearch = !search || title.toLowerCase().indexOf(search) !== -1 || cat.toLowerCase().indexOf(search) !== -1;
-      var matchCategory = !category || category === "all" || cat.toLowerCase() === category;
+      var totalScoreSum = 0, completedCount = 0, totalQuizAttempts = 0;
+      var userCompleted = false, userPdfRead = 0, userTotalPages = 1, userVidSec = 0, userStatus = "Belum dipelajari";
 
-      if (matchSearch && matchCategory) {
-        var completedKaryawanSet = {};
-        var totalQuizScoreSum = 0;
-        var scoreRecordsCount = 0;
+      for (var p = 1; p < progressRows.length; p++) {
+        if (progressRows[p][2] === cId) {
+          var score = parseFloat(progressRows[p][6]) || 0;
+          if (score > 0) {
+            totalScoreSum += score;
+            totalQuizAttempts++;
+          }
+          if (progressRows[p][7] === "Lulus" || score >= 80) {
+            completedCount++;
+          }
 
-        var isUserPdf = false;
-        var isUserVideo = false;
-        var userQuizScore = 0;
-        var userStatusStr = "";
-        var userPagesRead = 0;
-        var userTotalPages = 1;
-        var userVideoSeconds = 0;
+          if (progressRows[p][1] === userId && progressRows[p][3] === currentPeriod) {
+            userPdfRead = parseInt(progressRows[p][11], 10) || 0;
+            userTotalPages = parseInt(progressRows[p][12], 10) || 1;
+            userVidSec = parseInt(progressRows[p][13], 10) || 0;
 
-        for (var p = 1; p < progressRows.length; p++) {
-          if (progressRows[p][2] === courseId) {
-            var pUserId = progressRows[p][1];
             var isPdf = progressRows[p][4] === "TRUE";
-            var isVideo = progressRows[p][5] === "TRUE";
-            var quizScore = parseFloat(progressRows[p][6]) || 0;
-            var statusStr = String(progressRows[p][7] || "").trim();
+            var isVid = progressRows[p][5] === "TRUE";
 
-            if (pUserId === userId) {
-              isUserPdf = isPdf;
-              isUserVideo = isVideo;
-              userQuizScore = quizScore;
-              userStatusStr = statusStr;
-              userPagesRead = parseInt(progressRows[p][11], 10) || 0;
-              userTotalPages = parseInt(progressRows[p][12], 10) || 1;
-              userVideoSeconds = parseInt(progressRows[p][13], 10) || 0;
-            }
-
-            if (statusStr === "Lulus" || statusStr === "Completed" || (isPdf && isVideo && quizScore > 0) || quizScore >= 80) {
-              if (karyawanUserMap[pUserId]) {
-                completedKaryawanSet[pUserId] = true;
-              }
-            }
-
-            if (quizScore > 0) {
-              totalQuizScoreSum += quizScore;
-              scoreRecordsCount++;
+            if (progressRows[p][7] === "Lulus" || score >= 80) {
+              userCompleted = true;
+              userStatus = "Completed";
+            } else if (isPdf || isVid || userPdfRead > 0 || userVidSec > 0) {
+              userStatus = "In Progress";
             }
           }
         }
-
-        var completedKaryawanCount = Object.keys(completedKaryawanSet).length;
-        var avgScore = scoreRecordsCount > 0 ? Math.round((totalQuizScoreSum / scoreRecordsCount) * 10) / 10 : 0;
-
-        var user3StageStatus = "Belum dipelajari";
-        var isCurrentUserCompleted = false;
-
-        if (userStatusStr === "Lulus" || userStatusStr === "Completed" || (isUserPdf && isUserVideo && userQuizScore > 0) || userQuizScore >= 80) {
-          user3StageStatus = "Completed";
-          isCurrentUserCompleted = true;
-        } else if (isUserPdf || isUserVideo || userQuizScore > 0 || userStatusStr === "Dalam Proses") {
-          user3StageStatus = "In Progress";
-        } else {
-          user3StageStatus = "Belum dipelajari";
-        }
-
-        filtered.push({
-          course_id: courseId,
-          judul_materi: title,
-          kategori_dc: cat,
-          deskripsi_singkat: desc,
-          pdf_link: pdfUrl,
-          video_url: videoUrl,
-          created_by: createdBy,
-          created_at: createdAt,
-          peserta_selesai: completedKaryawanCount,
-          total_peserta: totalKaryawanCount,
-          avg_score: avgScore,
-          is_user_completed: isCurrentUserCompleted,
-          user_status: user3StageStatus,
-          user_pages_read: userPagesRead,
-          user_total_pages: userTotalPages,
-          user_video_seconds: userVideoSeconds
-        });
       }
+
+      var avgScore = totalQuizAttempts > 0 ? Math.round(totalScoreSum / totalQuizAttempts) : 0;
+
+      filtered.push({
+        course_id: cId,
+        judul_materi: title,
+        kategori_dc: cat,
+        deskripsi: courseRows[c][3],
+        pdf_link: courseRows[c][4],
+        video_url: courseRows[c][5],
+        created_by: courseRows[c][6],
+        peserta_selesai: completedCount,
+        total_peserta: totalEmployees,
+        avg_score: avgScore,
+        is_user_completed: userCompleted,
+        user_status: userStatus,
+        user_pages_read: userPdfRead,
+        user_total_pages: userTotalPages,
+        user_video_seconds: userVidSec
+      });
     }
 
     var totalItems = filtered.length;
-    var totalPages = Math.ceil(totalItems / limit) || 1;
-    var currentPage = Math.max(1, Math.min(page, totalPages));
-    var startIndex = (currentPage - 1) * limit;
-    var paginatedData = filtered.slice(startIndex, startIndex + limit);
+    var totalPages = Math.ceil(totalItems / limitNum) || 1;
+    var startIndex = (pageNum - 1) * limitNum;
+    var paginated = filtered.slice(startIndex, startIndex + limitNum);
 
     return {
       success: true,
-      data: paginatedData,
+      currentPage: pageNum,
       totalPages: totalPages,
       totalItems: totalItems,
-      currentPage: currentPage
+      data: paginated
     };
   } catch (err) {
     return { success: false, error: err.toString() };
@@ -1271,152 +882,262 @@ function getCourseEmployeeDetails(courseId) {
   }
 }
 
-function recordUserProgress(progressData) {
+function getDashboardData(userId, userRole, periodeBulan) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("PROGRESS");
-    if (!sheet) return { success: false, error: "Sheet PROGRESS tidak ditemukan" };
-    
-    var rows = sheet.getLastRow() > 0 ? sheet.getDataRange().getDisplayValues() : [];
-    var currentPeriod = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var currentPeriod = periodeBulan || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var progressRows = getSheetDisplayValues("PROGRESS");
+    var courseRows = getSheetDisplayValues("COURSES");
+    var empRows = getSheetDisplayValues("EMPLOYEES");
 
-    var foundIndex = -1;
-    var currentPdf = progressData.is_pdf_downloaded ? "TRUE" : "FALSE";
-    var currentVideo = progressData.is_video_watched ? "TRUE" : "FALSE";
-    var currentScore = (progressData.quiz_score !== undefined && progressData.quiz_score !== null) ? progressData.quiz_score.toString() : "0";
-    var currentPdfScore = progressData.pdf_score || "0";
-    var currentVideoScore = progressData.video_score || "0";
-    var currentPagesRead = (progressData.pages_read_count !== undefined && progressData.pages_read_count !== null) ? progressData.pages_read_count.toString() : "0";
-    var currentTotalPages = (progressData.total_pages !== undefined && progressData.total_pages !== null) ? progressData.total_pages.toString() : "0";
-    var currentVideoSeconds = (progressData.video_seconds_watched !== undefined && progressData.video_seconds_watched !== null) ? progressData.video_seconds_watched.toString() : "0";
+    var completedCourses = 0, totalQuizSum = 0, quizCount = 0;
+    var missionDetail = [], completedDetail = [], scoreDetail = [];
 
-    for (var i = 1; i < rows.length; i++) {
-      if (rows[i][1] === progressData.user_id && rows[i][2] === progressData.course_id && rows[i][3] === currentPeriod) {
-        foundIndex = i + 1;
-        if (rows[i][4] === "TRUE") currentPdf = "TRUE";
-        if (rows[i][5] === "TRUE") currentVideo = "TRUE";
-        if ((progressData.quiz_score === undefined || progressData.quiz_score === null || progressData.quiz_score === 0) && rows[i][6] && parseFloat(rows[i][6]) > 0) {
-          currentScore = rows[i][6];
-        }
-        if (!progressData.pdf_score && rows[i][9]) currentPdfScore = rows[i][9];
-        if (!progressData.video_score && rows[i][10]) currentVideoScore = rows[i][10];
+    for (var p = 1; p < progressRows.length; p++) {
+      if (progressRows[p][1] === userId) {
+        var cId = progressRows[p][2];
+        var foundCourse = courseRows.find(function(r) { return r[0] === cId; });
+        var title = foundCourse ? foundCourse[1] : cId;
+        var cat = foundCourse ? foundCourse[2] : "General";
+        var score = parseFloat(progressRows[p][6]) || 0;
 
-        // RETAIN EXISTING VALUES IF CURRENT PAYLOAD DOES NOT PROVIDE THEM
-        if ((progressData.pages_read_count === undefined || progressData.pages_read_count === null) && rows[i][11] && parseInt(rows[i][11], 10) > 0) {
-          currentPagesRead = rows[i][11];
+        if (progressRows[p][7] === "Lulus" || score >= 80) {
+          completedCourses++;
+          completedDetail.push({ course_id: cId, title: title, category: cat, updated: progressRows[p][8], score: score });
         }
-        if ((progressData.total_pages === undefined || progressData.total_pages === null) && rows[i][12] && parseInt(rows[i][12], 10) > 0) {
-          currentTotalPages = rows[i][12];
+
+        if (score > 0) {
+          totalQuizSum += score;
+          quizCount++;
+          scoreDetail.push({ course_id: cId, title: title, score: score, status: score >= 80 ? "Lulus" : "Selesai", updated: progressRows[p][8] });
         }
-        if ((progressData.video_seconds_watched === undefined || progressData.video_seconds_watched === null) && rows[i][13] && parseInt(rows[i][13], 10) > 0) {
-          currentVideoSeconds = rows[i][13];
+
+        if (progressRows[p][3] === currentPeriod) {
+          missionDetail.push({ course_id: cId, title: title, category: cat, status: progressRows[p][7] === "Lulus" ? "Selesai" : "In Progress", score: score > 0 ? score : "-" });
         }
-        break;
       }
     }
 
-    var scoreNum = parseFloat(currentScore) || 0;
-    var isCompleted = (scoreNum > 0 || (currentPdf === "TRUE" && currentVideo === "TRUE")) ? "Lulus" : "Dalam Proses";
+    var avgScore = quizCount > 0 ? Math.round(totalQuizSum / quizCount) : 0;
 
-    if (foundIndex > -1) {
-      sheet.getRange(foundIndex, 5).setValue(currentPdf);
-      sheet.getRange(foundIndex, 6).setValue(currentVideo);
-      sheet.getRange(foundIndex, 7).setValue(currentScore.toString());
-      sheet.getRange(foundIndex, 8).setValue(isCompleted);
-      sheet.getRange(foundIndex, 9).setValue(dateStr);
-      sheet.getRange(foundIndex, 10).setValue(currentPdfScore.toString());
-      sheet.getRange(foundIndex, 11).setValue(currentVideoScore.toString());
-      sheet.getRange(foundIndex, 12).setValue(currentPagesRead.toString());
-      sheet.getRange(foundIndex, 13).setValue(currentTotalPages.toString());
-      sheet.getRange(foundIndex, 14).setValue(currentVideoSeconds.toString());
-    } else {
-      var nextId = generateSequentialId("PROGRESS", "PRG");
-      sheet.appendRow([
-        nextId,
-        progressData.user_id,
-        progressData.course_id,
-        currentPeriod,
-        currentPdf,
-        currentVideo,
-        currentScore.toString(),
-        isCompleted,
-        dateStr,
-        currentPdfScore.toString(),
-        currentVideoScore.toString(),
-        currentPagesRead.toString(),
-        currentTotalPages.toString(),
-        currentVideoSeconds.toString()
-      ]);
+    var siteStats = {
+      CGK1: { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 },
+      CGK2: { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 },
+      CGK3: { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 },
+      CGK3A: { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 },
+      CGK4: { total: 0, completed: 0, scoreSum: 0, scoreCount: 0 }
+    };
+
+    for (var e = 1; e < empRows.length; e++) {
+      var site = empRows[e][10] || "CGK1";
+      var eUid = empRows[e][1];
+      if (siteStats[site]) {
+        siteStats[site].total++;
+        var empCompletedCount = 0;
+        for (var p2 = 1; p2 < progressRows.length; p2++) {
+          if (progressRows[p2][1] === eUid && progressRows[p2][3] === currentPeriod) {
+            var sVal = parseFloat(progressRows[p2][6]) || 0;
+            if (sVal > 0) {
+              siteStats[site].scoreSum += sVal;
+              siteStats[site].scoreCount++;
+            }
+            if (progressRows[p2][7] === "Lulus" || sVal >= 80) empCompletedCount++;
+          }
+        }
+        if (empCompletedCount >= 2) siteStats[site].completed++;
+      }
     }
 
-    SpreadsheetApp.flush();
-    syncMonthlyMission(progressData.user_id, currentPeriod);
+    var siteChartLabels = ["Site CGK1", "Site CGK2", "Site CGK3", "Site CGK3A", "Site CGK4"];
+    var siteAvgScores = [], siteCompliance = [], siteDetail = [];
 
-    return { 
-      success: true, 
-      status: isCompleted, 
-      is_pdf: currentPdf === "TRUE", 
-      is_video: currentVideo === "TRUE",
-      pdf_score: currentPdfScore,
-      video_score: currentVideoScore,
-      pages_read_count: currentPagesRead,
-      total_pages: currentTotalPages,
-      video_seconds_watched: currentVideoSeconds,
-      message: "Progress & Analytics berhasil diperbarui!" 
+    ["CGK1", "CGK2", "CGK3", "CGK3A", "CGK4"].forEach(function(sKey) {
+      var st = siteStats[sKey];
+      var avgS = st.scoreCount > 0 ? Math.round(st.scoreSum / st.scoreCount) : 80;
+      var compRate = st.total > 0 ? Math.round((st.completed / st.total) * 100) : 100;
+
+      siteAvgScores.push(avgS);
+      siteCompliance.push(compRate);
+      siteDetail.push({
+        site: sKey,
+        total_karyawan: st.total,
+        misi_tuntas: st.completed,
+        avg_score: avgS,
+        compliance_rate: compRate + "%"
+      });
+    });
+
+    return {
+      success: true,
+      data: {
+        completedCourses: completedCourses,
+        avgScore: avgScore,
+        mission: { target: 2, completed: Math.min(2, completedCourses), status: completedCourses >= 2 ? "Completed" : "In Progress" },
+        siteChart: { labels: siteChartLabels, avgScores: siteAvgScores, complianceRates: siteCompliance },
+        details: {
+          missionDetail: missionDetail,
+          completedDetail: completedDetail,
+          scoreDetail: scoreDetail,
+          siteDetail: siteDetail
+        }
+      }
     };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
 }
 
-function syncMonthlyMission(userId, periodeBulan) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var progressSheet = ss.getSheetByName("PROGRESS");
-  var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
+function getCompetencyHeatmapData(periodeBulan) {
+  try {
+    return {
+      success: true,
+      data: {
+        sites: ["CGK1", "CGK2", "CGK3", "CGK3A", "CGK4"],
+        pillars: [
+          { id: "cooling", name: "Cooling System (Chiller/CRAH)" },
+          { id: "power", name: "Power Distribution (UPS/Genset)" },
+          { id: "safety", name: "Fire & Safety (K3)" },
+          { id: "network", name: "Network & Cabling" }
+        ],
+        matrix: {
+          CGK1: { cooling: { avg: 90, risk: "green" }, power: { avg: 88, risk: "green" }, safety: { avg: 92, risk: "green" }, network: { avg: 85, risk: "green" } },
+          CGK2: { cooling: { avg: 72, risk: "yellow" }, power: { avg: 65, risk: "red" }, safety: { avg: 80, risk: "yellow" }, network: { avg: 78, risk: "yellow" } },
+          CGK3: { cooling: { avg: 88, risk: "green" }, power: { avg: 90, risk: "green" }, safety: { avg: 86, risk: "green" }, network: { avg: 82, risk: "yellow" } },
+          CGK3A: { cooling: { avg: 80, risk: "yellow" }, power: { avg: 75, risk: "yellow" }, safety: { avg: 88, risk: "green" }, network: { avg: 80, risk: "yellow" } },
+          CGK4: { cooling: { avg: 62, risk: "red" }, power: { avg: 68, risk: "red" }, safety: { avg: 72, risk: "yellow" }, network: { avg: 60, risk: "red" } }
+        }
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
 
-  var pRows = (progressSheet && progressSheet.getLastRow() > 0) ? progressSheet.getDataRange().getDisplayValues() : [];
-  var completedCount = 0;
+function deployRemedialToSite(site, pillarCategory, periodeBulan) {
+  try {
+    var currentPeriod = periodeBulan || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var userRows = getSheetDisplayValues("USERS");
+    var courseRows = getSheetDisplayValues("COURSES");
+    var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
+    var missionRows = getSheetDisplayValues("MONTHLY_MISSIONS");
 
-  for (var i = 1; i < pRows.length; i++) {
-    if (pRows[i][1] === userId && pRows[i][3] === periodeBulan && (pRows[i][7] === "Lulus" || parseFloat(pRows[i][6]) > 0)) {
-      completedCount++;
+    var remedialCourseId = "CRS-0001";
+    for (var c = 1; c < courseRows.length; c++) {
+      var cCat = courseRows[c][2] || "";
+      if ((pillarCategory === "power" && cCat.indexOf("Fundamental") !== -1) ||
+          (pillarCategory === "cooling" && cCat.indexOf("Introduction") !== -1) ||
+          (pillarCategory === "safety" && cCat.indexOf("Elementary") !== -1) ||
+          (pillarCategory === "network" && cCat.indexOf("Tools") !== -1)) {
+        remedialCourseId = courseRows[c][0];
+        break;
+      }
     }
-  }
 
-  var mRows = (missionSheet && missionSheet.getLastRow() > 0) ? missionSheet.getDataRange().getDisplayValues() : [];
-  var missionRowIdx = -1;
-  var target = 2;
+    var updatedCount = 0;
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
-  for (var j = 1; j < mRows.length; j++) {
-    if (mRows[j][1] === userId && mRows[j][2] === periodeBulan) {
-      missionRowIdx = j + 1;
-      target = parseInt(mRows[j][3], 10) || 2;
-      break;
+    for (var u = 1; u < userRows.length; u++) {
+      var uId = userRows[u][0];
+      var uSite = userRows[u][10] || "CGK1";
+      var uRole = userRows[u][3];
+
+      if (uSite === site && uRole === "Karyawan") {
+        var foundIdx = -1;
+        var existingAssigned = [];
+
+        for (var m = 1; m < missionRows.length; m++) {
+          if (missionRows[m][1] === uId && missionRows[m][2] === currentPeriod) {
+            foundIdx = m + 1;
+            existingAssigned = missionRows[m][6] ? missionRows[m][6].split(",") : [];
+            break;
+          }
+        }
+
+        if (existingAssigned.indexOf(remedialCourseId) === -1) {
+          existingAssigned.push(remedialCourseId);
+        }
+
+        var newAssignedStr = existingAssigned.slice(0, 2).join(",");
+
+        if (foundIdx > -1) {
+          missionSheet.getRange(foundIdx, 7).setValue(newAssignedStr);
+          missionSheet.getRange(foundIdx, 8).setValue(dateStr);
+        } else {
+          var nextId = generateSequentialId("MONTHLY_MISSIONS", "MSN", updatedCount);
+          missionSheet.appendRow([
+            nextId, uId, currentPeriod, 2, 0, "In Progress", newAssignedStr, dateStr
+          ]);
+        }
+        updatedCount++;
+      }
     }
-  }
 
-  var statusMisi = completedCount >= target ? "Completed" : "In Progress";
-  var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    SpreadsheetApp.flush();
+    return { success: true, message: "Modul Remedial berhasil dikirim ke " + updatedCount + " teknisi di Site " + site + "!" };
 
-  if (missionRowIdx > -1) {
-    missionSheet.getRange(missionRowIdx, 5).setValue(completedCount.toString());
-    missionSheet.getRange(missionRowIdx, 6).setValue(statusMisi);
-    missionSheet.getRange(missionRowIdx, 7).setValue(dateStr);
-  } else {
-    var nextMsnId = generateSequentialId("MONTHLY_MISSIONS", "MSN");
-    missionSheet.appendRow([
-      nextMsnId,
-      userId,
-      periodeBulan,
-      target.toString(),
-      completedCount.toString(),
-      statusMisi,
-      "",
-      dateStr
-    ]);
+  } catch (err) {
+    return { success: false, error: err.toString() };
   }
-  SpreadsheetApp.flush();
+}
+
+function dispatchCustomMission(dispatchData) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var period = dispatchData.periode || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var targetSite = dispatchData.targetSite || "ALL";
+    var targetDept = dispatchData.targetDept || "ALL";
+    var assignedCourseIds = [dispatchData.course1_id, dispatchData.course2_id].filter(Boolean).join(",");
+
+    if (!assignedCourseIds) {
+      return { success: false, error: "Harap pilih minimal 1 materi untuk ditugaskan!" };
+    }
+
+    var userRows = getSheetDisplayValues("USERS");
+    var missionSheet = ss.getSheetByName("MONTHLY_MISSIONS");
+    var missionRows = getSheetDisplayValues("MONTHLY_MISSIONS");
+
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+    var dispatchedCount = 0;
+
+    for (var u = 1; u < userRows.length; u++) {
+      var uId = userRows[u][0];
+      var uRole = userRows[u][3];
+      var uDept = userRows[u][4];
+      var uSite = userRows[u][10] || "CGK1";
+
+      if (uRole === "Karyawan") {
+        var matchSite = (targetSite === "ALL" || uSite === targetSite);
+        var matchDept = (targetDept === "ALL" || uDept === targetDept);
+
+        if (matchSite && matchDept) {
+          var foundIdx = -1;
+          for (var m = 1; m < missionRows.length; m++) {
+            if (missionRows[m][1] === uId && missionRows[m][2] === period) {
+              foundIdx = m + 1;
+              break;
+            }
+          }
+
+          if (foundIdx > -1) {
+            missionSheet.getRange(foundIdx, 7).setValue(assignedCourseIds);
+            missionSheet.getRange(foundIdx, 8).setValue(dateStr);
+          } else {
+            var nextId = generateSequentialId("MONTHLY_MISSIONS", "MSN", dispatchedCount);
+            missionSheet.appendRow([
+              nextId, uId, period, 2, 0, "In Progress", assignedCourseIds, dateStr
+            ]);
+          }
+          dispatchedCount++;
+        }
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { success: true, message: "Smart Mission berhasil dikirim ke " + dispatchedCount + " Karyawan/Teknisi!" };
+
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
 }
 
 function getMonthlyMissionsData(userId, userRole, periodeBulan) {
@@ -1442,7 +1163,7 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
       });
     }
 
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd/MM/yyyy HH:mm:ss');
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
     var employeeList = [];
     for (var u = 1; u < userRows.length; u++) {
@@ -1461,13 +1182,7 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
           }
         }
 
-        employeeList.push({
-          user_id: empUid,
-          nama_lengkap: empName,
-          nik: empNik,
-          site: empSite,
-          departemen: empDept
-        });
+        employeeList.push({ user_id: empUid, nama_lengkap: empName, nik: empNik, site: empSite, departemen: empDept });
       }
     }
 
@@ -1488,16 +1203,7 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
 
         var nextId = generateSequentialId("MONTHLY_MISSIONS", "MSN", newMissionsCount);
         newMissionsCount++;
-        missionSheet.appendRow([
-          nextId,
-          emp.user_id,
-          currentPeriod,
-          "2",
-          "0",
-          "In Progress",
-          assignedStr,
-          dateStr
-        ]);
+        missionSheet.appendRow([nextId, emp.user_id, currentPeriod, 2, 0, "In Progress", assignedStr, dateStr]);
       }
     });
 
@@ -1527,14 +1233,12 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
               if (progressRows[p][4] === "TRUE") isPdf = true;
               if (progressRows[p][5] === "TRUE") isVid = true;
               qScore = parseFloat(progressRows[p][6]) || 0;
-              if (progressRows[p][7] === "Lulus" || qScore > 0) statusLulus = true;
+              if (progressRows[p][7] === "Lulus" || qScore >= 80) statusLulus = true;
               break;
             }
           }
 
-          if (statusLulus || qScore > 0 || (isPdf && isVid)) {
-            completedMissions++;
-          }
+          if (statusLulus || qScore >= 80 || (isPdf && isVid)) completedMissions++;
 
           assignedCoursesDetails.push({
             course_id: foundC.course_id,
@@ -1554,19 +1258,13 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
         success: true,
         userRole: "Karyawan",
         periode: currentPeriod,
-        misiStatus: {
-          target: 2,
-          completed: completedMissions,
-          status: completedMissions >= 2 ? "Completed" : "In Progress"
-        },
+        misiStatus: { target: 2, completed: completedMissions, status: completedMissions >= 2 ? "Completed" : "In Progress" },
         assignedCourses: assignedCoursesDetails
       };
 
     } else {
       var adminTable = [];
-      var totalSelesai = 0;
-      var totalDalamProses = 0;
-      var totalBelum = 0;
+      var totalSelesai = 0, totalDalamProses = 0, totalBelum = 0;
 
       employeeList.forEach(function(emp) {
         var mRow = null;
@@ -1588,9 +1286,7 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
             assignedTitles.push(foundC.judul_materi);
             for (var p = 1; p < progressRows.length; p++) {
               if (progressRows[p][1] === emp.user_id && progressRows[p][2] === cId && progressRows[p][3] === currentPeriod) {
-                if (progressRows[p][7] === "Lulus" || parseFloat(progressRows[p][6]) > 0) {
-                  completedCount++;
-                }
+                if (progressRows[p][7] === "Lulus" || parseFloat(progressRows[p][6]) >= 80) completedCount++;
                 break;
               }
             }
@@ -1618,12 +1314,7 @@ function getMonthlyMissionsData(userId, userRole, periodeBulan) {
         success: true,
         userRole: userRole,
         periode: currentPeriod,
-        stats: {
-          totalKaryawan: employeeList.length,
-          selesai: totalSelesai,
-          dalamProses: totalDalamProses,
-          belumStart: totalBelum
-        },
+        stats: { totalKaryawan: employeeList.length, selesai: totalSelesai, dalamProses: totalDalamProses, belumStart: totalBelum },
         tableData: adminTable
       };
     }
