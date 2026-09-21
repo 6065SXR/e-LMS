@@ -1,0 +1,150 @@
+<script>
+  /**
+   * Authentication & Role Session Management
+   * System: e-LMS Data Center KSPS
+   */
+
+  function checkUserSession() {
+    var savedUser = localStorage.getItem("elms_session");
+    if (savedUser) {
+      try {
+        currentUser = JSON.parse(savedUser);
+      } catch(e) {
+        currentUser = null;
+      }
+    }
+    
+    if (currentUser) {
+      document.getElementById("authOverlay").classList.add("hidden");
+      updateUIForUser();
+      loadDashboard();
+      loadCourses(1);
+    } else {
+      document.getElementById("authOverlay").classList.remove("hidden");
+    }
+  }
+
+  function toggleAuthMode(mode) {
+    var loginCard = document.getElementById("loginCard");
+    var regCard = document.getElementById("registerCard");
+
+    if (mode === 'register') {
+      loginCard.classList.add("hidden");
+      regCard.classList.remove("hidden");
+    } else {
+      regCard.classList.add("hidden");
+      loginCard.classList.remove("hidden");
+    }
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    var email = document.getElementById("loginEmail").value;
+    var pass = document.getElementById("loginPassword").value;
+    var btn = document.getElementById("btnLoginSubmit");
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Memproses...';
+
+    callBackend('loginUser', [email, pass], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = 'Masuk Sekarang <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>';
+
+      if (res.success) {
+        currentUser = res.user;
+        localStorage.setItem("elms_session", JSON.stringify(currentUser));
+        document.getElementById("authOverlay").classList.add("hidden");
+        // TOAST RETAINED FOR SUCCESSFUL LOGIN
+        showToast("Selamat datang kembali di Portal KSPS, " + currentUser.name);
+        updateUIForUser();
+        loadDashboard();
+        loadCourses(1);
+      } else {
+        // TOAST RETAINED FOR FAILED LOGIN
+        showToast(res.error);
+      }
+    });
+  }
+
+  function handleRegister(e) {
+    e.preventDefault();
+    var data = {
+      nama: document.getElementById("regName").value,
+      email: document.getElementById("regEmail").value,
+      password: document.getElementById("regPassword").value,
+      departemen: document.getElementById("regDept").value,
+      site: document.getElementById("regSite").value
+    };
+
+    var btn = document.getElementById("btnRegisterSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Mengirim Link Otentikasi...';
+
+    callBackend('registerUser', [data], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = 'Daftar Akun Baru';
+
+      if (res.success) {
+        toggleAuthMode('login');
+      }
+    });
+  }
+
+  function logoutUser() {
+    localStorage.removeItem("elms_session");
+    currentUser = null;
+    document.getElementById("authOverlay").classList.remove("hidden");
+  }
+
+  function handleRoleChange(isMobile) {
+    var selector = isMobile ? document.getElementById("mobileRoleSelector") : document.getElementById("roleSelector");
+    if (!selector) return;
+    var newRole = selector.value;
+    
+    if (!currentUser) {
+      currentUser = { user_id: 'USR-0003', name: 'Eko Tech Operator', role: newRole, email: 'eko.tech@datacenter.com', departemen: 'Operations', site: 'CGK1' };
+    }
+
+    currentUser.role = newRole;
+    if (newRole === 'Super Admin') {
+      currentUser.name = 'Admin Data Center KSPS';
+      currentUser.user_id = 'USR-0001';
+    } else if (newRole === 'Project Manager') {
+      currentUser.name = 'Budi PM Infrastructure';
+      currentUser.user_id = 'USR-0002';
+    } else {
+      currentUser.name = 'Eko Tech Operator';
+      currentUser.user_id = 'USR-0003';
+    }
+
+    localStorage.setItem("elms_session", JSON.stringify(currentUser));
+    updateUIForUser();
+    loadDashboard();
+    loadCourses(1);
+  }
+
+  function updateUIForUser() {
+    if (!currentUser) return;
+    document.getElementById("userNameDisplay").innerText = currentUser.name;
+    document.getElementById("userRoleBadge").innerText = currentUser.role;
+
+    var roleSelector = document.getElementById("roleSelector");
+    if (roleSelector) roleSelector.value = currentUser.role;
+
+    var mobileRoleSelector = document.getElementById("mobileRoleSelector");
+    if (mobileRoleSelector) mobileRoleSelector.value = currentUser.role;
+
+    var pmElems = document.querySelectorAll('.role-pm');
+    var adminElems = document.querySelectorAll('.role-admin');
+
+    pmElems.forEach(function(el) { el.classList.add('hidden'); });
+    adminElems.forEach(function(el) { el.classList.add('hidden'); });
+
+    if (currentUser.role === 'Project Manager') {
+      pmElems.forEach(function(el) { el.classList.remove('hidden'); });
+    } else if (currentUser.role === 'Super Admin') {
+      pmElems.forEach(function(el) { el.classList.remove('hidden'); });
+      adminElems.forEach(function(el) { el.classList.remove('hidden'); });
+    }
+  }
+</script>
