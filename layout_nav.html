@@ -1,0 +1,250 @@
+<!-- ANIMATED GLASSMORPHISM AUTH OVERLAY -->
+<div id="authOverlay" class="fixed inset-0 z-50 auth-bg-gradient flex items-center justify-center p-4 overflow-y-auto">
+  
+  <!-- LOGIN FORM CARD -->
+  <div id="loginCard" class="glass-card w-full max-w-md p-8 text-white relative">
+    <div class="text-center mb-6 space-y-2">
+      <div class="shiny-logo-wrapper inline-block">
+        <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-10 w-auto mx-auto">
+          <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#FFFFFF" letter-spacing="-2">KSPS</text>
+          <g transform="translate(260, 55) scale(0.85)">
+            <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+            <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+            <circle cx="25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+            <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#FFFFFF" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(72)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(144)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(216)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(288)" />
+          </g>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-extrabold tracking-tight">Selamat Datang</h2>
+      <p class="text-xs text-white/80 font-medium">Masuk ke Portal e-LMS Data Center KSPS</p>
+    </div>
+
+    <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div class="relative">
+        <input type="email" id="loginEmail" required placeholder="Alamat Email" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+        <i class="fa-regular fa-envelope absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+      </div>
+
+      <div class="relative">
+        <input type="password" id="loginPassword" required placeholder="Password" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+        <i class="fa-solid fa-lock absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-white/80 pt-1">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input type="checkbox" class="rounded bg-white/20 border-none text-amber-500 focus:ring-0">
+          <span>Ingat Saya</span>
+        </label>
+      </div>
+
+      <button type="submit" id="btnLoginSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
+        Masuk Sekarang <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
+      </button>
+
+      <div class="mt-4 p-3 rounded-xl bg-white/10 text-[11px] text-white/80 space-y-1 text-left border border-white/15">
+        <p class="font-bold text-white text-xs mb-1 flex items-center"><i class="fa-solid fa-key text-amber-400 mr-1.5"></i> Akun Pengetesan (Deploy):</p>
+        <p><span class="font-semibold text-amber-300">Super Admin:</span> admin@datacenter.com | admin123</p>
+        <p><span class="font-semibold text-amber-300">Project Manager:</span> pm.budi@datacenter.com | pm123</p>
+        <p><span class="font-semibold text-amber-300">Karyawan:</span> eko.tech@datacenter.com | eko123</p>
+      </div>
+
+      <p class="text-center text-xs text-white/70 pt-3">
+        Belum punya akun? <a href="#" onclick="toggleAuthMode('register')" class="font-bold text-white hover:underline">Daftar Karyawan</a>
+      </p>
+    </form>
+  </div>
+
+  <div id="registerCard" class="glass-card w-full max-w-md p-8 text-white relative hidden">
+    <button type="button" onclick="toggleAuthMode('login')" class="absolute top-4 right-4 text-white/60 hover:text-white transition">
+      <i class="fa-solid fa-xmark text-lg"></i>
+    </button>
+
+    <div class="text-center mb-6 space-y-2">
+      <div class="shiny-logo-wrapper inline-block">
+        <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-8 w-auto mx-auto">
+          <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#FFFFFF" letter-spacing="-2">KSPS</text>
+          <g transform="translate(260, 55) scale(0.85)">
+            <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+            <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+            <circle cx="25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+            <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#FFFFFF" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(72)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(144)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(216)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(288)" />
+          </g>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-bold tracking-tight">Pendaftaran Akun</h2>
+      <p class="text-xs text-white/80">Buat Akun Karyawan Data Center KSPS Baru</p>
+    </div>
+
+    <form onsubmit="handleRegister(event)" class="space-y-4">
+      <div class="relative">
+        <input type="text" id="regName" required placeholder="Nama Lengkap" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+        <i class="fa-regular fa-user absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+      </div>
+
+      <div class="relative">
+        <input type="email" id="regEmail" required placeholder="Email Perusahaan" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+        <i class="fa-regular fa-envelope absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+      </div>
+
+      <div class="relative">
+        <input type="password" id="regPassword" required placeholder="Password" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+        <i class="fa-solid fa-lock absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+      </div>
+
+      <div>
+        <select id="regDept" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-indigo-950/80 text-white focus:bg-indigo-900">
+          <option value="Operations" class="text-slate-900">Operations</option>
+          <option value="Power & Cooling" class="text-slate-900">Power & Cooling</option>
+          <option value="Network & Cabling" class="text-slate-900">Network & Cabling</option>
+          <option value="IT Infrastructure" class="text-slate-900">IT Infrastructure</option>
+        </select>
+      </div>
+
+      <div>
+        <select id="regSite" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-indigo-950/80 text-white focus:bg-indigo-900">
+          <option value="CGK1" class="text-slate-900">Site CGK1</option>
+          <option value="CGK2" class="text-slate-900">Site CGK2</option>
+          <option value="CGK3" class="text-slate-900">Site CGK3</option>
+          <option value="CGK3A" class="text-slate-900">Site CGK3A</option>
+          <option value="CGK4" class="text-slate-900">Site CGK4</option>
+        </select>
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs text-white/80 pt-1">
+        <input type="checkbox" id="regAgree" required class="rounded bg-white/20 border-none text-amber-500 focus:ring-0">
+        <label for="regAgree">Saya menyetujui Syarat &amp; Ketentuan</label>
+      </div>
+
+      <button type="submit" id="btnRegisterSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
+        Daftar Akun Baru
+      </button>
+
+      <p class="text-center text-xs text-white/70 pt-3">
+        Sudah punya akun? <a href="#" onclick="toggleAuthMode('login')" class="font-bold text-white hover:underline">Masuk</a>
+      </p>
+    </form>
+  </div>
+
+</div>
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="hidden md:flex w-64 bg-white border-r border-slate-200/80 flex-shrink-0 p-5 flex-col justify-between shadow-sm">
+  <div>
+    <div class="flex items-center space-x-3 mb-8 px-2">
+      <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-9 w-auto">
+        <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>
+        <g transform="translate(260, 55) scale(0.85)">
+          <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+          <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+          <circle cx="25" cy="34" r="11" fill="#F38F00" />
+          <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+          <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+          <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" />
+          <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" />
+          <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" />
+          <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" />
+          <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />
+        </g>
+      </svg>
+      <div class="border-l border-slate-200 pl-2.5">
+        <h1 class="font-extrabold text-xs text-[#1C1B8E] leading-tight">e-LMS KSPS</h1>
+        <p class="text-[10px] text-slate-500 font-medium">Data Center Portal</p>
+      </div>
+    </div>
+
+    <nav class="space-y-1.5">
+      <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition active-nav">
+        <i class="fa-solid fa-chart-pie w-5"></i>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" onclick="switchTab('katalog')" id="nav-katalog" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
+        <i class="fa-solid fa-book-open w-5"></i>
+        <span>Katalog Materi</span>
+      </button>
+      <button type="button" onclick="switchTab('karyawan')" id="nav-karyawan" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
+        <i class="fa-solid fa-address-card w-5"></i>
+        <span>Data Karyawan</span>
+      </button>
+      <button type="button" onclick="switchTab('misi')" id="nav-misi" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
+        <i class="fa-solid fa-bullseye w-5"></i>
+        <span>Misi Bulanan</span>
+      </button>
+      <button type="button" onclick="switchTab('overtime')" id="nav-overtime" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
+        <i class="fa-solid fa-business-time w-5"></i>
+        <span>Form Lembur</span>
+      </button>
+      <button type="button" onclick="switchTab('users')" id="nav-users" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
+        <i class="fa-solid fa-users-gear w-5"></i>
+        <span>Manajemen User</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="pt-6 border-t border-slate-200 space-y-3">
+    <div>
+      <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Simulasi Akses Peran:</label>
+      <select id="roleSelector" onchange="handleRoleChange()" class="w-full p-2 rounded-xl border border-slate-200 text-xs font-bold text-[#1C1B8E] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+        <option value="Karyawan">Karyawan (Eko)</option>
+        <option value="Project Manager">Project Manager (Budi)</option>
+        <option value="Super Admin">Super Admin</option>
+      </select>
+    </div>
+
+    <button type="button" onclick="logoutUser()" class="w-full py-2 px-3 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition flex items-center justify-center space-x-2">
+      <i class="fa-solid fa-right-from-bracket"></i>
+      <span>Keluar / Logout</span>
+    </button>
+  </div>
+</aside>
+
+<!-- MOBILE FLOATING NAVIGATION -->
+<nav class="md:hidden floating-bottom-nav">
+  <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="floating-nav-item active-mobile-nav">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-chart-pie"></i>
+    </div>
+    <span class="floating-label">Dashboard</span>
+  </button>
+  <button type="button" onclick="switchTab('katalog')" id="mobile-nav-katalog" class="floating-nav-item">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-book-open"></i>
+    </div>
+    <span class="floating-label">Katalog</span>
+  </button>
+  <button type="button" onclick="switchTab('karyawan')" id="mobile-nav-karyawan" class="floating-nav-item">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-address-card"></i>
+    </div>
+    <span class="floating-label">Karyawan</span>
+  </button>
+  <button type="button" onclick="switchTab('misi')" id="mobile-nav-misi" class="floating-nav-item">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-bullseye"></i>
+    </div>
+    <span class="floating-label">Misi</span>
+  </button>
+  <button type="button" onclick="switchTab('overtime')" id="mobile-nav-overtime" class="floating-nav-item">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-business-time"></i>
+    </div>
+    <span class="floating-label">Lembur</span>
+  </button>
+  <button type="button" onclick="switchTab('users')" id="mobile-nav-users" class="floating-nav-item hidden role-admin">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-users-gear"></i>
+    </div>
+    <span class="floating-label">Users</span>
+  </button>
+</nav>
