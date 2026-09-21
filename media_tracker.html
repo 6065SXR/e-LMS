@@ -1,129 +1,168 @@
 <script>
   /**
-   * PDF.js Engine & Anti-Skip Video Analytics Engine + Attention Verification
-   * System: e-LMS Data Center Zettbos
+   * Anti-Cheating Engine & Interactive Media Tracker
+   * System: e-LMS Data Center KSPS
    */
-  if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  }
 
-  var DEFAULT_SOP_PDF_BASE64 = "JVBERi0xLjQKJSDi483NCjEgMCBvYmoKPDwvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iaiA8PC9UeXBlIC9QYWdlcyAvQ291bnQgMiAvS2lkcyBbMyAwIFIgNCAwIFJdPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDYxMiA3OTJdIC9Db250ZW50cyA1IDAgUiAvUmVzb3VyY2VzIDw8L0ZvbnQgPDwvRjEgNiAwIFI+Pj4+PgplbmRvYmoKNCAwIG9iaiA8PC9UeXBlIC9QYWdlcyAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDYxMiA3OTJdIC9Db250ZW50cyA3IDAgUiAvUmVzb3VyY2VzIDw8L0ZvbnQgPDwvRjEgNiAwIFI+Pj4+PgplbmRvYmoKNSAwIG9iaiA8PC9MZW5ndGggMjM1Pj4Kc3RyZWFtCkJUMQowIDAgMCByZ2IKL0YxIDIyIFRmCjUwIDcyMCBUZAooU09QIE9wZXJhc2lvbmFsIERhdGEgQ2VudGVyIFpldHRib3MpIFRqCjAgLTM1IFRkCi9GMSAxMiBUZgooSGFsYW1hbiAxOiBQcm9zZWR1ciBQZW1lbGloYXJhYW4gQ2hpbGxlciAmIENSAUggU3lzdGVtKSBUagowIC0yNSBUZAooMS4gUGVyaWtzYSB0ZW1wZXJhdHVyIGlubGV0ICYgb3V0bGV0IENSAUggVW5pdCkgVGoKMCAtMjAgVGQKKDIuIFZlcmlmaWthc2kga2VsZW1iYWJhbiBydWFuzgIgc2VydmVyIChIdW1pZGl0eSA0MC01MCUpKSBUagowIC0yMCBUZAooMy4gUGFzdGlrYW4gcmVkdW5kYW5zaSBOKzEgQ2hpbGxlciBha3RpZikgVGoKRVQKZW5kc3RyZWFtCmVuZG9iago2IDAgb2JqIDw8L0xlbmd0aCAxOTU+PgpzdHJlYW0KQlQKMCAwIDAgcmdiCi9GMSAyMiBUZgo1MCA3MjAgVGQKKFNPUCBPcGVyYXNpb25hbCBEYXRhIENlbnRlciBaZXR0Ym9zKSBUagowIC0zNSBUZAooL0YxIDEyIFRmCihIYWxhbWFuIDI6IFByb3NlZHVyIEVtZXJnZW5jeSBVUFAgJiBHZW5zZXQgU3dpdGNob3ZlcikgVGoKMCAtMjUgVGQKKDEuIFBhbnRhdSBzdGF0dXMgYmF0dGVyeSBiYW5rICYgdGVnYW5nYW4gREMpIFRqCjAgLTIwIFRkCigoMi4gVmVyaWZpa2FzaSBBVFMgKEF1dG9tYXRpYyBUcmFuc2ZlciBTd2l0Y2hpbmcpKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjcgMCBvYmogPDwvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2E+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjggMDAwMDAgbiAKMDAwMDAwMDEzMyAwMDAwMCBuIAowMDAwMDAwMjU2IDAwMDAwIG4gCjAwMDAwMDAzNzkgMDAwMDAgbiAKMDAwMDAwMDY2NSAwMDAwMCBuIAowMDAwMDAwOTEwIDAwMDAwIG4gCnRyYWlsZXIKPDwvU2l6ZSA4IC9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjk5MQolJUVPRg==";
-
-  function base64ToUint8Array(base64) {
-    var raw = atob(base64);
-    var uint8Array = new Uint8Array(raw.length);
-    for (var i = 0; i < raw.length; i++) {
-      uint8Array[i] = raw.charCodeAt(i);
-    }
-    return uint8Array;
-  }
-
-  var pdfDoc = null;
-  var pdfPageNum = 1;
-  var pdfPageRendering = false;
-  var pdfPageNumPending = null;
-  var pdfReadPages = new Set();
-  var pdfCurrentCourseId = null;
+  // State PDF Tracker
+  var currentPdfDoc = null;
+  var currentPdfPage = 1;
+  var totalPdfPages = 1;
   var pdfPageTimer = null;
+  var pdfSecondsLeft = 5;
+  var pdfHasScrolledBottom = false;
+  var pdfTimerPaused = false;
+  var activePdfCourseId = null;
 
-  var videoCurrentCourseId = null;
-  var videoMaxWatchedTime = 0;
-  var attentionTimer = null;
+  // State Video Tracker
+  var maxVideoWatchedTime = 0;
+  var isVideoCheckpointPassed = false;
+  var videoCheckpointTriggered = false;
+  var activeVideoCourseId = null;
+  var iframeWatchInterval = null;
 
-  function triggerAttentionCheck(mediaType) {
-    if (attentionTimer) clearTimeout(attentionTimer);
-    
-    attentionTimer = setTimeout(function() {
-      var modal = document.getElementById("pdfModal");
-      var vModal = document.getElementById("videoModal");
+  document.addEventListener("DOMContentLoaded", function() {
+    initTabVisibilityDetector();
+  });
 
-      if ((modal && !modal.classList.contains("hidden")) || (vModal && !vModal.classList.contains("hidden"))) {
-        if (typeof showToast === 'function') {
-          showToast("🔔 Verifikasi Kehadiran: Anda masih menyimak " + mediaType + " ini.");
+  /**
+   * SMART FOCUS & TAB VISIBILITY DETECTOR
+   * Menghentikan timer PDF & Video saat pengguna berpindah tab/layar secara senyap.
+   */
+  function initTabVisibilityDetector() {
+    document.addEventListener("visibilitychange", function() {
+      if (document.hidden) {
+        pdfTimerPaused = true;
+        
+        var html5Vid = document.getElementById("html5VideoPlayer");
+        if (html5Vid && !html5Vid.paused) {
+          html5Vid.pause();
         }
+
+        var pdfBanner = document.getElementById("pdfTimerNotice");
+        if (pdfBanner) {
+          pdfBanner.innerHTML = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-pause mr-1"></i> Timer Di-Pause (Tab Tidak Aktif)</span>';
+        }
+      } else {
+        pdfTimerPaused = false;
       }
-    }, 45000);
-  }
-
-  function initPdfTracker(pdfUrl, courseId) {
-    pdfCurrentCourseId = courseId;
-    pdfPageNum = 1;
-    pdfReadPages.clear();
-    triggerAttentionCheck("PDF SOP");
-
-    var canvas = document.getElementById("pdfRenderCanvas");
-    var iframe = document.getElementById("pdfFallbackIframe");
-    if (!canvas || !iframe) return;
-
-    var cleanUrl = (pdfUrl || "").trim();
-
-    if (cleanUrl.indexOf("drive.google.com") !== -1) {
-      canvas.classList.add("hidden");
-      iframe.classList.remove("hidden");
-      iframe.src = typeof convertToEmbedUrl === 'function' ? convertToEmbedUrl(cleanUrl) : cleanUrl;
-      
-      document.getElementById("pdfPageNum").innerText = "1";
-      document.getElementById("pdfTotalPages").innerText = "1";
-      document.getElementById("pdfScoreBadge").innerText = "Progress PDF: 100% (1/1 Hal Dibaca)";
-      
-      isCurrentPdfTracked = true;
-      if (typeof updateMediaSequentialButtons === 'function') {
-        updateMediaSequentialButtons();
-      }
-
-      var uid = currentUser ? currentUser.user_id : 'USR-0003';
-      callBackend('recordUserProgress', [{
-        user_id: uid,
-        course_id: pdfCurrentCourseId,
-        is_pdf_downloaded: true,
-        pdf_score: 10,
-        pages_read_count: 1,
-        total_pages: 1
-      }]);
-      return;
-    }
-
-    iframe.classList.add("hidden");
-    iframe.src = "";
-    canvas.classList.remove("hidden");
-
-    if (typeof pdfjsLib === 'undefined') {
-      console.warn("PDF.js library belum dimuat.");
-      return;
-    }
-
-    var loadSource;
-    if (!cleanUrl || cleanUrl === "#" || cleanUrl.indexOf("http") === -1) {
-      loadSource = { data: base64ToUint8Array(DEFAULT_SOP_PDF_BASE64) };
-    } else {
-      loadSource = cleanUrl;
-    }
-
-    pdfjsLib.getDocument(loadSource).promise.then(function(pdfDoc_) {
-      pdfDoc = pdfDoc_;
-      document.getElementById("pdfTotalPages").innerText = pdfDoc.numPages;
-      renderPdfPage(pdfPageNum);
-    }).catch(function(err) {
-      console.warn("PDF.js CORS error. Using fallback PDF:", err);
-      pdfjsLib.getDocument({ data: base64ToUint8Array(DEFAULT_SOP_PDF_BASE64) }).promise.then(function(fallbackDoc) {
-        pdfDoc = fallbackDoc;
-        document.getElementById("pdfTotalPages").innerText = pdfDoc.numPages;
-        renderPdfPage(pdfPageNum);
-      });
     });
   }
 
-  function renderPdfPage(num) {
-    if (!pdfDoc) return;
-    pdfPageRendering = true;
+  function syncPdfProgress() {
+    if (!activePdfCourseId) return;
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var totalPages = totalPdfPages > 0 ? totalPdfPages : 1;
+    
+    callBackend('recordUserProgress', [{
+      user_id: uid,
+      course_id: activePdfCourseId,
+      pages_read_count: currentPdfPage,
+      total_pages: totalPages,
+      is_pdf_downloaded: currentPdfPage === totalPages
+    }], function(res) {
+      // Quiet background progress sync
+    });
+  }
 
-    pdfDoc.getPage(num).then(function(page) {
+  function initPdfTracker(pdfUrl, courseId) {
+    activePdfCourseId = courseId;
+    currentPdfPage = 1;
+    totalPdfPages = 1;
+    pdfHasScrolledBottom = false;
+
+    var canvas = document.getElementById("pdfRenderCanvas");
+    var fallbackIframe = document.getElementById("pdfFallbackIframe");
+    var container = document.getElementById("pdfCanvasContainer");
+    var noticeEl = document.getElementById("pdfTimerNotice");
+
+    if (noticeEl) {
+      noticeEl.innerHTML = '<span class="text-amber-600 font-bold"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Memuat Berkas PDF...</span>';
+    }
+
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      
+      canvas.classList.remove("hidden");
+      fallbackIframe.classList.add("hidden");
+
+      // Mengambil PDF sebagai Stream Base64 dari backend agar aman dari pembatasan Iframe Google Drive
+      callBackend('getPdfBase64', [pdfUrl], function(res) {
+        if (res && res.success && res.base64) {
+          try {
+            var raw = window.atob(res.base64);
+            var rawLength = raw.length;
+            var array = new Uint8Array(new ArrayBuffer(rawLength));
+            for (var i = 0; i < rawLength; i++) {
+              array[i] = raw.charCodeAt(i);
+            }
+
+            pdfjsLib.getDocument({ data: array }).promise.then(function(pdf) {
+              currentPdfDoc = pdf;
+              totalPdfPages = pdf.numPages;
+              document.getElementById("pdfTotalPages").innerText = totalPdfPages;
+              renderPdfPage(1);
+            }).catch(function(err) {
+              console.warn("PDF.js Base64 Render Failed: ", err);
+              usePdfIframeFallback(pdfUrl);
+            });
+          } catch(e) {
+            usePdfIframeFallback(pdfUrl);
+          }
+        } else {
+          // Direct URL Render Fallback
+          pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+            currentPdfDoc = pdf;
+            totalPdfPages = pdf.numPages;
+            document.getElementById("pdfTotalPages").innerText = totalPdfPages;
+            renderPdfPage(1);
+          }).catch(function(err) {
+            usePdfIframeFallback(pdfUrl);
+          });
+        }
+      });
+    } else {
+      usePdfIframeFallback(pdfUrl);
+    }
+
+    if (container) {
+      container.onscroll = function() {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 35) {
+          pdfHasScrolledBottom = true;
+          checkPdfPageGateStatus();
+        }
+      };
+    }
+
+    syncPdfProgress();
+  }
+
+  function usePdfIframeFallback(pdfUrl) {
+    var canvas = document.getElementById("pdfRenderCanvas");
+    var fallbackIframe = document.getElementById("pdfFallbackIframe");
+    canvas.classList.add("hidden");
+    fallbackIframe.classList.remove("hidden");
+    fallbackIframe.src = convertToEmbedUrl(pdfUrl);
+    unlockPdfNextButton();
+    var noticeEl = document.getElementById("pdfTimerNotice");
+    if (noticeEl) {
+      noticeEl.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Mode Pratinjau Terbuka</span>';
+    }
+  }
+
+  function renderPdfPage(pageNum) {
+    if (!currentPdfDoc) return;
+    currentPdfPage = pageNum;
+    document.getElementById("pdfPageNum").innerText = pageNum;
+
+    pdfSecondsLeft = 5;
+    pdfHasScrolledBottom = false;
+    lockPdfNextButton();
+
+    currentPdfDoc.getPage(pageNum).then(function(page) {
       var canvas = document.getElementById("pdfRenderCanvas");
-      if (!canvas) return;
-      var ctx = canvas.getContext("2d");
-
-      var scale = 1.4;
-      var viewport = page.getViewport({ scale: scale });
+      var ctx = canvas.getContext('2d');
+      var viewport = page.getViewport({ scale: 1.25 });
 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
@@ -132,168 +171,179 @@
         canvasContext: ctx,
         viewport: viewport
       };
-
-      var renderTask = page.render(renderContext);
-      renderTask.promise.then(function() {
-        pdfPageRendering = false;
-        if (pdfPageNumPending !== null) {
-          renderPdfPage(pdfPageNumPending);
-          pdfPageNumPending = null;
-        }
-
-        startPdfPageDwellTimer(num);
-      });
+      page.render(renderContext);
     });
 
-    document.getElementById("pdfPageNum").innerText = num;
+    startPdfPageTimer();
+    syncPdfProgress();
   }
 
-  function queueRenderPdfPage(num) {
-    if (pdfPageRendering) {
-      pdfPageNumPending = num;
-    } else {
-      renderPdfPage(num);
+  function startPdfPageTimer() {
+    if (pdfPageTimer) clearInterval(pdfPageTimer);
+
+    pdfPageTimer = setInterval(function() {
+      if (pdfTimerPaused) return;
+
+      pdfSecondsLeft--;
+      var noticeEl = document.getElementById("pdfTimerNotice");
+
+      if (pdfSecondsLeft > 0) {
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-amber-600 font-bold"><i class="fa-solid fa-clock mr-1"></i> Baca Halaman Ini (' + pdfSecondsLeft + 's & Scroll ke Bawah)</span>';
+      } else {
+        clearInterval(pdfPageTimer);
+        checkPdfPageGateStatus();
+      }
+    }, 1000);
+  }
+
+  function checkPdfPageGateStatus() {
+    var noticeEl = document.getElementById("pdfTimerNotice");
+    if (pdfSecondsLeft <= 0 && pdfHasScrolledBottom) {
+      unlockPdfNextButton();
+      if (noticeEl) noticeEl.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Syarat Halaman Terpenuhi</span>';
+    } else if (pdfSecondsLeft <= 0 && !pdfHasScrolledBottom) {
+      if (noticeEl) noticeEl.innerHTML = '<span class="text-amber-600 font-bold"><i class="fa-solid fa-arrow-down mr-1"></i> Silakan Scroll Hingga Dasar Halaman</span>';
     }
+  }
+
+  function lockPdfNextButton() {
+    var btn = document.getElementById("pdfNextBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("opacity-50", "cursor-not-allowed");
+    }
+  }
+
+  function unlockPdfNextButton() {
+    var btn = document.getElementById("pdfNextBtn");
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+    syncPdfProgress();
   }
 
   function changePdfPage(delta) {
-    if (!pdfDoc) return;
-    if (pdfPageNum + delta <= 0 || pdfPageNum + delta > pdfDoc.numPages) return;
-    pdfPageNum += delta;
-    queueRenderPdfPage(pdfPageNum);
+    var newPage = currentPdfPage + delta;
+    if (newPage >= 1 && newPage <= totalPdfPages) {
+      renderPdfPage(newPage);
+    }
   }
 
-  function startPdfPageDwellTimer(pageNum) {
-    if (pdfPageTimer) clearTimeout(pdfPageTimer);
-    triggerAttentionCheck("PDF SOP");
+  function syncVideoProgress() {
+    if (!activeVideoCourseId) return;
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var secondsWatched = Math.round(maxVideoWatchedTime);
+    var isWatched = secondsWatched >= 300 || isVideoCheckpointPassed;
 
-    pdfPageTimer = setTimeout(function() {
-      pdfReadPages.add(pageNum);
-      var totalPages = pdfDoc ? pdfDoc.numPages : 1;
-      var score = Math.round((pdfReadPages.size / totalPages) * 10);
-      
-      var badge = document.getElementById("pdfScoreBadge");
-      if (badge) {
-        badge.innerText = "Progress PDF: " + Math.round((pdfReadPages.size / totalPages) * 100) + "% (" + pdfReadPages.size + "/" + totalPages + " Hal Dibaca)";
-      }
-      
-      if (score >= 8 || pdfReadPages.size >= totalPages) {
-        isCurrentPdfTracked = true;
-        if (typeof updateMediaSequentialButtons === 'function') {
-          updateMediaSequentialButtons();
-        }
-      }
-
-      var uid = currentUser ? currentUser.user_id : 'USR-0003';
-      callBackend('recordUserProgress', [{
-        user_id: uid,
-        course_id: pdfCurrentCourseId,
-        is_pdf_downloaded: true,
-        pdf_score: score,
-        pages_read_count: pdfReadPages.size,
-        total_pages: totalPages
-      }]);
-    }, 5000);
+    callBackend('recordUserProgress', [{
+      user_id: uid,
+      course_id: activeVideoCourseId,
+      is_video_watched: isWatched,
+      video_seconds_watched: secondsWatched
+    }], function(res) {
+      // Quiet background progress sync
+    });
   }
 
   function initVideoTracker(videoUrl, courseId) {
-    videoCurrentCourseId = courseId;
-    videoMaxWatchedTime = 0;
-    triggerAttentionCheck("Video Pelatihan");
+    activeVideoCourseId = courseId;
+    maxVideoWatchedTime = 0;
+    isVideoCheckpointPassed = false;
+    videoCheckpointTriggered = false;
 
-    var vPlayer = document.getElementById("html5VideoPlayer");
-    var vIframe = document.getElementById("videoFrame");
+    stopIframeWatchTimer();
 
-    if (!vPlayer || !vIframe) return;
+    var html5Vid = document.getElementById("html5VideoPlayer");
+    var iframeVid = document.getElementById("videoFrame");
+    var embedUrl = convertToEmbedUrl(videoUrl);
 
-    if (videoUrl.indexOf("drive.google.com") !== -1 || videoUrl.indexOf("youtube.com") !== -1) {
-      vPlayer.classList.add("hidden");
-      vIframe.classList.remove("hidden");
-      
-      var embedUrl = typeof convertToEmbedUrl === 'function' ? convertToEmbedUrl(videoUrl) : videoUrl;
-      vIframe.src = embedUrl;
+    if (html5Vid) {
+      html5Vid.pause();
+      html5Vid.removeAttribute("src");
+      html5Vid.load();
+    }
 
-      document.getElementById("videoScoreBadge").innerText = "Progress Video: 100% (Ditonton)";
-      isCurrentVideoTracked = true;
-      if (typeof updateMediaSequentialButtons === 'function') {
-        updateMediaSequentialButtons();
+    if (videoUrl && videoUrl.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
+      html5Vid.classList.remove("hidden");
+      iframeVid.classList.add("hidden");
+      iframeVid.src = "";
+      html5Vid.src = videoUrl;
+
+      html5Vid.ontimeupdate = function() {
+        if (html5Vid.currentTime > maxVideoWatchedTime + 2.0) {
+          html5Vid.currentTime = maxVideoWatchedTime;
+        } else {
+          maxVideoWatchedTime = Math.max(maxVideoWatchedTime, html5Vid.currentTime);
+        }
+
+        var duration = html5Vid.duration || 0;
+        if (duration > 10 && html5Vid.currentTime >= duration / 2 && !isVideoCheckpointPassed && !videoCheckpointTriggered) {
+          videoCheckpointTriggered = true;
+          html5Vid.pause();
+          triggerVideoCheckpointModal();
+        }
+
+        syncVideoProgress();
+      };
+
+      html5Vid.onended = function() {
+        maxVideoWatchedTime = Math.max(maxVideoWatchedTime, html5Vid.duration || 300);
+        syncVideoProgress();
+      };
+
+    } else {
+      // Pemutar Iframe Google Drive / YouTube
+      if (html5Vid) html5Vid.classList.add("hidden");
+      iframeVid.classList.remove("hidden");
+      iframeVid.src = embedUrl;
+
+      startIframeWatchTimer();
+    }
+  }
+
+  function startIframeWatchTimer() {
+    if (iframeWatchInterval) clearInterval(iframeWatchInterval);
+    iframeWatchInterval = setInterval(function() {
+      if (pdfTimerPaused) return;
+
+      maxVideoWatchedTime += 1;
+
+      if (maxVideoWatchedTime >= 60 && !isVideoCheckpointPassed && !videoCheckpointTriggered) {
+        videoCheckpointTriggered = true;
+        triggerVideoCheckpointModal();
       }
 
-      var uid = currentUser ? currentUser.user_id : 'USR-0003';
-      callBackend('recordUserProgress', [{
-        user_id: uid,
-        course_id: videoCurrentCourseId,
-        is_video_watched: true,
-        video_score: 10,
-        video_seconds_watched: 750
-      }]);
-    } else {
-      vIframe.classList.add("hidden");
-      vIframe.src = "";
-      vPlayer.classList.remove("hidden");
-      vPlayer.src = videoUrl;
+      if (Math.round(maxVideoWatchedTime) % 10 === 0) {
+        syncVideoProgress();
+      }
+    }, 1000);
+  }
 
-      vPlayer.ontimeupdate = function() {
-        if (!vPlayer.seeking) {
-          if (vPlayer.currentTime > videoMaxWatchedTime) {
-            videoMaxWatchedTime = vPlayer.currentTime;
-          }
-        }
-
-        var duration = vPlayer.duration || 1;
-        var percentage = Math.min(100, Math.round((videoMaxWatchedTime / duration) * 100));
-        var score = Math.min(10, Math.round((videoMaxWatchedTime / duration) * 10));
-        
-        document.getElementById("videoScoreBadge").innerText = "Progress Video: " + percentage + "% Ditonton";
-
-        if (percentage >= 80 || vPlayer.ended) {
-          isCurrentVideoTracked = true;
-          if (typeof updateMediaSequentialButtons === 'function') {
-            updateMediaSequentialButtons();
-          }
-        }
-
-        var watchedSeconds = Math.round(videoMaxWatchedTime);
-        var uid = currentUser ? currentUser.user_id : 'USR-0003';
-        callBackend('recordUserProgress', [{
-          user_id: uid,
-          course_id: videoCurrentCourseId,
-          is_video_watched: percentage >= 80,
-          video_score: score,
-          video_seconds_watched: watchedSeconds
-        }]);
-      };
-
-      vPlayer.onseeking = function() {
-        if (vPlayer.currentTime > videoMaxWatchedTime + 2) {
-          vPlayer.currentTime = videoMaxWatchedTime;
-          if (typeof showToast === 'function') {
-            showToast("🔒 Video Guard: Dilarang melompat/mempercepat durasi! Harap tonton secara berurutan.");
-          }
-        }
-      };
+  function stopIframeWatchTimer() {
+    if (iframeWatchInterval) {
+      clearInterval(iframeWatchInterval);
+      iframeWatchInterval = null;
     }
   }
 
-  function nextFromPdfToVideo() {
-    if (typeof closePdfModal === 'function') closePdfModal();
-    if (typeof trackVideo === 'function' && activeMediaCourseId) {
-      trackVideo(activeMediaCourseId, activeMediaVideoUrl, activeMediaTitle, activeMediaPdfUrl);
+  function triggerVideoCheckpointModal() {
+    var modal = document.getElementById("videoCheckpointModal");
+    if (modal) {
+      modal.classList.remove("hidden");
     }
   }
 
-  function backFromVideoToPdf() {
-    if (typeof closeVideoModal === 'function') closeVideoModal();
-    if (typeof trackPdf === 'function' && activeMediaCourseId) {
-      trackPdf(activeMediaCourseId, activeMediaPdfUrl, activeMediaTitle, activeMediaVideoUrl);
-    }
-  }
-
-  function openQuizFromMedia() {
-    if (typeof closePdfModal === 'function') closePdfModal();
-    if (typeof closeVideoModal === 'function') closeVideoModal();
-    if (typeof openQuizModal === 'function' && activeMediaCourseId) {
-      openQuizModal(activeMediaCourseId, activeMediaTitle);
+  function handleCheckpointAnswer(selectedOption) {
+    if (selectedOption === 'B') {
+      isVideoCheckpointPassed = true;
+      document.getElementById("videoCheckpointModal").classList.add("hidden");
+      
+      var html5Vid = document.getElementById("html5VideoPlayer");
+      if (html5Vid && !html5Vid.classList.contains("hidden")) {
+        html5Vid.play();
+      }
+      syncVideoProgress();
     }
   }
 </script>
