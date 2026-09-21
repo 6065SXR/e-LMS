@@ -1,0 +1,210 @@
+<script>
+  /**
+   * Sub-modul Digital Signature Pad (Canvas & Upload)
+   * System: e-LMS Data Center KSPS
+   */
+
+  var activeSigMode = "draw"; // 'draw' atau 'upload'
+  var isDrawing = false;
+  var sigCanvasContext = null;
+  var uploadedSignatureBase64 = null;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    initSignatureCanvas();
+  });
+
+  /* =========================================================
+   * 1. DIGITAL SIGNATURE PAD (CANVAS & UPLOAD)
+   * ========================================================= */
+
+  function initSignatureCanvas() {
+    var canvas = document.getElementById("sigCanvas");
+    if (!canvas) return;
+    sigCanvasContext = canvas.getContext("2d");
+
+    sigCanvasContext.strokeStyle = "#000000";
+    sigCanvasContext.lineWidth = 2.5;
+    sigCanvasContext.lineCap = "round";
+    sigCanvasContext.lineJoin = "round";
+
+    // Mouse Events
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseleave", stopDrawing);
+
+    // Touch Events (Smartphone & Tablet)
+    canvas.addEventListener("touchstart", function(e) {
+      e.preventDefault();
+      var touch = e.touches[0];
+      var mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function(e) {
+      e.preventDefault();
+      var touch = e.touches[0];
+      var mouseEvent = new MouseEvent("mousemove", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function(e) {
+      e.preventDefault();
+      var mouseEvent = new MouseEvent("mouseup", {});
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+  }
+
+  function getCanvasCoordinates(e) {
+    var canvas = document.getElementById("sigCanvas");
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  }
+
+  function startDrawing(e) {
+    isDrawing = true;
+    var coords = getCanvasCoordinates(e);
+    sigCanvasContext.beginPath();
+    sigCanvasContext.moveTo(coords.x, coords.y);
+    var placeholder = document.getElementById("sigPlaceholderText");
+    if (placeholder) placeholder.classList.add("hidden");
+  }
+
+  function draw(e) {
+    if (!isDrawing) return;
+    var coords = getCanvasCoordinates(e);
+    sigCanvasContext.lineTo(coords.x, coords.y);
+    sigCanvasContext.stroke();
+  }
+
+  function stopDrawing() {
+    if (isDrawing) {
+      sigCanvasContext.closePath();
+      isDrawing = false;
+    }
+  }
+
+  function clearSignatureCanvas() {
+    var canvas = document.getElementById("sigCanvas");
+    if (!canvas || !sigCanvasContext) return;
+    sigCanvasContext.clearRect(0, 0, canvas.width, canvas.height);
+    var placeholder = document.getElementById("sigPlaceholderText");
+    if (placeholder) placeholder.classList.remove("hidden");
+  }
+
+  function switchSigTab(mode) {
+    activeSigMode = mode;
+    var drawContainer = document.getElementById("sigDrawContainer");
+    var uploadContainer = document.getElementById("sigUploadContainer");
+    var tabDrawBtn = document.getElementById("tabSigDrawBtn");
+    var tabUploadBtn = document.getElementById("tabSigUploadBtn");
+
+    if (mode === 'draw') {
+      drawContainer.classList.remove("hidden");
+      uploadContainer.classList.add("hidden");
+      tabDrawBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-[#1C1B8E] shadow-sm transition";
+      tabUploadBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+    } else {
+      drawContainer.classList.add("hidden");
+      uploadContainer.classList.remove("hidden");
+      tabUploadBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-[#1C1B8E] shadow-sm transition";
+      tabDrawBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+    }
+  }
+
+  function handleSigFileUpload(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+      uploadedSignatureBase64 = evt.target.result;
+      var previewBox = document.getElementById("sigUploadPreviewBox");
+      var img = document.getElementById("sigUploadedImg");
+      if (previewBox && img) {
+        img.src = uploadedSignatureBase64;
+        previewBox.classList.remove("hidden");
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function openSignatureModal() {
+    document.getElementById("signatureModal").classList.remove("hidden");
+    clearSignatureCanvas();
+
+    var currentSigWrapper = document.getElementById("currentSigPreviewWrapper");
+    var currentSigImg = document.getElementById("currentSigImg");
+
+    if (currentUser && currentUser.signature) {
+      currentSigImg.src = currentUser.signature;
+      currentSigWrapper.classList.remove("hidden");
+    } else {
+      currentSigWrapper.classList.add("hidden");
+    }
+
+    switchSigTab('draw');
+  }
+
+  function closeSignatureModal() {
+    document.getElementById("signatureModal").classList.add("hidden");
+  }
+
+  function isCanvasBlank(canvas) {
+    var context = canvas.getContext('2d');
+    var pixelBuffer = new Uint32Array(
+      context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+    );
+    return !pixelBuffer.some(function(color) { return color !== 0; });
+  }
+
+  function saveSignatureData() {
+    var finalSignatureBase64 = "";
+
+    if (activeSigMode === "draw") {
+      var canvas = document.getElementById("sigCanvas");
+      if (isCanvasBlank(canvas)) {
+        showToast("Tanda tangan pada canvas masih kosong!");
+        return;
+      }
+      finalSignatureBase64 = canvas.toDataURL("image/png");
+    } else {
+      if (!uploadedSignatureBase64) {
+        showToast("Harap pilih gambar tanda tangan terlebih dahulu!");
+        return;
+      }
+      finalSignatureBase64 = uploadedSignatureBase64;
+    }
+
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var btn = document.getElementById("btnSaveSigSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+
+    callBackend('saveUserSignature', [uid, finalSignatureBase64], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Simpan Tanda Tangan</span>';
+
+      if (res && res.success) {
+        showToast("Tanda tangan digital berhasil diperbarui!");
+        if (currentUser) {
+          currentUser.signature = finalSignatureBase64;
+          localStorage.setItem("elms_session", JSON.stringify(currentUser));
+        }
+        closeSignatureModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan tanda tangan");
+      }
+    });
+  }
+</script>
