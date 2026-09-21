@@ -1,6 +1,6 @@
 <script>
   /**
-   * Authentication & Role Session Management
+   * Authentication & Role Session Management & Profile Dropdown Controller
    * System: e-LMS Data Center KSPS
    */
 
@@ -54,13 +54,11 @@
         currentUser = res.user;
         localStorage.setItem("elms_session", JSON.stringify(currentUser));
         document.getElementById("authOverlay").classList.add("hidden");
-        // TOAST RETAINED FOR SUCCESSFUL LOGIN
         showToast("Selamat datang kembali di Portal KSPS, " + currentUser.name);
         updateUIForUser();
         loadDashboard();
         loadCourses(1);
       } else {
-        // TOAST RETAINED FOR FAILED LOGIN
         showToast(res.error);
       }
     });
@@ -86,11 +84,15 @@
 
       if (res.success) {
         toggleAuthMode('login');
+        showToast(res.message || "Pendaftaran berhasil! Cek email untuk aktivasi akun.");
+      } else {
+        showToast(res ? res.error : "Gagal mendaftarkan akun");
       }
     });
   }
 
   function logoutUser() {
+    closeProfileDropdown();
     localStorage.removeItem("elms_session");
     currentUser = null;
     document.getElementById("authOverlay").classList.remove("hidden");
@@ -123,10 +125,27 @@
     loadCourses(1);
   }
 
+  function getUserInitials(name) {
+    if (!name) return "EO";
+    var parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
   function updateUIForUser() {
     if (!currentUser) return;
-    document.getElementById("userNameDisplay").innerText = currentUser.name;
-    document.getElementById("userRoleBadge").innerText = currentUser.role;
+    var userNameEl = document.getElementById("userNameDisplay");
+    var userRoleEl = document.getElementById("userRoleBadge");
+    var userAvatarEl = document.getElementById("userAvatarBadge");
+
+    if (userNameEl) userNameEl.innerText = currentUser.name;
+    if (userRoleEl) userRoleEl.innerText = currentUser.role;
+    if (userAvatarEl) userAvatarEl.innerText = getUserInitials(currentUser.name);
+
+    var mobileUserEl = document.getElementById("mobileUserNameDisplay");
+    var mobileRoleEl = document.getElementById("mobileUserRoleBadge");
+    if (mobileUserEl) mobileUserEl.innerText = currentUser.name;
+    if (mobileRoleEl) mobileRoleEl.innerText = currentUser.role;
 
     var roleSelector = document.getElementById("roleSelector");
     if (roleSelector) roleSelector.value = currentUser.role;
@@ -146,5 +165,110 @@
       pmElems.forEach(function(el) { el.classList.remove('hidden'); });
       adminElems.forEach(function(el) { el.classList.remove('hidden'); });
     }
+  }
+
+  /* =========================================================
+   * REVISI POIN 2: PROFILE DROPDOWN MENU & CHANGE PASSWORD
+   * ========================================================= */
+
+  function toggleProfileDropdown(e) {
+    if (e) e.stopPropagation();
+    var menu = document.getElementById("profileDropdownMenu");
+    var chevron = document.getElementById("profileChevron");
+    if (!menu) return;
+
+    var isHidden = menu.classList.contains("hidden");
+    if (isHidden) {
+      menu.classList.remove("hidden");
+      if (chevron) chevron.classList.add("rotate-180");
+    } else {
+      menu.classList.add("hidden");
+      if (chevron) chevron.classList.remove("rotate-180");
+    }
+  }
+
+  function closeProfileDropdown() {
+    var menu = document.getElementById("profileDropdownMenu");
+    var chevron = document.getElementById("profileChevron");
+    if (menu) menu.classList.add("hidden");
+    if (chevron) chevron.classList.remove("rotate-180");
+  }
+
+  // Menutup dropdown profil ketika mengklik di luar kontainer profil
+  document.addEventListener("click", function(e) {
+    var container = document.getElementById("profileDropdownContainer");
+    if (container && !container.contains(e.target)) {
+      closeProfileDropdown();
+    }
+  });
+
+  function triggerOpenSignatureFromDropdown() {
+    closeProfileDropdown();
+    openSignatureModal();
+  }
+
+  function triggerOpenChangePasswordModal() {
+    closeProfileDropdown();
+    var modal = document.getElementById("changePasswordModal");
+    if (modal) {
+      document.getElementById("cpCurrentPass").value = "";
+      document.getElementById("cpNewPass").value = "";
+      document.getElementById("cpConfirmPass").value = "";
+      modal.classList.remove("hidden");
+    }
+  }
+
+  function closeChangePasswordModal() {
+    var modal = document.getElementById("changePasswordModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function togglePasswordVisibility(inputId) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === "password") {
+      input.type = "text";
+    } else {
+      input.type = "password";
+    }
+  }
+
+  function handleChangePasswordSubmit(e) {
+    e.preventDefault();
+    var oldPass = document.getElementById("cpCurrentPass").value;
+    var newPass = document.getElementById("cpNewPass").value;
+    var confirmPass = document.getElementById("cpConfirmPass").value;
+
+    if (newPass !== confirmPass) {
+      showToast("Konfirmasi password baru tidak cocok!");
+      return;
+    }
+
+    if (newPass.length < 6) {
+      showToast("Password baru minimal harus 6 karakter!");
+      return;
+    }
+
+    var uid = currentUser ? currentUser.user_id : '';
+    if (!uid) {
+      showToast("Sesi pengguna tidak valid!");
+      return;
+    }
+
+    var btn = document.getElementById("btnChangePasswordSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+
+    callBackend('changeUserPassword', [uid, oldPass, newPass], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Password</span>';
+
+      if (res && res.success) {
+        showToast("Password akun Anda berhasil diperbarui!");
+        closeChangePasswordModal();
+      } else {
+        showToast(res ? res.error : "Gagal memperbarui password");
+      }
+    });
   }
 </script>
