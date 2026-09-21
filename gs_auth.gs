@@ -125,12 +125,53 @@ function loginUser(email, password) {
             role: users[i][3],
             departemen: users[i][4],
             site: users[i][10] || "CGK1",
-            signature: users[i][11] || "" // Mengembalikan tanda tangan tersimpan
+            signature: users[i][11] || "" // Mengembalikan tanda tangan digital tersimpan
           }
         };
       }
     }
     return { success: false, error: "Email belum terdaftar di sistem e-LMS KSPS!" };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/* =========================================================
+ * REVISI POIN 2: CHANGE PASSWORD BACKEND CONTROLLER
+ * ========================================================= */
+
+function changeUserPassword(userId, oldPassword, newPassword) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var userSheet = ss.getSheetByName("USERS");
+    if (!userSheet) return { success: false, error: "Sheet USERS tidak ditemukan di database!" };
+
+    var users = getSheetDisplayValues("USERS");
+    var targetRowIdx = -1;
+    var currentPassDb = "";
+
+    for (var i = 1; i < users.length; i++) {
+      if (users[i][0] === userId) {
+        targetRowIdx = i + 1;
+        currentPassDb = users[i][6];
+        break;
+      }
+    }
+
+    if (targetRowIdx === -1) {
+      return { success: false, error: "Akun pengguna tidak ditemukan!" };
+    }
+
+    // Verifikasi kecocokan password saat ini
+    if (String(currentPassDb).trim() !== String(oldPassword).trim()) {
+      return { success: false, error: "Password saat ini yang Anda masukkan salah!" };
+    }
+
+    // Update kolom password (Kolom 7 / G) pada tab USERS
+    userSheet.getRange(targetRowIdx, 7).setValue(String(newPassword).trim());
+    SpreadsheetApp.flush();
+
+    return { success: true, message: "Password berhasil diperbarui!" };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
