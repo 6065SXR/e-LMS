@@ -1,0 +1,281 @@
+<script>
+  /**
+   * Quiz Evaluation Engine & Dynamic Anti-Cheating Handler
+   * System: e-LMS Data Center KSPS
+   */
+
+  function trackPdf(courseId, pdfUrl, title, videoUrl) {
+    if (!pdfUrl || pdfUrl === '#' || pdfUrl.trim() === '') {
+      return;
+    }
+
+    activeMediaCourseId = courseId;
+    activeMediaTitle = title || "SOP Pelatihan";
+    activeMediaPdfUrl = pdfUrl;
+    if (videoUrl) activeMediaVideoUrl = videoUrl;
+
+    document.getElementById("pdfModal").classList.remove("hidden");
+
+    if (typeof initPdfTracker === 'function') {
+      initPdfTracker(pdfUrl, courseId);
+    }
+  }
+
+  function closePdfModal() {
+    if (typeof pdfPageTimer !== 'undefined' && pdfPageTimer) {
+      clearInterval(pdfPageTimer);
+    }
+    if (typeof syncPdfProgress === 'function') {
+      syncPdfProgress();
+    }
+    document.getElementById("pdfModal").classList.add("hidden");
+    loadDashboard();
+    loadCourses(1);
+  }
+
+  function trackVideo(courseId, videoUrl, title, pdfUrl) {
+    if (!videoUrl || videoUrl === '#' || videoUrl.trim() === '') {
+      return;
+    }
+
+    activeMediaCourseId = courseId;
+    activeMediaTitle = title || "Video Pelatihan";
+    activeMediaVideoUrl = videoUrl;
+    if (pdfUrl) activeMediaPdfUrl = pdfUrl;
+
+    document.getElementById("videoModal").classList.remove("hidden");
+
+    if (typeof initVideoTracker === 'function') {
+      initVideoTracker(videoUrl, courseId);
+    }
+  }
+
+  function closeVideoModal() {
+    if (typeof stopIframeWatchTimer === 'function') {
+      stopIframeWatchTimer();
+    }
+    if (typeof syncVideoProgress === 'function') {
+      syncVideoProgress();
+    }
+
+    var videoFrame = document.getElementById("videoFrame");
+    if (videoFrame) videoFrame.src = "";
+    
+    var vPlayer = document.getElementById("html5VideoPlayer");
+    if (vPlayer) {
+      vPlayer.pause();
+      vPlayer.removeAttribute("src");
+      vPlayer.load();
+    }
+
+    document.getElementById("videoModal").classList.add("hidden");
+    loadDashboard();
+    loadCourses(1);
+  }
+
+  function nextFromPdfToVideo() {
+    closePdfModal();
+    if (activeMediaVideoUrl && activeMediaVideoUrl !== '#') {
+      trackVideo(activeMediaCourseId, activeMediaVideoUrl, activeMediaTitle, activeMediaPdfUrl);
+    }
+  }
+
+  function backFromVideoToPdf() {
+    closeVideoModal();
+    if (activeMediaPdfUrl && activeMediaPdfUrl !== '#') {
+      trackPdf(activeMediaCourseId, activeMediaPdfUrl, activeMediaTitle, activeMediaVideoUrl);
+    }
+  }
+
+  function openQuizFromMedia() {
+    closePdfModal();
+    closeVideoModal();
+    if (activeMediaCourseId) {
+      openQuizModal(activeMediaCourseId, activeMediaTitle);
+    }
+  }
+
+  function updateMediaSequentialButtons() {
+    var btnPdfToQuiz = document.getElementById("btnPdfToQuiz");
+    var btnVideoToQuiz = document.getElementById("btnVideoToQuiz");
+
+    if (isCurrentPdfTracked && isCurrentVideoTracked) {
+      if (btnPdfToQuiz) btnPdfToQuiz.classList.remove("hidden");
+      if (btnVideoToQuiz) btnVideoToQuiz.classList.remove("hidden");
+    } else {
+      if (btnPdfToQuiz) btnPdfToQuiz.classList.add("hidden");
+      if (btnVideoToQuiz) btnVideoToQuiz.classList.add("hidden");
+    }
+  }
+
+  function openQuizModal(courseId, title) {
+    var userId = currentUser ? currentUser.user_id : 'USR-0003';
+    var attemptKey = "elms_quiz_attempts_" + userId + "_" + courseId;
+    var attemptData = JSON.parse(localStorage.getItem(attemptKey) || '{"count": 0, "lastDate": ""}');
+    var todayStr = new Date().toISOString().split('T')[0];
+
+    if (attemptData.lastDate === todayStr && attemptData.count >= 3) {
+      return;
+    }
+
+    executeQuizOpening(courseId, title);
+  }
+
+  function shuffleList(array) {
+    var currentIndex = array.length, randomIndex;
+    while (currentIndex !== 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      var temp = array[currentIndex];
+      array[currentIndex] = array[randomIndex];
+      array[randomIndex] = temp;
+    }
+    return array;
+  }
+
+  function executeQuizOpening(courseId, title) {
+    activeCourseForQuiz = courseId;
+    document.getElementById("quizModalTitle").innerText = "Kuis Evaluasi SOP: " + title;
+    
+    callBackend('getQuizForCourse', [courseId], function(res) {
+      if (res.success && res.data.length > 0) {
+        currentQuizList = shuffleList(res.data.slice());
+        var container = document.getElementById("quizContent");
+        container.innerHTML = "";
+
+        currentQuizList.forEach(function(q, idx) {
+          var rawCorrect = String(q.jawaban_benar || "A").trim();
+          var correctKey = "A";
+          var letterMatch = rawCorrect.match(/^[A-Da-d][\.\s]*$/) || rawCorrect.match(/^[A-Da-d]$/);
+          if (letterMatch) {
+            correctKey = rawCorrect.charAt(0).toUpperCase();
+          } else {
+            var cleanTargetText = rawCorrect.toLowerCase().replace(/[^a-z0-9]/g, '');
+            var optA = String(q.opsi_a || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+            var optB = String(q.opsi_b || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+            var optC = String(q.opsi_c || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+            var optD = String(q.opsi_d || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            if (cleanTargetText && optA && (cleanTargetText.indexOf(optA) !== -1 || optA.indexOf(cleanTargetText) !== -1)) correctKey = "A";
+            else if (cleanTargetText && optB && (cleanTargetText.indexOf(optB) !== -1 || optB.indexOf(cleanTargetText) !== -1)) correctKey = "B";
+            else if (cleanTargetText && optC && (cleanTargetText.indexOf(optC) !== -1 || optC.indexOf(cleanTargetText) !== -1)) correctKey = "C";
+            else if (cleanTargetText && optD && (cleanTargetText.indexOf(optD) !== -1 || optD.indexOf(cleanTargetText) !== -1)) correctKey = "D";
+            else {
+              correctKey = rawCorrect.replace(/[^a-zA-Z]/g, '').charAt(0).toUpperCase() || "A";
+            }
+          }
+
+          var originalOptions = [
+            { text: q.opsi_a, key: "A" },
+            { text: q.opsi_b, key: "B" },
+            { text: q.opsi_c, key: "C" },
+            { text: q.opsi_d, key: "D" }
+          ];
+          var shuffledOptions = shuffleList(originalOptions.slice());
+
+          var qEl = document.createElement("div");
+          qEl.className = "space-y-2 border-b border-gray-100 pb-3";
+
+          var optionsHtml = "";
+          shuffledOptions.forEach(function(opt, optIdx) {
+            var labels = ["A", "B", "C", "D"];
+            var isCorrectOption = (opt.key === correctKey);
+            
+            // Pemberian warna background grey (bg-slate-200) khusus pada opsi kunci jawaban DB
+            var greyStyleClass = isCorrectOption 
+              ? "bg-slate-200 border border-slate-300 font-semibold text-slate-900" 
+              : "hover:bg-slate-50 border border-transparent";
+
+            var dbBadgeHtml = isCorrectOption 
+              ? ' <span class="text-[10px] bg-slate-600 text-white px-1.5 py-0.5 rounded font-bold ml-1">(Kunci DB)</span>' 
+              : '';
+
+            optionsHtml += '<label class="flex items-center space-x-2 cursor-pointer p-2 rounded-xl transition ' + greyStyleClass + '">' +
+              '<input type="radio" name="q_' + idx + '" value="' + opt.key + '">' +
+              ' <span>' + labels[optIdx] + '. ' + opt.text + dbBadgeHtml + '</span></label>';
+          });
+
+          qEl.innerHTML = '<p class="font-bold text-sm text-navy">' + (idx + 1) + '. ' + q.pertanyaan + '</p>' +
+            '<div class="space-y-1 text-xs">' + optionsHtml + '</div>';
+          container.appendChild(qEl);
+        });
+
+        document.getElementById("quizModal").classList.remove("hidden");
+      }
+    });
+  }
+
+  function closeQuizModal() {
+    document.getElementById("quizModal").classList.add("hidden");
+  }
+
+  function submitQuizAnswers() {
+    if (!currentQuizList || currentQuizList.length === 0) return;
+    
+    var correctCount = 0;
+    var totalQuestions = currentQuizList.length;
+
+    currentQuizList.forEach(function(q, idx) {
+      var radios = document.getElementsByName('q_' + idx);
+      var selectedKey = "";
+      for (var r = 0; r < radios.length; r++) {
+        if (radios[r].checked) {
+          selectedKey = radios[r].value;
+          break;
+        }
+      }
+
+      var rawCorrect = String(q.jawaban_benar || "A").trim();
+      var targetKey = "";
+
+      var letterMatch = rawCorrect.match(/^[A-Da-d][\.\s]*$/) || rawCorrect.match(/^[A-Da-d]$/);
+      if (letterMatch) {
+        targetKey = rawCorrect.charAt(0).toUpperCase();
+      } else {
+        var cleanTargetText = rawCorrect.toLowerCase().replace(/[^a-z0-9]/g, '');
+        var optA = String(q.opsi_a || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+        var optB = String(q.opsi_b || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+        var optC = String(q.opsi_c || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+        var optD = String(q.opsi_d || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (cleanTargetText && optA && (cleanTargetText.indexOf(optA) !== -1 || optA.indexOf(cleanTargetText) !== -1)) targetKey = "A";
+        else if (cleanTargetText && optB && (cleanTargetText.indexOf(optB) !== -1 || optB.indexOf(cleanTargetText) !== -1)) targetKey = "B";
+        else if (cleanTargetText && optC && (cleanTargetText.indexOf(optC) !== -1 || optC.indexOf(cleanTargetText) !== -1)) targetKey = "C";
+        else if (cleanTargetText && optD && (cleanTargetText.indexOf(optD) !== -1 || optD.indexOf(cleanTargetText) !== -1)) targetKey = "D";
+        else {
+          targetKey = rawCorrect.replace(/[^a-zA-Z]/g, '').charAt(0).toUpperCase() || "A";
+        }
+      }
+
+      if (selectedKey && selectedKey.toUpperCase() === targetKey) {
+        correctCount++;
+      }
+    });
+
+    var score = Math.round((correctCount / totalQuestions) * 100);
+    closeQuizModal();
+
+    var userId = currentUser ? currentUser.user_id : 'USR-0003';
+    var attemptKey = "elms_quiz_attempts_" + userId + "_" + activeCourseForQuiz;
+    var todayStr = new Date().toISOString().split('T')[0];
+    var attemptData = JSON.parse(localStorage.getItem(attemptKey) || '{"count": 0, "lastDate": ""}');
+
+    if (attemptData.lastDate === todayStr) {
+      attemptData.count++;
+    } else {
+      attemptData.count = 1;
+      attemptData.lastDate = todayStr;
+    }
+    localStorage.setItem(attemptKey, JSON.stringify(attemptData));
+
+    callBackend('recordUserProgress', [{
+      user_id: userId,
+      course_id: activeCourseForQuiz,
+      quiz_score: score,
+      is_completed: score >= 80
+    }], function(res) {
+      loadDashboard();
+      loadCourses(1);
+    });
+  }
+</script>
