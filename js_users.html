@@ -1,0 +1,29 @@
+<script>
+  /**
+   * System User Management
+   * System: e-LMS Data Center Zettbos
+   */
+  function loadUsers() {
+    callBackend('getUsersList', [], function(res) {
+      if (res.success) {
+        var tbody = document.getElementById("userTableBody");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+        res.data.forEach(function(u) {
+          var verifiedBadge = u.is_verified === 'TRUE' ? 
+            '<span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-xs font-semibold">Verified</span>' : 
+            '<span class="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full text-xs font-semibold">Pending</span>';
+
+          var tr = document.createElement("tr");
+          tr.innerHTML = '<td class="py-2 px-2 font-bold">' + u.user_id + '</td>' +
+                         '<td class="py-2 px-2">' + u.nama_lengkap + '</td>' +
+                         '<td class="py-2 px-2 text-muted-grey">' + u.email + '</td>' +
+                         '<td class="py-2 px-2"><span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-xs font-semibold">' + u.role + '</span></td>' +
+                         '<td class="py-2 px-2 text-muted-grey">' + u.departemen + '</td>' +
+                         '<td class="py-2 px-2 text-center">' + verifiedBadge + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+    });
+  }
+</script>
