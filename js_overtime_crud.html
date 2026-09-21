@@ -1,0 +1,424 @@
+<script>
+  /**
+   * Sub-modul Overtime CRUD, Cascading PM Filters & Workflow Approval
+   * System: e-LMS Data Center KSPS
+   */
+
+  var currentOvertimeCache = [];
+  var currentFilteredOvertimeCache = [];
+  var overtimeMasterEmployees = [];
+
+  /* =========================================================
+   * 2. PENGHITUNG JAM & MANAJEMEN LEMBUR (MULTI-FILTER PM)
+   * ========================================================= */
+
+  function calculateOvertimeHours() {
+    var startVal = document.getElementById("ovtStart").value;
+    var finishVal = document.getElementById("ovtFinish").value;
+    var displayEl = document.getElementById("ovtTotalHoursDisplay");
+    var hiddenInput = document.getElementById("ovtTotalHoursInput");
+
+    if (!startVal || !finishVal) {
+      if (displayEl) displayEl.innerText = "0 Jam";
+      if (hiddenInput) hiddenInput.value = "0";
+      return;
+    }
+
+    var start = new Date("1970-01-01T" + startVal + ":00");
+    var finish = new Date("1970-01-01T" + finishVal + ":00");
+
+    var diffMs = finish - start;
+    if (diffMs < 0) {
+      diffMs += 24 * 60 * 60 * 1000; // Shift melintasi tengah malam
+    }
+
+    var diffHours = diffMs / (1000 * 60 * 60);
+    diffHours = Math.round(diffHours * 10) / 10;
+
+    if (displayEl) displayEl.innerText = diffHours + " Jam";
+    if (hiddenInput) hiddenInput.value = diffHours;
+  }
+
+  function loadOvertimeData() {
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    var userId = isKaryawan ? currentUser.user_id : 'ALL';
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    // Inisialisasi daftar karyawan untuk dropdown PM
+    if (!isKaryawan && overtimeMasterEmployees.length === 0) {
+      callBackend('getEmployeesList', [], function(empRes) {
+        if (empRes && empRes.success) {
+          overtimeMasterEmployees = empRes.data || [];
+          populatePmEmployeeDropdown("ALL");
+        }
+      });
+    }
+
+    callBackend('getOvertimeData', [userId, period], function(res) {
+      if (res && res.success) {
+        currentOvertimeCache = res.data || [];
+
+        // Update opsi dropdown PM jika list karyawan master belum lengkap
+        if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
+          var uniqueEmps = {};
+          currentOvertimeCache.forEach(function(item) {
+            if (item.user_id && !uniqueEmps[item.user_id]) {
+              uniqueEmps[item.user_id] = {
+                user_id: item.user_id,
+                nama_lengkap: item.nama_lengkap,
+                site: item.site || "CGK1",
+                nik: item.nik || "-",
+                departemen: item.departemen || "Operations"
+              };
+            }
+          });
+          overtimeMasterEmployees = Object.values(uniqueEmps);
+          populatePmEmployeeDropdown(document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL");
+        }
+
+        applyOvertimeFilters();
+      }
+    });
+  }
+
+  function populatePmEmployeeDropdown(selectedSite) {
+    var empSelect = document.getElementById("overtimeEmployeeFilter");
+    if (!empSelect) return;
+
+    var currentVal = empSelect.value || "ALL";
+    empSelect.innerHTML = '<option value="ALL">Semua Karyawan</option>';
+
+    var filtered = overtimeMasterEmployees;
+    if (selectedSite && selectedSite !== "ALL") {
+      filtered = overtimeMasterEmployees.filter(function(emp) {
+        return (emp.site === selectedSite);
+      });
+    }
+
+    filtered.forEach(function(emp) {
+      var opt = document.createElement("option");
+      opt.value = emp.user_id;
+      opt.innerText = emp.nama_lengkap + " (" + (emp.site || 'Site') + ")";
+      empSelect.appendChild(opt);
+    });
+
+    // Pertahankan nilai yang terpilih jika masih tersedia di site tersebut
+    var stillExists = Array.from(empSelect.options).some(function(o) { return o.value === currentVal; });
+    empSelect.value = stillExists ? currentVal : "ALL";
+  }
+
+  function handleOvertimeSiteChange() {
+    var siteVal = document.getElementById("overtimeSiteFilter").value;
+    populatePmEmployeeDropdown(siteVal);
+    applyOvertimeFilters();
+  }
+
+  function handleOvertimeEmployeeChange() {
+    applyOvertimeFilters();
+  }
+
+  function applyOvertimeFilters() {
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    
+    if (isKaryawan) {
+      currentFilteredOvertimeCache = currentOvertimeCache.slice();
+    } else {
+      var siteVal = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+      var empVal = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+      currentFilteredOvertimeCache = currentOvertimeCache.filter(function(item) {
+        var matchSite = (siteVal === "ALL" || item.site === siteVal);
+        var matchEmp = (empVal === "ALL" || item.user_id === empVal);
+        return matchSite && matchEmp;
+      });
+    }
+
+    // Hitung akumulasi total jam dinamis sesuai filter yang sedang aktif
+    var totalHrs = 0;
+    currentFilteredOvertimeCache.forEach(function(item) {
+      totalHrs += (parseFloat(item.total_jam) || 0);
+    });
+    totalHrs = Math.round(totalHrs * 10) / 10;
+
+    var totalHoursEl = document.getElementById("ovtTotalMonthHours");
+    if (totalHoursEl) {
+      totalHoursEl.innerText = totalHrs + " Jam";
+    }
+
+    renderOvertimeTable(currentFilteredOvertimeCache);
+  }
+
+  function UtilitiesFormatDateMonth() {
+    var d = new Date();
+    var month = '' + (d.getMonth() + 1);
+    var year = d.getFullYear();
+    if (month.length < 2) month = '0' + month;
+    return year + '-' + month;
+  }
+
+  function getOvertimeItem(idx) {
+    if (currentFilteredOvertimeCache && currentFilteredOvertimeCache[idx]) {
+      return currentFilteredOvertimeCache[idx];
+    }
+    return currentOvertimeCache[idx];
+  }
+
+  function renderOvertimeTable(list) {
+    var tbody = document.getElementById("overtimeTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    var isPmOrAdmin = currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin');
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 text-sm py-8">Belum ada data lembur untuk kriteria filter periode ini.</td></tr>';
+      return;
+    }
+
+    list.forEach(function(item, idx) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+
+      // Badge Status & Catatan Revisi
+      var statusBadge = '<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">Pending</span>';
+      if (item.status_approval === 'Approved') {
+        statusBadge = '<span class="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-check mr-1"></i>Approved</span>';
+      } else if (item.status_approval === 'Perlu Revisi') {
+        statusBadge = '<span class="bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200"><i class="fa-solid fa-rotate-left mr-1"></i>Perlu Revisi</span>';
+      } else if (item.status_approval === 'Rejected') {
+        statusBadge = '<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300">Rejected</span>';
+      }
+
+      // Tombol Cetak Surat Tugas
+      var printSingleBtn = '<button type="button" onclick="printSuratTugasPDF(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#1C1B8E] text-[11px] font-bold transition flex items-center justify-center space-x-1 mx-auto border border-indigo-100">' +
+        '<i class="fa-solid fa-file-lines"></i><span>Surat Tugas</span>' +
+        '</button>';
+
+      // Kolom Deskripsi & Nama Karyawan (jika PM sedang melihat semua)
+      var empNameSub = (isPmOrAdmin && item.nama_lengkap) ?
+        '<p class="text-[10px] text-indigo-700 font-bold mb-0.5"><i class="fa-solid fa-user mr-1"></i>' + item.nama_lengkap + ' (' + (item.site || 'Site') + ')</p>' : '';
+
+      var descHtml = '<div>' + empNameSub + '<p class="font-medium text-slate-800">' + item.deskripsi + '</p>';
+      if (item.catatan && item.catatan !== '-') {
+        descHtml += '<p class="text-[11px] text-slate-500 mt-0.5"><span class="font-semibold">Note:</span> ' + item.catatan + '</p>';
+      }
+      if (item.status_approval === 'Perlu Revisi' && item.catatan_revisi) {
+        descHtml += '<div class="mt-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">' +
+          '<span class="font-bold flex items-center"><i class="fa-solid fa-triangle-exclamation text-rose-600 mr-1"></i> Catatan Revisi PM:</span>' +
+          '<p class="mt-0.5 text-rose-900">' + item.catatan_revisi + '</p>' +
+          '</div>';
+      }
+      descHtml += '</div>';
+
+      // Kolom AKSI: PM (Approve & Revisi) vs Karyawan (Koreksi)
+      var actionsHtml = '<span class="text-slate-400 text-[11px]">-</span>';
+
+      if (isPmOrAdmin) {
+        if (item.status_approval === 'Pending' || item.status_approval === 'Perlu Revisi') {
+          actionsHtml = '<div class="flex items-center justify-center space-x-1.5">' +
+            '<button type="button" onclick="handlePmApprove(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition" title="Setujui Lembur">' +
+            '<i class="fa-solid fa-check mr-1"></i>Approve</button>' +
+            '<button type="button" onclick="openPmRevisionModal(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold border border-amber-200 transition" title="Minta Revisi">' +
+            '<i class="fa-solid fa-rotate-left mr-1"></i>Revisi</button>' +
+            '</div>';
+        } else if (item.status_approval === 'Approved') {
+          actionsHtml = '<span class="text-[11px] font-bold text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-circle-check mr-1"></i>' + (item.approved_by || 'Disetujui') + '</span>';
+        }
+      } else {
+        if (item.status_approval === 'Perlu Revisi') {
+          actionsHtml = '<button type="button" onclick="startEditOvertime(' + idx + ')" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold shadow-sm transition flex items-center justify-center space-x-1 mx-auto">' +
+            '<i class="fa-solid fa-pen-to-square"></i><span>Koreksi</span></button>';
+        } else if (item.status_approval === 'Pending') {
+          actionsHtml = '<button type="button" onclick="startEditOvertime(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center space-x-1 mx-auto">' +
+            '<i class="fa-solid fa-pen"></i><span>Edit</span></button>';
+        }
+      }
+
+      tr.innerHTML = '<td class="py-3.5 px-3 text-center font-bold text-slate-500 text-xs">' + (idx + 1) + '</td>' +
+                     '<td class="py-3.5 px-3 font-bold text-slate-900 text-xs whitespace-nowrap">' + item.tanggal + '</td>' +
+                     '<td class="py-3.5 px-3 text-center text-xs text-slate-700 font-semibold whitespace-nowrap">' + item.jam_mulai + ' - ' + item.jam_selesai + '</td>' +
+                     '<td class="py-3.5 px-3 text-center font-extrabold text-xs text-[#1C1B8E] whitespace-nowrap">' + item.total_jam + ' Jam</td>' +
+                     '<td class="py-3.5 px-3 text-xs max-w-sm">' + descHtml + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + printSingleBtn + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + statusBadge + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + actionsHtml + '</td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* =========================================================
+   * 3. SIKLUS APPROVAL & REVISI PM
+   * ========================================================= */
+
+  function handlePmApprove(itemIndex) {
+    var item = getOvertimeItem(itemIndex);
+    if (!item) return;
+
+    if (!currentUser.signature) {
+      showToast("Anda belum memiliki Tanda Tangan Digital. Silakan buat TTD terlebih dahulu.");
+      openSignatureModal();
+      return;
+    }
+
+    if (!confirm("Setujui pengajuan lembur tanggal " + item.tanggal + " (" + item.nama_lengkap + ")? Tanda tangan Anda akan disematkan pada dokumen.")) {
+      return;
+    }
+
+    var pmName = currentUser.name || "Budi PM Infrastructure";
+    var pmSig = currentUser.signature;
+
+    callBackend('approveOvertime', [item.overtime_id, currentUser.user_id, pmSig, pmName], function(res) {
+      if (res && res.success) {
+        showToast("Pengajuan lembur berhasil disetujui & ditandatangani!");
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyetujui lembur");
+      }
+    });
+  }
+
+  function openPmRevisionModal(itemIndex) {
+    var item = getOvertimeItem(itemIndex);
+    if (!item) return;
+
+    document.getElementById("pmRevisionTargetId").value = item.overtime_id;
+    document.getElementById("pmRevisionText").value = item.catatan_revisi || "";
+    document.getElementById("pmRevisionModal").classList.remove("hidden");
+  }
+
+  function closePmRevisionModal() {
+    document.getElementById("pmRevisionModal").classList.add("hidden");
+  }
+
+  function submitPmRevision() {
+    var targetId = document.getElementById("pmRevisionTargetId").value;
+    var revisionNote = document.getElementById("pmRevisionText").value.trim();
+
+    if (!revisionNote) {
+      showToast("Harap isi instruksi revisi yang perlu diperbaiki oleh karyawan!");
+      return;
+    }
+
+    var btn = document.getElementById("btnSubmitPmRevision");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Mengirim...';
+
+    callBackend('requestOvertimeRevision', [targetId, revisionNote, currentUser.user_id], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Instruksi Revisi</span>';
+
+      if (res && res.success) {
+        showToast("Instruksi revisi berhasil dikirim ke karyawan!");
+        closePmRevisionModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal mengirim revisi");
+      }
+    });
+  }
+
+  /* =========================================================
+   * 4. SIKLUS EDIT & KOREKSI OLEH KARYAWAN
+   * ========================================================= */
+
+  function startEditOvertime(itemIndex) {
+    var item = getOvertimeItem(itemIndex);
+    if (!item) return;
+
+    document.getElementById("ovtEditId").value = item.overtime_id;
+    document.getElementById("ovtDate").value = item.tanggal;
+    document.getElementById("ovtStart").value = item.jam_mulai;
+    document.getElementById("ovtFinish").value = item.jam_selesai;
+    document.getElementById("ovtDesc").value = item.deskripsi;
+    document.getElementById("ovtNotes").value = (item.catatan === '-' ? '' : item.catatan);
+
+    calculateOvertimeHours();
+
+    var banner = document.getElementById("ovtEditBanner");
+    var noteEl = document.getElementById("ovtEditRevisionNote");
+    if (banner && noteEl) {
+      noteEl.innerHTML = item.catatan_revisi ? 
+        '<strong>Catatan PM:</strong> ' + item.catatan_revisi : 
+        'Silakan perbaiki data jam atau rincian pekerjaan Anda.';
+      banner.classList.remove("hidden");
+    }
+
+    var btnText = document.getElementById("btnSubmitOvertimeText");
+    if (btnText) btnText.innerText = "Perbarui & Ajukan Ulang";
+
+    var title = document.getElementById("ovtFormTitle");
+    if (title) title.innerText = "Koreksi Aktivitas Lembur";
+
+    document.getElementById("ovtForm").scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelOvertimeEdit() {
+    var form = document.getElementById("ovtForm");
+    if (form) form.reset();
+
+    document.getElementById("ovtEditId").value = "";
+    document.getElementById("ovtTotalHoursDisplay").innerText = "0 Jam";
+    document.getElementById("ovtTotalHoursInput").value = "0";
+
+    var banner = document.getElementById("ovtEditBanner");
+    if (banner) banner.classList.add("hidden");
+
+    var btnText = document.getElementById("btnSubmitOvertimeText");
+    if (btnText) btnText.innerText = "Simpan Lembur";
+
+    var title = document.getElementById("ovtFormTitle");
+    if (title) title.innerText = "Input Aktivitas Lembur";
+  }
+
+  async function handleSaveOvertime(e) {
+    e.preventDefault();
+
+    var editId = document.getElementById("ovtEditId").value;
+    var dateVal = document.getElementById("ovtDate").value;
+    var startVal = document.getElementById("ovtStart").value;
+    var finishVal = document.getElementById("ovtFinish").value;
+    var hoursVal = parseFloat(document.getElementById("ovtTotalHoursInput").value) || 0;
+    var descVal = document.getElementById("ovtDesc").value;
+    var noteVal = document.getElementById("ovtNotes").value;
+
+    if (!dateVal || !startVal || !finishVal || hoursVal <= 0 || !descVal) {
+      showToast("Harap lengkapi tanggal, jam mulai, jam selesai, dan deskripsi pekerjaan lembur!");
+      return;
+    }
+
+    var data = {
+      overtime_id: editId || "",
+      user_id: currentUser ? currentUser.user_id : 'USR-0003',
+      tanggal: dateVal,
+      jam_mulai: startVal,
+      jam_selesai: finishVal,
+      total_jam: hoursVal,
+      deskripsi: descVal,
+      catatan: noteVal,
+      user_signature: currentUser ? (currentUser.signature || "") : ""
+    };
+
+    var btn = document.getElementById("btnSubmitOvertime");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+    }
+
+    callBackend('saveOvertimeEntry', [data], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> <span id="btnSubmitOvertimeText">Simpan Lembur</span>';
+      }
+
+      if (res && res.success) {
+        showToast(res.message || "Data lembur berhasil disimpan!");
+        cancelOvertimeEdit();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan lembur");
+      }
+    });
+  }
+</script>
