@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>e-LMS Data Center Zettbos</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>e-LMS Data Center KSPS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -13,19 +13,33 @@
   <!-- Including Modular Stylesheet -->
   <?!= include('css'); ?>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row relative pb-24 md:pb-0">
+<body class="min-h-screen flex flex-col md:flex-row relative pb-24 md:pb-0 bg-slate-50 font-sans">
 
   <!-- ANIMATED GLASSMORPHISM AUTH OVERLAY -->
   <div id="authOverlay" class="fixed inset-0 z-50 auth-bg-gradient flex items-center justify-center p-4 overflow-y-auto">
     
     <!-- LOGIN FORM CARD -->
     <div id="loginCard" class="glass-card w-full max-w-md p-8 text-white relative">
-      <div class="text-center mb-6 space-y-1">
-        <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mx-auto text-xl font-bold mb-3 shadow-lg">
-          DC
+      <div class="text-center mb-6 space-y-2">
+        <div class="shiny-logo-wrapper inline-block">
+          <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-10 w-auto mx-auto">
+            <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#FFFFFF" letter-spacing="-2">KSPS</text>
+            <g transform="translate(260, 55) scale(0.85)">
+              <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+              <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+              <circle cx="25" cy="34" r="11" fill="#F38F00" />
+              <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+              <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+              <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#FFFFFF" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(72)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(144)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(216)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(288)" />
+            </g>
+          </svg>
         </div>
-        <h2 class="text-2xl font-bold tracking-tight">Selamat Datang</h2>
-        <p class="text-xs text-white/70">Masuk ke Portal e-LMS Data Center Zettbos</p>
+        <h2 class="text-2xl font-extrabold tracking-tight">Selamat Datang</h2>
+        <p class="text-xs text-white/80 font-medium">Masuk ke Portal e-LMS Data Center KSPS</p>
       </div>
 
       <form onsubmit="handleLogin(event)" class="space-y-4">
@@ -41,10 +55,9 @@
 
         <div class="flex items-center justify-between text-xs text-white/80 pt-1">
           <label class="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" class="rounded bg-white/20 border-none text-purple-600 focus:ring-0">
+            <input type="checkbox" class="rounded bg-white/20 border-none text-amber-500 focus:ring-0">
             <span>Ingat Saya</span>
           </label>
-          <a href="#" onclick="showToast('Silakan hubungi Super Admin untuk reset password.')" class="hover:underline">Lupa Password?</a>
         </div>
 
         <button type="submit" id="btnLoginSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
@@ -52,10 +65,10 @@
         </button>
 
         <div class="mt-4 p-3 rounded-xl bg-white/10 text-[11px] text-white/80 space-y-1 text-left border border-white/15">
-          <p class="font-bold text-white text-xs mb-1 flex items-center"><i class="fa-solid fa-key text-amber-300 mr-1.5"></i> Akun Pengetesan (Deploy):</p>
-          <p><span class="font-semibold text-amber-200">Super Admin:</span> admin@datacenter.com | admin123</p>
-          <p><span class="font-semibold text-amber-200">Project Manager:</span> pm.budi@datacenter.com | pm123</p>
-          <p><span class="font-semibold text-amber-200">Karyawan:</span> eko.tech@datacenter.com | eko123</p>
+          <p class="font-bold text-white text-xs mb-1 flex items-center"><i class="fa-solid fa-key text-amber-400 mr-1.5"></i> Akun Pengetesan (Deploy):</p>
+          <p><span class="font-semibold text-amber-300">Super Admin:</span> admin@datacenter.com | admin123</p>
+          <p><span class="font-semibold text-amber-300">Project Manager:</span> pm.budi@datacenter.com | pm123</p>
+          <p><span class="font-semibold text-amber-300">Karyawan:</span> eko.tech@datacenter.com | eko123</p>
         </div>
 
         <p class="text-center text-xs text-white/70 pt-3">
@@ -70,19 +83,36 @@
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
-      <div class="text-center mb-6 space-y-1">
-        <h2 class="text-2xl font-bold tracking-tight">Registration</h2>
-        <p class="text-xs text-white/70">Buat Akun Karyawan Data Center Baru</p>
+      <div class="text-center mb-6 space-y-2">
+        <div class="shiny-logo-wrapper inline-block">
+          <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-8 w-auto mx-auto">
+            <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#FFFFFF" letter-spacing="-2">KSPS</text>
+            <g transform="translate(260, 55) scale(0.85)">
+              <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+              <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+              <circle cx="25" cy="34" r="11" fill="#F38F00" />
+              <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+              <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+              <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#FFFFFF" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(72)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(144)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(216)" />
+              <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#FFFFFF" transform="rotate(288)" />
+            </g>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight">Pendaftaran Akun</h2>
+        <p class="text-xs text-white/80">Buat Akun Karyawan Data Center KSPS Baru</p>
       </div>
 
       <form onsubmit="handleRegister(event)" class="space-y-4">
         <div class="relative">
-          <input type="text" id="regName" required placeholder="Name" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <input type="text" id="regName" required placeholder="Nama Lengkap" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
           <i class="fa-regular fa-user absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
         </div>
 
         <div class="relative">
-          <input type="email" id="regEmail" required placeholder="Email" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
+          <input type="email" id="regEmail" required placeholder="Email Perusahaan" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
           <i class="fa-regular fa-envelope absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
         </div>
 
@@ -92,35 +122,35 @@
         </div>
 
         <div>
-          <select id="regDept" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-purple-900/40 text-white focus:bg-purple-900">
-            <option value="Operations" class="text-navy">Operations</option>
-            <option value="Power & Cooling" class="text-navy">Power & Cooling</option>
-            <option value="Network & Cabling" class="text-navy">Network & Cabling</option>
-            <option value="IT Infrastructure" class="text-navy">IT Infrastructure</option>
+          <select id="regDept" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-indigo-950/80 text-white focus:bg-indigo-900">
+            <option value="Operations" class="text-slate-900">Operations</option>
+            <option value="Power & Cooling" class="text-slate-900">Power & Cooling</option>
+            <option value="Network & Cabling" class="text-slate-900">Network & Cabling</option>
+            <option value="IT Infrastructure" class="text-slate-900">IT Infrastructure</option>
           </select>
         </div>
 
         <div>
-          <select id="regSite" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-purple-900/40 text-white focus:bg-purple-900">
-            <option value="CGK1" class="text-navy">Site CGK1</option>
-            <option value="CGK2" class="text-navy">Site CGK2</option>
-            <option value="CGK3" class="text-navy">Site CGK3</option>
-            <option value="CGK3A" class="text-navy">Site CGK3A</option>
-            <option value="CGK4" class="text-navy">Site CGK4</option>
+          <select id="regSite" required class="glass-input w-full px-4 py-3 rounded-xl text-sm bg-indigo-950/80 text-white focus:bg-indigo-900">
+            <option value="CGK1" class="text-slate-900">Site CGK1</option>
+            <option value="CGK2" class="text-slate-900">Site CGK2</option>
+            <option value="CGK3" class="text-slate-900">Site CGK3</option>
+            <option value="CGK3A" class="text-slate-900">Site CGK3A</option>
+            <option value="CGK4" class="text-slate-900">Site CGK4</option>
           </select>
         </div>
 
         <div class="flex items-center space-x-2 text-xs text-white/80 pt-1">
-          <input type="checkbox" id="regAgree" required class="rounded bg-white/20 border-none text-purple-600 focus:ring-0">
-          <label for="regAgree">I Agree to the Terms & Conditions</label>
+          <input type="checkbox" id="regAgree" required class="rounded bg-white/20 border-none text-amber-500 focus:ring-0">
+          <label for="regAgree">Saya menyetujui Syarat &amp; Ketentuan</label>
         </div>
 
         <button type="submit" id="btnRegisterSubmit" class="glass-btn w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg mt-2">
-          Register
+          Daftar Akun Baru
         </button>
 
         <p class="text-center text-xs text-white/70 pt-3">
-          Already have an account? <a href="#" onclick="toggleAuthMode('login')" class="font-bold text-white hover:underline">Login</a>
+          Sudah punya akun? <a href="#" onclick="toggleAuthMode('login')" class="font-bold text-white hover:underline">Masuk</a>
         </p>
       </form>
     </div>
@@ -128,60 +158,76 @@
   </div>
 
   <!-- DESKTOP SIDEBAR -->
-  <aside class="hidden md:flex w-64 bg-white border-r border-gray-100 flex-shrink-0 p-5 flex-col justify-between">
+  <aside class="hidden md:flex w-64 bg-white border-r border-slate-200/80 flex-shrink-0 p-5 flex-col justify-between shadow-sm">
     <div>
       <div class="flex items-center space-x-3 mb-8 px-2">
-        <div class="w-10 h-10 rounded-xl bg-teal-banner flex items-center justify-center text-white font-bold text-xl shadow-md">
-          DC
-        </div>
-        <div>
-          <h1 class="font-bold text-lg text-navy leading-tight">e-LMS KSPS</h1>
-          <p class="text-xs text-muted-grey">Data Center Learning</p>
+        <svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg" class="h-9 w-auto">
+          <text x="5" y="92" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>
+          <g transform="translate(260, 55) scale(0.85)">
+            <circle cx="0" cy="-42" r="11" fill="#F38F00" />
+            <circle cx="40" cy="-13" r="11" fill="#F38F00" />
+            <circle cx="25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-25" cy="34" r="11" fill="#F38F00" />
+            <circle cx="-40" cy="-13" r="11" fill="#F38F00" />
+            <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" />
+            <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />
+          </g>
+        </svg>
+        <div class="border-l border-slate-200 pl-2.5">
+          <h1 class="font-extrabold text-xs text-[#1C1B8E] leading-tight">e-LMS KSPS</h1>
+          <p class="text-[10px] text-slate-500 font-medium">Data Center Portal</p>
         </div>
       </div>
 
-      <nav class="space-y-2">
-        <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition active-nav">
+      <nav class="space-y-1.5">
+        <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition active-nav">
           <i class="fa-solid fa-chart-pie w-5"></i>
           <span>Dashboard</span>
         </button>
-        <button type="button" onclick="switchTab('katalog')" id="nav-katalog" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+        <button type="button" onclick="switchTab('katalog')" id="nav-katalog" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
           <i class="fa-solid fa-book-open w-5"></i>
           <span>Katalog Materi</span>
         </button>
-        <button type="button" onclick="switchTab('karyawan')" id="nav-karyawan" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+        <button type="button" onclick="switchTab('karyawan')" id="nav-karyawan" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
           <i class="fa-solid fa-address-card w-5"></i>
           <span>Data Karyawan</span>
         </button>
-        <button type="button" onclick="switchTab('misi')" id="nav-misi" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition">
+        <button type="button" onclick="switchTab('misi')" id="nav-misi" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
           <i class="fa-solid fa-bullseye w-5"></i>
           <span>Misi Bulanan</span>
         </button>
-        <button type="button" onclick="switchTab('users')" id="nav-users" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-grey font-medium text-sm transition hidden role-admin">
+        <button type="button" onclick="switchTab('overtime')" id="nav-overtime" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition">
+          <i class="fa-solid fa-business-time w-5"></i>
+          <span>Form Lembur</span>
+        </button>
+        <button type="button" onclick="switchTab('users')" id="nav-users" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
           <i class="fa-solid fa-users-gear w-5"></i>
           <span>Manajemen User</span>
         </button>
       </nav>
     </div>
 
-    <div class="pt-6 border-t border-gray-100 space-y-3">
+    <div class="pt-6 border-t border-slate-200 space-y-3">
       <div>
-        <label class="text-[11px] font-semibold text-muted-grey uppercase tracking-wider block mb-1.5">Simulasi Akses Peran:</label>
-        <select id="roleSelector" onchange="handleRoleChange()" class="w-full p-2 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-gray-50 focus:outline-none">
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Simulasi Akses Peran:</label>
+        <select id="roleSelector" onchange="handleRoleChange()" class="w-full p-2 rounded-xl border border-slate-200 text-xs font-bold text-[#1C1B8E] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
           <option value="Karyawan">Karyawan (Eko)</option>
           <option value="Project Manager">Project Manager (Budi)</option>
           <option value="Super Admin">Super Admin</option>
         </select>
       </div>
 
-      <button type="button" onclick="logoutUser()" class="w-full py-2 px-3 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 text-xs font-bold transition flex items-center justify-center space-x-2">
+      <button type="button" onclick="logoutUser()" class="w-full py-2 px-3 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition flex items-center justify-center space-x-2">
         <i class="fa-solid fa-right-from-bracket"></i>
         <span>Keluar / Logout</span>
       </button>
     </div>
   </aside>
 
-  <!-- MOBILE FLOATING BUBBLE BOTTOM NAVIGATION BAR -->
+  <!-- MOBILE FLOATING BUBBLE NAVIGATION BAR -->
   <nav class="md:hidden floating-bottom-nav">
     <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="floating-nav-item active-mobile-nav">
       <div class="floating-icon-wrapper">
@@ -207,6 +253,12 @@
       </div>
       <span class="floating-label">Misi</span>
     </button>
+    <button type="button" onclick="switchTab('overtime')" id="mobile-nav-overtime" class="floating-nav-item">
+      <div class="floating-icon-wrapper">
+        <i class="fa-solid fa-business-time"></i>
+      </div>
+      <span class="floating-label">Lembur</span>
+    </button>
     <button type="button" onclick="switchTab('users')" id="mobile-nav-users" class="floating-nav-item hidden role-admin">
       <div class="floating-icon-wrapper">
         <i class="fa-solid fa-users-gear"></i>
@@ -215,30 +267,31 @@
     </button>
   </nav>
 
+  <!-- MAIN CONTENT CONTAINER -->
   <main class="flex-1 flex flex-col min-w-0">
-    <header class="bg-white border-b border-gray-100 p-4 px-6 flex items-center justify-between">
+    <header class="bg-white border-b border-slate-200/80 p-4 px-6 flex items-center justify-between">
       <div class="flex items-center space-x-4 flex-1 max-w-md">
         <div class="relative w-full">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-grey"></i>
-          <input type="text" id="globalSearchInput" onkeyup="handleSearch()" placeholder="Cari materi Data Center..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="globalSearchInput" onkeyup="handleSearch()" placeholder="Cari materi Data Center KSPS..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#1C1B8E] transition">
         </div>
       </div>
 
       <div class="flex items-center space-x-3">
         <div class="text-right hidden sm:block">
-          <p class="font-bold text-sm text-navy" id="userNameDisplay">Eko Tech Operator</p>
-          <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold" id="userRoleBadge">Karyawan</span>
+          <p class="font-bold text-sm text-[#1C1B8E]" id="userNameDisplay">Eko Tech Operator</p>
+          <span class="text-[10px] bg-indigo-50 text-[#1C1B8E] px-2.5 py-0.5 rounded-full font-bold border border-indigo-100" id="userRoleBadge">Karyawan</span>
         </div>
 
         <div class="md:hidden">
-          <select id="mobileRoleSelector" onchange="handleRoleChange(true)" class="p-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-gray-50 focus:outline-none">
+          <select id="mobileRoleSelector" onchange="handleRoleChange(true)" class="p-1.5 rounded-xl border border-slate-200 text-xs font-bold text-[#1C1B8E] bg-slate-50 focus:outline-none">
             <option value="Karyawan">Karyawan</option>
             <option value="Project Manager">PM</option>
             <option value="Super Admin">Admin</option>
           </select>
         </div>
 
-        <div class="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shadow-md">
+        <div class="w-10 h-10 rounded-xl bg-[#1C1B8E] text-white font-bold flex items-center justify-center text-sm shadow-md">
           EO
         </div>
       </div>
@@ -246,97 +299,88 @@
 
     <div class="p-6 space-y-6 flex-1 overflow-y-auto">
 
-      <!-- 1. DASHBOARD VIEW (COMPACT BANNER + DRILL-DOWN STAT CARDS + PM HEATMAP + PER-SITE ANALYTICS) -->
+      <!-- 1. DASHBOARD VIEW -->
       <section id="view-dashboard" class="space-y-6">
-        
-        <!-- COMPACT BANNER -->
-        <div class="bg-teal-banner rounded-2xl p-4 md:p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+        <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
           <div class="space-y-1 z-10 max-w-xl">
             <div class="flex items-center space-x-2">
-              <span class="bg-white/20 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-semibold">Data Center Competency</span>
-              <span class="text-xs text-teal-100 font-semibold"><i class="fa-solid fa-bullseye text-amber-300 mr-1"></i> Target: 2 Materi / Bulan</span>
+              <span class="bg-white/20 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">Data Center Competency KSPS</span>
+              <span class="text-xs text-amber-300 font-extrabold"><i class="fa-solid fa-shield-halved text-amber-300 mr-1"></i> Anti-Cheating &amp; 3-Pilar Scoring Active</span>
             </div>
-            <h2 class="text-xl font-bold leading-tight">Ringkasan Knowledge & Kepatuhan Operasional</h2>
-            <p class="text-xs text-white/80">Monitor pemenuhan SLA, kelistrikan & pendingin Tier III/IV. <span class="font-bold underline cursor-pointer" onclick="switchTab('katalog')">Klik card di bawah</span> untuk melihat tabel detail sumber data.</p>
+            <h2 class="text-xl font-extrabold leading-tight">Ringkasan Knowledge & Kepatuhan Operasional</h2>
+            <p class="text-xs text-white/90">Monitor pemenuhan SLA, kelistrikan & pendingin Tier III/IV. <span class="font-bold underline cursor-pointer" onclick="switchTab('katalog')">Klik card di bawah</span> untuk melihat detail data.</p>
           </div>
           <div class="mt-3 md:mt-0 z-10 flex-shrink-0">
-            <button type="button" onclick="switchTab('katalog')" class="bg-white text-teal-700 font-bold px-4 py-2 rounded-xl text-xs shadow-md hover:bg-gray-50 transition flex items-center space-x-1">
+            <button type="button" onclick="switchTab('katalog')" class="bg-[#F38F00] hover:bg-[#E07B00] text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-lg transition flex items-center space-x-1.5">
               <span>Mulai Belajar</span>
               <i class="fa-solid fa-arrow-right text-xs"></i>
             </button>
           </div>
         </div>
 
-        <!-- 4 INTERACTIVE STAT METRIC CARDS (CLICK TO OPEN TABLE MODAL) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          
-          <!-- CARD 1: MISI BULANAN (2 MATERI/BULAN) -->
-          <div onclick="openDashboardDetailModal('mission')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-teal-200">
+          <div onclick="openDashboardDetailModal('mission')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-slate-100 hover:border-amber-300">
             <div class="flex items-center space-x-3">
-              <div class="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">
+              <div class="w-11 h-11 rounded-xl bg-amber-50 text-[#F38F00] flex items-center justify-center text-lg font-bold border border-amber-100">
                 <i class="fa-solid fa-bullseye"></i>
               </div>
               <div>
-                <p class="text-[11px] text-muted-grey font-semibold">Misi Wajib (2/Bulan)</p>
-                <h3 class="text-lg font-bold text-navy" id="statMissionStatus">0 / 2 Selesai</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">Misi Wajib (2/Bulan)</p>
+                <h3 class="text-base font-bold text-slate-900" id="statMissionStatus">0 / 2 Selesai</h3>
               </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
           </div>
 
-          <!-- CARD 2: TOTAL MATERI SELESAI -->
-          <div onclick="openDashboardDetailModal('completed')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-blue-200">
+          <div onclick="openDashboardDetailModal('completed')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-slate-100 hover:border-indigo-300">
             <div class="flex items-center space-x-3">
-              <div class="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold">
+              <div class="w-11 h-11 rounded-xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-lg font-bold border border-indigo-100">
                 <i class="fa-solid fa-graduation-cap"></i>
               </div>
               <div>
-                <p class="text-[11px] text-muted-grey font-semibold">Materi Selesai</p>
-                <h3 class="text-xl font-bold text-navy" id="statCompleted">0</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">Materi Selesai</p>
+                <h3 class="text-xl font-bold text-slate-900" id="statCompleted">0</h3>
               </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
           </div>
 
-          <!-- CARD 3: RATA-RATA NILAI KUIS -->
-          <div onclick="openDashboardDetailModal('score')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-pink-200">
+          <div onclick="openDashboardDetailModal('score')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-slate-100 hover:border-teal-300">
             <div class="flex items-center space-x-3">
-              <div class="w-11 h-11 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-lg font-bold">
+              <div class="w-11 h-11 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center text-lg font-bold border border-teal-100">
                 <i class="fa-solid fa-chart-line"></i>
               </div>
               <div>
-                <p class="text-[11px] text-muted-grey font-semibold">Rata-Rata Nilai Kuis</p>
-                <h3 class="text-xl font-bold text-navy" id="statAvgScore">0</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">Rata-Rata Nilai Kuis</p>
+                <h3 class="text-xl font-bold text-slate-900" id="statAvgScore">0</h3>
               </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
           </div>
 
-          <!-- CARD 4: KEPATUHAN PER-SITE -->
-          <div onclick="openDashboardDetailModal('site')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-transparent hover:border-indigo-200">
+          <div onclick="openDashboardDetailModal('site')" class="bg-white p-4 rounded-2xl card-shadow flex items-center justify-between cursor-pointer hover:shadow-lg transition transform hover:-translate-y-1 border border-slate-100 hover:border-blue-300">
             <div class="flex items-center space-x-3">
-              <div class="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold">
+              <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-lg font-bold border border-blue-100">
                 <i class="fa-solid fa-building-user"></i>
               </div>
               <div>
-                <p class="text-[11px] text-muted-grey font-semibold">Kepatuhan Per-Site</p>
-                <h3 class="text-sm font-bold text-navy">Lihat Rincian Site</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">Kepatuhan Per-Site</p>
+                <h3 class="text-xs font-bold text-slate-900">Lihat Rincian Site</h3>
               </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
           </div>
-
         </div>
 
-        <!-- PIVOT MODUL 1: DATA CENTER COMPETENCY HEATMAP (PM & ADMIN EXCLUSIVE) -->
+        <!-- COMPETENCY RISK HEATMAP CENTER -->
         <div id="pmHeatmapSection" class="bg-white p-6 rounded-2xl card-shadow space-y-4 hidden role-pm role-admin">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
-              <h3 class="font-bold text-navy text-base flex items-center space-x-2">
+              <h3 class="font-bold text-[#1C1B8E] text-base flex items-center space-x-2">
                 <i class="fa-solid fa-fire-flame-curved text-rose-500"></i>
-                <span>Data Center Competency Heatmap (Risk Command Center)</span>
+                <span>KSPS Competency Heatmap & Risk Command Center</span>
               </h3>
-              <p class="text-xs text-muted-grey">Matriks Pemetaan Risiko Competency Per-Site Berdasarkan 4 Pilar Utama Operasional</p>
+              <p class="text-xs text-slate-500">Matriks Pemetaan Risiko Competency Per-Site Berdasarkan 4 Group Materi Utama</p>
             </div>
             <div class="flex items-center space-x-2 text-[10px] font-bold">
               <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700">🔴 Tinggi (&lt; 70)</span>
@@ -348,13 +392,12 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-gray-50 border-b border-gray-100 text-[11px] font-bold text-muted-grey uppercase">
+                <tr class="bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase">
                   <th class="py-3 px-3">LOKASI SITE</th>
-                  <th class="py-3 px-3 text-center">COOLING SYSTEM</th>
-                  <th class="py-3 px-3 text-center">POWER DISTRIBUTION</th>
-                  <th class="py-3 px-3 text-center">FIRE &amp; SAFETY (K3)</th>
-                  <th class="py-3 px-3 text-center">NETWORK &amp; CABLING</th>
-                  <th class="py-3 px-3 text-center">AKSI INTERVENSI</th>
+                  <th class="py-3 px-3 text-center">INTRODUCTION</th>
+                  <th class="py-3 px-3 text-center">ELEMENTARY</th>
+                  <th class="py-3 px-3 text-center">DATA CENTER FUNDAMENTAL (BASIC)</th>
+                  <th class="py-3 px-3 text-center">TOOLS</th>
                 </tr>
               </thead>
               <tbody id="heatmapTableBody" class="text-xs font-semibold">
@@ -363,15 +406,14 @@
           </div>
         </div>
 
-        <!-- GRAFIK RATA-RATA NILAI & KEPATUHAN PER-SITE -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="font-bold text-navy text-base">Grafik Performa & Kepatuhan Belajar Per-Site</h3>
-                <p class="text-xs text-muted-grey">Perbandingan Rata-Rata Nilai & Kepatuhan Target 2 Materi (Site CGK1 - CGK4)</p>
+                <h3 class="font-bold text-[#1C1B8E] text-base">Grafik Performa & Kepatuhan Belajar Per-Site</h3>
+                <p class="text-xs text-slate-500">Perbandingan Rata-Rata Nilai & Kepatuhan Target 2 Materi (Site CGK1 - CGK4)</p>
               </div>
-              <span class="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full">Data Realtime</span>
+              <span class="text-xs bg-indigo-50 text-[#1C1B8E] font-bold px-3 py-1 rounded-full border border-indigo-100">Data Realtime</span>
             </div>
             <div class="h-64 relative">
               <canvas id="monthlyChart"></canvas>
@@ -379,21 +421,21 @@
           </div>
 
           <div class="bg-white p-6 rounded-2xl card-shadow space-y-4">
-            <h3 class="font-bold text-navy text-base">Rekomendasi Topik Utama</h3>
+            <h3 class="font-bold text-[#1C1B8E] text-base">Rekomendasi Topik Utama</h3>
             <div class="space-y-3" id="recommendedCourses">
-              <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+              <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                 <div>
-                  <p class="font-bold text-xs text-navy">Cooling System Tier III</p>
-                  <p class="text-[11px] text-muted-grey">SOP Chiller & CRAH</p>
+                  <p class="font-bold text-xs text-slate-900">Cooling System Tier III</p>
+                  <p class="text-[11px] text-slate-500">SOP Chiller & CRAH</p>
                 </div>
-                <span class="text-xs font-bold text-teal-600">Wajib</span>
+                <span class="text-xs font-bold text-[#0D9488]">Wajib</span>
               </div>
-              <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+              <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100">
                 <div>
-                  <p class="font-bold text-xs text-navy">Redundansi UPS N+1</p>
-                  <p class="text-[11px] text-muted-grey">Power Distribution</p>
+                  <p class="font-bold text-xs text-slate-900">Redundansi UPS N+1</p>
+                  <p class="text-[11px] text-slate-500">Power Distribution</p>
                 </div>
-                <span class="text-xs font-bold text-teal-600">Wajib</span>
+                <span class="text-xs font-bold text-[#0D9488]">Wajib</span>
               </div>
             </div>
           </div>
@@ -404,12 +446,12 @@
       <section id="view-katalog" class="space-y-6 hidden">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-bold text-navy">Katalog Materi Data Center</h2>
-            <p class="text-xs text-muted-grey">Pilih materi pelatihan berdasarkan Group untuk memenuhi misi bulanan Anda.</p>
+            <h2 class="text-xl font-bold text-[#1C1B8E]">Katalog Materi Data Center KSPS</h2>
+            <p class="text-xs text-slate-500">Pilih materi pelatihan berdasarkan Group untuk memenuhi misi bulanan Anda.</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
-            <select id="categoryFilter" onchange="loadCourses(1)" class="p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white focus:outline-none">
+            <select id="categoryFilter" onchange="loadCourses(1)" class="p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:outline-none">
               <option value="all">Semua Group</option>
               <option value="Introduction">Introduction</option>
               <option value="Elementary">Elementary</option>
@@ -427,16 +469,15 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead id="courseTableHead">
-                <!-- Dynamically rendered by javascript.html based on user role (Karyawan vs PM/Admin) -->
               </thead>
-              <tbody id="courseTableBody" class="text-sm text-navy divide-y divide-gray-50">
+              <tbody id="courseTableBody" class="text-sm text-slate-900 divide-y divide-slate-100">
               </tbody>
             </table>
           </div>
         </div>
 
         <div class="flex items-center justify-between bg-white p-4 rounded-2xl card-shadow">
-          <p class="text-xs text-muted-grey" id="paginationInfo">Menampilkan 0 dari 0 materi</p>
+          <p class="text-xs text-slate-500" id="paginationInfo">Menampilkan 0 dari 0 materi</p>
           <div class="flex space-x-2" id="paginationControls">
           </div>
         </div>
@@ -446,16 +487,16 @@
       <section id="view-karyawan" class="space-y-6 hidden">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-bold text-navy">Data Karyawan Data Center</h2>
-            <p class="text-xs text-muted-grey">Daftar lengkap karyawan terdaftar, site lokasi, dan progress aktivitas belajar.</p>
+            <h2 class="text-xl font-bold text-[#1C1B8E]">Data Karyawan Data Center KSPS</h2>
+            <p class="text-xs text-slate-500">Daftar lengkap karyawan terdaftar, site lokasi, dan progress aktivitas belajar.</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <button type="button" onclick="downloadEmployeeTemplate()" class="px-3 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Unduh Template CSV">
-              <i class="fa-solid fa-download text-teal-600"></i> <span>Download Template</span>
+            <button type="button" onclick="downloadEmployeeTemplate()" class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Unduh Template CSV">
+              <i class="fa-solid fa-download text-[#0D9488]"></i> <span>Download Template</span>
             </button>
-            <button type="button" onclick="openBulkEmployeeModal()" class="px-3 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Upload Bulk CSV">
-              <i class="fa-solid fa-file-csv text-teal-600"></i> <span>Upload Bulk Data</span>
+            <button type="button" onclick="openBulkEmployeeModal()" class="px-3 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0D9488] text-xs font-bold hidden role-pm role-admin transition flex items-center space-x-1" title="Upload Bulk CSV">
+              <i class="fa-solid fa-file-csv text-[#0D9488]"></i> <span>Upload Bulk Data</span>
             </button>
             <button type="button" onclick="openEmployeeModal()" class="btn-primary px-4 py-2.5 rounded-xl text-xs font-bold hidden role-pm role-admin">
               <i class="fa-solid fa-user-plus mr-1"></i> Tambah Karyawan Baru
@@ -467,7 +508,7 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
+                <tr class="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
                   <th class="py-3.5 px-3 w-10 text-center">NO.</th>
                   <th class="py-3.5 px-3">NIK / ID KARYAWAN</th>
                   <th class="py-3.5 px-3">NAMA LENGKAP</th>
@@ -475,28 +516,30 @@
                   <th class="py-3.5 px-3">JABATAN</th>
                   <th class="py-3.5 px-3">DEPARTEMEN</th>
                   <th class="py-3.5 px-3 text-center">SITE</th>
-                  <th class="py-3.5 px-3 text-center">MATERI DOWNLOAD</th>
-                  <th class="py-3.5 px-3 text-center">MATERI SOAL</th>
+                  <th class="py-3.5 px-3 text-center">SKOR PDF (20%)</th>
+                  <th class="py-3.5 px-3 text-center">SKOR VIDEO (30%)</th>
+                  <th class="py-3.5 px-3 text-center">SKOR KUIS (50%)</th>
+                  <th class="py-3.5 px-3 text-center">KOMPOSIT &amp; GRADE</th>
                 </tr>
               </thead>
-              <tbody id="employeeTableBody" class="text-xs text-navy divide-y divide-gray-50">
+              <tbody id="employeeTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- 4. MISI BULANAN VIEW (EXCLUSIVITY PIVOT MODUL 2 SMART MISSION DISPATCHER) -->
+      <!-- 4. MISI BULANAN VIEW -->
       <section id="view-misi" class="space-y-6 hidden">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 class="text-xl font-bold text-navy">Misi Bulanan Karyawan</h2>
-            <p class="text-xs text-muted-grey">Setiap karyawan diwajibkan menyelesaikan minimal 2 materi pelatihan per bulan.</p>
+            <h2 class="text-xl font-bold text-[#1C1B8E]">Misi Bulanan Karyawan</h2>
+            <p class="text-xs text-slate-500">Setiap karyawan diwajibkan menyelesaikan minimal 2 materi pelatihan per bulan.</p>
           </div>
 
           <div class="flex items-center space-x-3">
-            <label class="text-xs font-bold text-navy">Periode:</label>
-            <select id="missionPeriodFilter" onchange="loadMonthlyMissions()" class="p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white focus:outline-none">
+            <label class="text-xs font-bold text-slate-900">Periode:</label>
+            <select id="missionPeriodFilter" onchange="loadMonthlyMissions()" class="p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:outline-none">
               <option value="2026-09">September 2026</option>
               <option value="2026-08">Agustus 2026</option>
               <option value="2026-07">Juli 2026</option>
@@ -504,62 +547,69 @@
           </div>
         </div>
 
-        <!-- PIVOT MODUL 2: SMART MISSION DISPATCHER CARD (PM & ADMIN EXCLUSIVE) -->
-        <div id="smartMissionDispatcherCard" class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-5 card-shadow space-y-4 hidden role-pm role-admin">
+        <div id="smartMissionDispatcherCard" class="ksps-banner text-white rounded-2xl p-5 card-shadow space-y-4 hidden role-pm role-admin">
           <div class="flex items-center justify-between border-b border-white/10 pb-3">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 rounded-xl bg-blue-500/30 flex items-center justify-center text-xl text-blue-300 font-bold">
+              <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl text-amber-300 font-bold">
                 <i class="fa-solid fa-paper-plane"></i>
               </div>
               <div>
                 <h3 class="font-bold text-base">Smart Mission Dispatcher (PM Presisi Penugasan)</h3>
-                <p class="text-xs text-blue-200">Tetapkan 2 materi wajib secara presisi berdasarkan Target Site &amp; Departemen Karyawan</p>
+                <p class="text-xs text-indigo-100">Tetapkan 2 materi wajib secara fleksibel berdasarkan Target Site, Group &amp; Judul Materi</p>
               </div>
             </div>
-            <span class="text-xs bg-blue-500/30 text-blue-200 px-3 py-1 rounded-full font-bold">PM Command Control</span>
+            <span class="text-xs bg-white/20 text-white px-3 py-1 rounded-full font-bold">PM Command Control</span>
           </div>
 
-          <form onsubmit="handleSmartMissionDispatch(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          <form onsubmit="handleSmartMissionDispatch(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
             <div>
-              <label class="block font-bold text-blue-200 mb-1">Target Site</label>
-              <select id="dispatchSite" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
-                <option value="ALL" class="text-navy">Semua Site Lokasi</option>
-                <option value="CGK1" class="text-navy">Site CGK1</option>
-                <option value="CGK2" class="text-navy">Site CGK2</option>
-                <option value="CGK3" class="text-navy">Site CGK3</option>
-                <option value="CGK3A" class="text-navy">Site CGK3A</option>
-                <option value="CGK4" class="text-navy">Site CGK4</option>
+              <label class="block font-bold text-indigo-100 mb-1">Target Site</label>
+              <select id="dispatchSite" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-indigo-950 font-semibold">
+                <option value="ALL" class="text-slate-900">Semua Site Lokasi</option>
+                <option value="CGK1" class="text-slate-900">Site CGK1</option>
+                <option value="CGK2" class="text-slate-900">Site CGK2</option>
+                <option value="CGK3" class="text-slate-900">Site CGK3</option>
+                <option value="CGK3A" class="text-slate-900">Site CGK3A</option>
+                <option value="CGK4" class="text-slate-900">Site CGK4</option>
               </select>
             </div>
 
             <div>
-              <label class="block font-bold text-blue-200 mb-1">Target Departemen</label>
-              <select id="dispatchDept" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
-                <option value="ALL" class="text-navy">Semua Departemen</option>
-                <option value="Operations" class="text-navy">Operations</option>
-                <option value="Power & Cooling" class="text-navy">Power & Cooling</option>
-                <option value="Network & Cabling" class="text-navy">Network & Cabling</option>
+              <label class="block font-bold text-indigo-100 mb-1">Group Materi #1</label>
+              <select id="dispatchDept1" onchange="updateDispatchCourseOptions(1)" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-indigo-950 font-semibold">
+                <option value="ALL" class="text-slate-900">Semua Group</option>
+                <option value="Introduction" class="text-slate-900">Introduction</option>
+                <option value="Elementary" class="text-slate-900">Elementary</option>
+                <option value="Data Center Fundamental (Basic)" class="text-slate-900">Data Center Fundamental (Basic)</option>
+                <option value="Tools" class="text-slate-900">Tools</option>
               </select>
             </div>
 
             <div>
-              <label class="block font-bold text-blue-200 mb-1">Materi Wajib #1</label>
-              <select id="dispatchCourse1" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
-                <option value="CRS-0001" class="text-navy">CRS-0001: Cooling CRAH & Chiller SOP</option>
-                <option value="CRS-0002" class="text-navy">CRS-0002: Redundansi UPS N+1</option>
+              <label class="block font-bold text-indigo-100 mb-1">Materi Wajib #1</label>
+              <select id="dispatchCourse1" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-indigo-950 font-semibold">
               </select>
             </div>
 
             <div>
-              <label class="block font-bold text-blue-200 mb-1">Materi Wajib #2</label>
-              <select id="dispatchCourse2" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-slate-800 font-semibold">
-                <option value="CRS-0002" class="text-navy">CRS-0002: Redundansi UPS N+1</option>
-                <option value="CRS-0001" class="text-navy">CRS-0001: Cooling CRAH & Chiller SOP</option>
+              <label class="block font-bold text-indigo-100 mb-1">Group Materi #2</label>
+              <select id="dispatchDept2" onchange="updateDispatchCourseOptions(2)" class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-indigo-950 font-semibold">
+                <option value="ALL" class="text-slate-900">Semua Group</option>
+                <option value="Introduction" class="text-slate-900">Introduction</option>
+                <option value="Elementary" class="text-slate-900">Elementary</option>
+                <option value="Data Center Fundamental (Basic)" class="text-slate-900">Data Center Fundamental (Basic)</option>
+                <option value="Tools" class="text-slate-900">Tools</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-indigo-100 mb-1">Materi Wajib #2</label>
+              <select id="dispatchCourse2" required class="w-full p-2.5 rounded-xl bg-white/10 border border-white/20 text-white focus:bg-indigo-950 font-semibold">
               </select>
             </div>
 
             <div class="flex items-end">
-              <button type="submit" id="btnSubmitDispatch" class="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition flex items-center justify-center space-x-1.5 shadow-lg">
+              <button type="submit" id="btnSubmitDispatch" class="w-full py-2.5 px-4 rounded-xl bg-[#F38F00] hover:bg-[#E07B00] text-white font-bold transition flex items-center justify-center space-x-1.5 shadow-lg">
                 <i class="fa-solid fa-paper-plane"></i>
                 <span>Kirim Misi Target</span>
               </button>
@@ -567,7 +617,7 @@
           </form>
         </div>
 
-        <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 text-white card-shadow flex items-center justify-between">
+        <div class="bg-gradient-to-r from-[#F38F00] to-amber-600 rounded-2xl p-4 text-white card-shadow flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl font-bold">
               <i class="fa-solid fa-clock-rotate-left"></i>
@@ -583,10 +633,10 @@
         <div id="employeeMissionView" class="space-y-6 hidden">
           <div class="bg-white p-5 rounded-2xl card-shadow flex items-center justify-between">
             <div>
-              <p class="text-xs text-muted-grey font-semibold">Progress Misi Saya Bulan Ini</p>
-              <h3 class="text-xl font-bold text-navy" id="myMissionStatusText">Loading...</h3>
+              <p class="text-xs text-slate-500 font-semibold">Progress Misi Saya Bulan Ini</p>
+              <h3 class="text-xl font-bold text-[#1C1B8E]" id="myMissionStatusText">Loading...</h3>
             </div>
-            <span class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-sm font-bold" id="myMissionProgressBadge">0 / 2 Selesai</span>
+            <span class="bg-indigo-50 text-[#1C1B8E] px-4 py-2 rounded-xl text-sm font-bold border border-indigo-100" id="myMissionProgressBadge">0 / 2 Selesai</span>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="assignedCoursesContainer">
@@ -596,31 +646,31 @@
         <div id="adminMissionView" class="space-y-6 hidden">
           <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-2xl card-shadow text-center">
-              <p class="text-xs text-muted-grey font-semibold">Total Karyawan</p>
-              <h4 class="text-xl font-bold text-navy" id="statMsnTotal">0</h4>
+              <p class="text-xs text-slate-500 font-semibold">Total Karyawan</p>
+              <h4 class="text-xl font-bold text-[#1C1B8E]" id="statMsnTotal">0</h4>
             </div>
             <div class="bg-white p-4 rounded-2xl card-shadow text-center">
-              <p class="text-xs text-muted-grey font-semibold">Tuntas Misi (2/2)</p>
+              <p class="text-xs text-slate-500 font-semibold">Tuntas Misi (2/2)</p>
               <h4 class="text-xl font-bold text-emerald-600" id="statMsnSelesai">0</h4>
             </div>
             <div class="bg-white p-4 rounded-2xl card-shadow text-center">
-              <p class="text-xs text-muted-grey font-semibold">Dalam Proses (1/2)</p>
+              <p class="text-xs text-slate-500 font-semibold">Dalam Proses (1/2)</p>
               <h4 class="text-xl font-bold text-amber-500" id="statMsnProses">0</h4>
             </div>
             <div class="bg-white p-4 rounded-2xl card-shadow text-center">
-              <p class="text-xs text-muted-grey font-semibold">Belum Dimulai (0/2)</p>
+              <p class="text-xs text-slate-500 font-semibold">Belum Dimulai (0/2)</p>
               <h4 class="text-xl font-bold text-rose-500" id="statMsnBelum">0</h4>
             </div>
           </div>
 
           <div class="bg-white rounded-2xl card-shadow overflow-hidden">
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 class="font-bold text-navy text-sm">Tabel Monitoring Kepatuhan Belajar Karyawan</h3>
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-bold text-[#1C1B8E] text-sm">Tabel Monitoring Kepatuhan Belajar Karyawan</h3>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-muted-grey uppercase tracking-wider">
+                  <tr class="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <th class="py-3.5 px-3 w-10 text-center">NO.</th>
                     <th class="py-3.5 px-3">NIK / KARYAWAN</th>
                     <th class="py-3.5 px-3 text-center">SITE</th>
@@ -629,7 +679,7 @@
                     <th class="py-3.5 px-3 text-center">STATUS</th>
                   </tr>
                 </thead>
-                <tbody id="adminMissionTableBody" class="text-xs text-navy divide-y divide-gray-50">
+                <tbody id="adminMissionTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
                 </tbody>
               </table>
             </div>
@@ -638,17 +688,142 @@
 
       </section>
 
-      <!-- 5. MANAJEMEN USER VIEW -->
+      <!-- 5. FORM LEMBUR / OVERTIME VIEW -->
+      <section id="view-overtime" class="space-y-6 hidden">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-[#1C1B8E]">Pengajuan &amp; Form Rekap Lembur (Overtime)</h2>
+            <p class="text-xs text-slate-500">Isi jam kerja lembur operasional, deskripsi pekerjaan, dan cetak dokumen lembur bulanan.</p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <label class="text-xs font-bold text-slate-900">Periode:</label>
+            <select id="overtimePeriodFilter" onchange="loadOvertimeData()" class="p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:outline-none">
+              <option value="2026-09">September 2026</option>
+              <option value="2026-08">Agustus 2026</option>
+              <option value="2026-07">Juli 2026</option>
+            </select>
+
+            <button type="button" onclick="printOvertimePDF()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md">
+              <i class="fa-solid fa-print"></i>
+              <span>Cetak Rekap Lembur (PDF)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- FORM INPUT LEMBUR -->
+          <div class="bg-white p-6 rounded-2xl card-shadow space-y-4 border border-slate-100">
+            <div class="flex items-center space-x-3 border-b border-slate-100 pb-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-lg font-bold">
+                <i class="fa-solid fa-stopwatch"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-[#1C1B8E] text-base">Input Aktivitas Lembur</h3>
+                <p class="text-[11px] text-slate-500">Otomatis menghitung durasi jam lembur</p>
+              </div>
+            </div>
+
+            <form id="ovtForm" onsubmit="handleSaveOvertime(event)" class="space-y-3 text-xs">
+              <div>
+                <label class="block font-bold text-slate-900 mb-1">Tanggal Lembur</label>
+                <input type="date" id="ovtDate" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-900 mb-1">Jam Mulai (Start)</label>
+                  <input type="time" id="ovtStart" onchange="calculateOvertimeHours()" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-900 mb-1">Jam Selesai (Finish)</label>
+                  <input type="time" id="ovtFinish" onchange="calculateOvertimeHours()" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+                </div>
+              </div>
+
+              <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                <span class="font-bold text-slate-700">Durasi Lembur Terhitung:</span>
+                <span class="text-sm font-extrabold text-[#1C1B8E]" id="ovtTotalHoursDisplay">0 Jam</span>
+                <input type="hidden" id="ovtTotalHoursInput" value="0">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-900 mb-1">Deskripsi Pekerjaan Lembur</label>
+                <textarea id="ovtDesc" rows="3" required placeholder="Contoh: Maintenance emergency Chiller #2 & replacement Fan Belt..." class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]"></textarea>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-900 mb-1">Catatan / Notes TAMBAHAN</label>
+                <input type="text" id="ovtNotes" placeholder="Catatan kondisi lapangan / sparepart..." class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-900 mb-1">Lampirkan Bukti / Evidence (Optional PDF/Foto)</label>
+                <input type="file" id="ovtEvidenceFile" accept="image/*,application/pdf" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-[#1C1B8E] hover:file:bg-indigo-100">
+              </div>
+
+              <button type="submit" id="btnSubmitOvertime" class="w-full py-3 rounded-xl btn-primary font-bold text-xs shadow-md transition flex items-center justify-center space-x-1.5 mt-2">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Simpan Lembur</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- TABEL DOKUMEN & RIWAYAT LEMBUR -->
+          <div class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4 border border-slate-100 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 class="font-bold text-[#1C1B8E] text-base">Riwayat &amp; Akumulasi Lembur Bulanan</h3>
+                  <p class="text-xs text-slate-500">Daftar rincian lembur yang telah diajukan periode ini</p>
+                </div>
+                <div class="bg-indigo-50 text-[#1C1B8E] px-4 py-2 rounded-xl text-right border border-indigo-100">
+                  <p class="text-[10px] font-semibold uppercase text-slate-500">Total Akumulasi</p>
+                  <p class="text-base font-extrabold" id="ovtTotalMonthHours">0 Jam</p>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      <th class="py-3 px-3 w-10 text-center">NO.</th>
+                      <th class="py-3 px-3">TANGGAL</th>
+                      <th class="py-3 px-3 text-center">JAM</th>
+                      <th class="py-3 px-3 text-center">DURASI</th>
+                      <th class="py-3 px-3">DESKRIPSI PEKERJAAN</th>
+                      <th class="py-3 px-3">CATATAN</th>
+                      <th class="py-3 px-3 text-center">EVIDENCE</th>
+                      <th class="py-3 px-3 text-center">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overtimeTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <p><i class="fa-solid fa-circle-info text-[#0D9488] mr-1"></i> Data lembur bulanan otomatis siap di-print untuk approval PM / HRD.</p>
+              <button type="button" onclick="printOvertimePDF()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition">
+                <i class="fa-solid fa-print mr-1"></i> Cetak Rekap PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. MANAJEMEN USER VIEW -->
       <section id="view-users" class="space-y-6 hidden">
         <div class="bg-white p-6 rounded-2xl card-shadow space-y-4">
           <div class="flex items-center justify-between">
-            <h2 class="text-xl font-bold text-navy">Manajemen Pengguna System</h2>
+            <h2 class="text-xl font-bold text-[#1C1B8E]">Manajemen Pengguna System</h2>
           </div>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="border-b border-gray-100 text-xs font-bold text-muted-grey uppercase">
+                <tr class="border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">
                   <th class="py-3 px-2">ID</th>
                   <th class="py-3 px-2">Nama Lengkap</th>
                   <th class="py-3 px-2">Email</th>
@@ -657,7 +832,7 @@
                   <th class="py-3 px-2 text-center">Status Verifikasi</th>
                 </tr>
               </thead>
-              <tbody id="userTableBody" class="text-sm text-navy divide-y divide-gray-50">
+              <tbody id="userTableBody" class="text-sm text-slate-900 divide-y divide-slate-100">
               </tbody>
             </table>
           </div>
@@ -667,100 +842,128 @@
     </div>
   </main>
 
-  <!-- MODAL DETAIL STAT DASHBOARD (DRILL-DOWN TABLE WHEN CARDS ARE CLICKED) -->
-  <div id="dashboardDetailModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <!-- MODALS -->
+  <div id="videoCheckpointModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4 text-slate-900 relative border-2 border-[#F38F00]">
+      <div class="flex items-center space-x-3 text-[#1C1B8E] border-b border-slate-100 pb-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-100 text-[#F38F00] flex items-center justify-center text-xl font-bold">
+          <i class="fa-solid fa-circle-question"></i>
+        </div>
+        <div>
+          <h3 class="font-extrabold text-base">In-Video Checkpoint (Validasi Pemahaman)</h3>
+          <p class="text-xs text-slate-500">Jawab pertanyaan ini dengan benar untuk melanjutkan video!</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <p class="font-bold text-sm text-slate-900">Soal Checkpoint #1: Apa batas maksimal temperatur aman inlet CRAH menurut standar ASHRAE Data Center KSPS?</p>
+
+        <div class="space-y-2 pt-1">
+          <button type="button" onclick="handleCheckpointAnswer('A')" class="w-full p-3 rounded-xl border border-slate-200 hover:border-[#1C1B8E] text-left hover:bg-indigo-50 font-semibold transition">
+            A. 15°C
+          </button>
+          <button type="button" onclick="handleCheckpointAnswer('B')" class="w-full p-3 rounded-xl border border-slate-200 hover:border-[#1C1B8E] text-left hover:bg-indigo-50 font-semibold transition">
+            B. 27°C (Rekomendasi Utama ASHRAE)
+          </button>
+          <button type="button" onclick="handleCheckpointAnswer('C')" class="w-full p-3 rounded-xl border border-slate-200 hover:border-[#1C1B8E] text-left hover:bg-indigo-50 font-semibold transition">
+            C. 35°C
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dashboardDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full p-6 card-shadow space-y-4 max-h-[85vh] flex flex-col">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold" id="dashDetailModalIcon">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-lg font-bold" id="dashDetailModalIcon">
             <i class="fa-solid fa-list-check"></i>
           </div>
           <div>
-            <h3 class="font-bold text-navy text-lg" id="dashDetailModalTitle">Rincian Data Stats</h3>
-            <p class="text-xs text-muted-grey" id="dashDetailModalSubtitle">Detail sumber resume kalkulasi statistik</p>
+            <h3 class="font-bold text-[#1C1B8E] text-lg" id="dashDetailModalTitle">Rincian Data Stats</h3>
+            <p class="text-xs text-slate-500" id="dashDetailModalSubtitle">Detail sumber resume kalkulasi statistik</p>
           </div>
         </div>
-        <button type="button" onclick="closeDashboardDetailModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button type="button" onclick="closeDashboardDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <div class="flex-1 overflow-y-auto overflow-x-auto min-h-0">
         <table class="w-full text-left border-collapse">
           <thead id="dashDetailTableHead">
           </thead>
-          <tbody id="dashDetailTableBody" class="text-xs text-navy divide-y divide-gray-50">
+          <tbody id="dashDetailTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
           </tbody>
         </table>
       </div>
 
-      <div class="pt-3 border-t border-gray-100 flex justify-end flex-shrink-0">
-        <button type="button" onclick="closeDashboardDetailModal()" class="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition">Tutup Detail</button>
+      <div class="pt-3 border-t border-slate-100 flex justify-end flex-shrink-0">
+        <button type="button" onclick="closeDashboardDetailModal()" class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition">Tutup Detail</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL PM DETAIL KARYAWAN PER MATERI (RINCIAN DURASI VIDEO & HALAMAN DIBACA + EXPORT CSV) -->
-  <div id="courseEmployeeDetailModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-2xl max-w-4xl w-full p-6 card-shadow space-y-4 max-h-[88vh] flex flex-col">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+  <div id="courseEmployeeDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-5xl w-full p-6 card-shadow space-y-4 max-h-[88vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-lg font-bold">
+          <div class="w-10 h-10 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center text-lg font-bold">
             <i class="fa-solid fa-users"></i>
           </div>
           <div>
-            <h3 class="font-bold text-navy text-lg" id="courseDetailModalTitle">Laporan Detail Pembelajaran Karyawan</h3>
-            <p class="text-xs text-muted-grey">Monitoring nyata halaman PDF dibaca &amp; rata-rata durasi tonton video tiap teknisi</p>
+            <h3 class="font-bold text-[#1C1B8E] text-lg" id="courseDetailModalTitle">Laporan Detail Transkrip 3-Pilar Karyawan</h3>
+            <p class="text-xs text-slate-500">Rincian Komposit Score: PDF (20%) + Video (30%) + Kuis (50%) per Teknisi</p>
           </div>
         </div>
-        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <div class="flex-1 overflow-y-auto overflow-x-auto min-h-0">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="bg-gray-50 border-b border-gray-100 uppercase text-[11px] font-bold text-muted-grey">
+            <tr class="bg-slate-50 border-b border-slate-100 uppercase text-[11px] font-bold text-slate-500">
               <th class="py-2.5 px-3">NO.</th>
               <th class="py-2.5 px-3">NAMA KARYAWAN</th>
               <th class="py-2.5 px-3 text-center">SITE</th>
               <th class="py-2.5 px-3">DEPARTEMEN</th>
-              <th class="py-2.5 px-3 text-center">HALAMAN DIBACA</th>
-              <th class="py-2.5 px-3 text-center">DURASI TONTON</th>
-              <th class="py-2.5 px-3 text-center">SKOR KUIS</th>
-              <th class="py-2.5 px-3 text-center">STATUS</th>
+              <th class="py-2.5 px-3 text-center">SKOR PDF (20%)</th>
+              <th class="py-2.5 px-3 text-center">SKOR VIDEO (30%)</th>
+              <th class="py-2.5 px-3 text-center">SKOR KUIS (50%)</th>
+              <th class="py-2.5 px-3 text-center">NILAI KOMPOSIT &amp; GRADE</th>
             </tr>
           </thead>
-          <tbody id="courseDetailTableBody" class="text-xs text-navy divide-y divide-gray-50">
+          <tbody id="courseDetailTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
           </tbody>
         </table>
       </div>
 
-      <div class="pt-3 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
         <button type="button" onclick="exportCourseEmployeeDetailCsv()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md">
           <i class="fa-solid fa-file-excel"></i>
-          <span>Ekspor Detail ke Excel (CSV)</span>
+          <span>Ekspor Transkrip Nilai ke CSV (Excel)</span>
         </button>
-        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition">Tutup Modal</button>
+        <button type="button" onclick="closeCourseEmployeeDetailModal()" class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition">Tutup Modal</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Konfirmasi Hapus Materi (Custom Modal) -->
-  <div id="deleteCourseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="deleteCourseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
-      <div class="flex items-center space-x-3 text-rose-600 border-b border-gray-100 pb-3">
+      <div class="flex items-center space-x-3 text-rose-600 border-b border-slate-100 pb-3">
         <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-lg font-bold">
           <i class="fa-solid fa-triangle-exclamation"></i>
         </div>
-        <h3 class="font-bold text-navy text-lg">Konfirmasi Hapus Materi</h3>
+        <h3 class="font-bold text-slate-900 text-lg">Konfirmasi Hapus Materi</h3>
       </div>
 
-      <div class="space-y-2 text-xs text-muted-grey">
+      <div class="space-y-2 text-xs text-slate-500">
         <p>Apakah Anda yakin ingin menghapus materi pelatihan ini secara permanen?</p>
-        <p class="font-bold text-navy bg-gray-50 p-2.5 rounded-xl border border-gray-200" id="deleteCourseTitleDisplay"></p>
+        <p class="font-bold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200" id="deleteCourseTitleDisplay"></p>
         <p class="text-rose-500 font-semibold text-[11px]"><i class="fa-solid fa-circle-info mr-1"></i> Tindakan ini akan menghapus dokumen, video, kuis, dan riwayat progress terkait dari database.</p>
       </div>
 
       <div class="pt-2 flex justify-end space-x-2">
-        <button type="button" onclick="closeDeleteCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+        <button type="button" onclick="closeDeleteCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
         <button type="button" id="btnConfirmDeleteCourse" onclick="executeDeleteCourse()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition">
           Hapus Permanen
         </button>
@@ -768,33 +971,33 @@
     </div>
   </div>
 
-  <!-- Modal Kuis -->
-  <div id="quizModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="quizModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-xl w-full p-6 card-shadow space-y-4">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-navy text-lg" id="quizModalTitle">Pengerjaan Kuis Materi</h3>
-        <button type="button" onclick="closeQuizModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-[#1C1B8E] text-lg" id="quizModalTitle">Pengerjaan Kuis Materi</h3>
+        <button type="button" onclick="closeQuizModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <div id="quizContent" class="space-y-4 max-h-96 overflow-y-auto">
       </div>
 
-      <div class="pt-3 border-t border-gray-100 flex justify-end space-x-2">
-        <button type="button" onclick="closeQuizModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+      <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+        <button type="button" onclick="closeQuizModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
         <button type="button" onclick="submitQuizAnswers()" class="btn-primary px-5 py-2 rounded-xl text-xs font-bold">Kirim Jawaban</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Viewer PDF SOP (PDF.js Canvas & Embed Fallback Reader Engine) -->
-  <div id="pdfModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="pdfModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-4xl w-full h-[88vh] p-6 card-shadow flex flex-col space-y-3 relative">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center space-x-3">
-          <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-file-pdf text-red-500 mr-2"></i> Dokumen SOP Pelatihan PDF</h3>
-          <span id="pdfScoreBadge" class="bg-red-50 text-red-600 px-3 py-0.5 rounded-full text-xs font-bold">Skor PDF: 0/10</span>
+          <h3 class="font-bold text-[#1C1B8E] text-lg flex items-center"><i class="fa-solid fa-file-pdf text-rose-500 mr-2"></i> Dokumen SOP Pelatihan PDF</h3>
+          <span id="pdfTimerNotice" class="bg-amber-50 text-amber-700 px-3 py-0.5 rounded-full text-xs font-bold border border-amber-200">
+            <i class="fa-solid fa-shield-halved mr-1 text-[#F38F00]"></i> Time-Gated Page Active
+          </span>
         </div>
-        <button type="button" onclick="closePdfModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button type="button" onclick="closePdfModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <div id="pdfCanvasContainer" class="flex-1 w-full bg-slate-900 rounded-xl overflow-y-auto flex flex-col items-center justify-start p-4 relative min-h-0">
@@ -802,19 +1005,18 @@
         <iframe id="pdfFallbackIframe" class="w-full h-full rounded-xl border-0 hidden" src="" allow="autoplay"></iframe>
       </div>
 
-      <!-- Navigation & Page Tracking Bar -->
-      <div class="pt-2 flex items-center justify-between border-t border-gray-100">
-        <div class="flex items-center space-x-2 text-xs font-bold text-navy">
-          <button type="button" id="pdfPrevBtn" onclick="changePdfPage(-1)" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+      <div class="pt-2 flex items-center justify-between border-t border-slate-100">
+        <div class="flex items-center space-x-2 text-xs font-bold text-slate-900">
+          <button type="button" id="pdfPrevBtn" onclick="changePdfPage(-1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
           <span>Halaman <span id="pdfPageNum">1</span> / <span id="pdfTotalPages">1</span></span>
-          <button type="button" id="pdfNextBtn" onclick="changePdfPage(1)" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+          <button type="button" id="pdfNextBtn" onclick="changePdfPage(1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
 
         <div class="flex items-center space-x-2">
-          <button type="button" onclick="closePdfModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Tutup Dokumen</button>
-          <button type="button" id="btnPdfNextVideo" onclick="nextFromPdfToVideo()" class="px-4 py-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold transition flex items-center space-x-1">
+          <button type="button" onclick="closePdfModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Tutup Dokumen</button>
+          <button type="button" id="btnPdfNextVideo" onclick="nextFromPdfToVideo()" class="px-4 py-2 rounded-xl bg-indigo-50 text-[#1C1B8E] hover:bg-indigo-100 text-xs font-bold transition flex items-center space-x-1">
             <span>Lanjut ke Video</span>
-            <i class="fa-solid fa-circle-play text-blue-500"></i>
+            <i class="fa-solid fa-circle-play text-[#1C1B8E]"></i>
           </button>
           <button type="button" id="btnPdfToQuiz" onclick="openQuizFromMedia()" class="px-4 py-2 rounded-xl btn-primary text-xs font-bold transition hidden flex items-center space-x-1">
             <i class="fa-solid fa-pen-to-square"></i>
@@ -825,30 +1027,30 @@
     </div>
   </div>
 
-  <!-- Modal Viewer Video Player (Anti-Skip Duration Tracking Engine) -->
-  <div id="videoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="videoModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-4xl w-full h-[85vh] p-6 card-shadow flex flex-col space-y-3 relative">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center space-x-3">
-          <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-play text-blue-500 mr-2"></i> Pemutar Video Tutorial Data Center</h3>
-          <span id="videoScoreBadge" class="bg-blue-50 text-blue-600 px-3 py-0.5 rounded-full text-xs font-bold">Skor Video: 0/10</span>
+          <h3 class="font-bold text-[#1C1B8E] text-lg flex items-center"><i class="fa-solid fa-play text-[#0D9488] mr-2"></i> Pemutar Video Tutorial Data Center</h3>
+          <span class="bg-teal-50 text-[#0D9488] px-3 py-0.5 rounded-full text-xs font-bold border border-teal-100">
+            <i class="fa-solid fa-lock mr-1"></i> Anti-Skip Enabled
+          </span>
         </div>
-        <button type="button" onclick="closeVideoModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button type="button" onclick="closeVideoModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <div class="flex-1 w-full bg-black rounded-xl overflow-hidden relative flex items-center justify-center">
         <video id="html5VideoPlayer" class="w-full h-full object-contain" controls controlsList="nodownload"></video>
-        <iframe id="videoFrame" class="w-full h-full border-0 hidden" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        <iframe id="videoFrame" class="w-full h-full border-0 hidden" src="" allow="autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
 
-      <!-- Navigation Control Bar -->
-      <div class="pt-2 flex items-center justify-between border-t border-gray-100">
-        <button type="button" id="btnVideoBackPdf" onclick="backFromVideoToPdf()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-navy text-xs font-bold transition flex items-center space-x-1">
-          <i class="fa-solid fa-file-pdf text-red-500"></i>
+      <div class="pt-2 flex items-center justify-between border-t border-slate-100">
+        <button type="button" id="btnVideoBackPdf" onclick="backFromVideoToPdf()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition flex items-center space-x-1">
+          <i class="fa-solid fa-file-pdf text-rose-500"></i>
           <span>Kembali ke PDF</span>
         </button>
         <div class="flex items-center space-x-2">
-          <button type="button" onclick="closeVideoModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Selesai Menonton</button>
+          <button type="button" onclick="closeVideoModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Selesai Menonton</button>
           <button type="button" id="btnVideoToQuiz" onclick="openQuizFromMedia()" class="px-4 py-2 rounded-xl btn-primary text-xs font-bold transition hidden flex items-center space-x-1">
             <i class="fa-solid fa-pen-to-square"></i>
             <span>Lanjut ke Kuis</span>
@@ -858,25 +1060,24 @@
     </div>
   </div>
 
-  <!-- Modal Forms for Course Editing and Creation -->
-  <div id="editCourseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="editCourseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4">
-      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-navy text-lg flex items-center"><i class="fa-solid fa-pen text-amber-500 mr-2"></i> Edit Materi Pelatihan</h3>
-        <button type="button" onclick="closeEditCourseModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-[#1C1B8E] text-lg flex items-center"><i class="fa-solid fa-pen text-[#F38F00] mr-2"></i> Edit Materi Pelatihan</h3>
+        <button type="button" onclick="closeEditCourseModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <form onsubmit="handleEditCourse(event)" class="space-y-4">
         <input type="hidden" id="editCourseId">
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Judul Materi Pelatihan</label>
-          <input type="text" id="editTitle" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Judul Materi Pelatihan</label>
+          <input type="text" id="editTitle" required class="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Group</label>
-          <select id="editCategory" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-navy bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Group</label>
+          <select id="editCategory" required class="w-full p-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
             <option value="Introduction">Introduction</option>
             <option value="Elementary">Elementary</option>
             <option value="Data Center Fundamental (Basic)">Data Center Fundamental (Basic)</option>
@@ -885,29 +1086,29 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Ganti File PDF Dokumen SOP (Opsional)</label>
-          <input type="file" id="editPdfFileInput" accept="application/pdf" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Ganti File PDF Dokumen SOP (Opsional)</label>
+          <input type="file" id="editPdfFileInput" accept="application/pdf" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-[#1C1B8E] hover:file:bg-indigo-100">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Tautan / Link Video Pelatihan</label>
-          <input type="url" id="editVideoUrlInput" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Tautan / Link Video Pelatihan</label>
+          <input type="url" id="editVideoUrlInput" required class="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Text-Parser Kuis (Copas / Edit Soal)</label>
-          <textarea id="editQuizTextInput" rows="4" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-gray-700 bg-gray-50/50"></textarea>
+          <label class="block text-xs font-bold text-slate-900 mb-1">Text-Parser Kuis (Copas / Edit Soal)</label>
+          <textarea id="editQuizTextInput" rows="4" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E] font-mono text-slate-700 bg-slate-50/50"></textarea>
         </div>
 
-        <div id="editUploadIndicator" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+        <div id="editUploadIndicator" class="hidden bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-[#1C1B8E] space-y-1">
           <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-sm"></i>
+            <i class="fa-solid fa-circle-notch fa-spin text-[#1C1B8E] text-sm"></i>
             <span class="font-bold">Memperbarui materi & kuis...</span>
           </div>
         </div>
 
         <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" onclick="closeEditCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="button" onclick="closeEditCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
           <button type="submit" id="btnSubmitEdit" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
             <i class="fa-solid fa-floppy-disk mr-1"></i> <span>Simpan Perubahan</span>
           </button>
@@ -916,38 +1117,37 @@
     </div>
   </div>
 
-  <!-- Modal Forms for Employee Upload & Course Creation -->
-  <div id="employeeModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="employeeModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
-      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-navy text-lg">Tambah Data Karyawan Baru</h3>
-        <button type="button" onclick="closeEmployeeModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-[#1C1B8E] text-lg">Tambah Data Karyawan Baru</h3>
+        <button type="button" onclick="closeEmployeeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <form onsubmit="handleSaveEmployee(event)" class="space-y-3 text-xs">
         <div>
-          <label class="block font-bold text-navy mb-1">NIK / No. Induk Karyawan</label>
-          <input type="text" id="empNik" required placeholder="Contoh: 317101990001" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block font-bold text-slate-900 mb-1">NIK / No. Induk Karyawan</label>
+          <input type="text" id="empNik" required placeholder="Contoh: 317101990001" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Nama Lengkap</label>
-          <input type="text" id="empNama" required placeholder="Nama lengkap karyawan" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block font-bold text-slate-900 mb-1">Nama Lengkap</label>
+          <input type="text" id="empNama" required placeholder="Nama lengkap karyawan" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Email Perusahaan</label>
-          <input type="email" id="empEmail" required placeholder="nama@datacenter.com" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block font-bold text-slate-900 mb-1">Email Perusahaan</label>
+          <input type="email" id="empEmail" required placeholder="nama@datacenter.com" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Jabatan / Posisi</label>
-          <input type="text" id="empJabatan" required placeholder="Contoh: Senior Chiller Operator" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block font-bold text-slate-900 mb-1">Jabatan / Posisi</label>
+          <input type="text" id="empJabatan" required placeholder="Contoh: Senior Chiller Operator" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Departemen</label>
-          <select id="empDepartemen" required class="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white">
+          <label class="block font-bold text-slate-900 mb-1">Departemen</label>
+          <select id="empDepartemen" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white">
             <option value="Operations">Operations</option>
             <option value="Power & Cooling">Power & Cooling</option>
             <option value="Network & Cabling">Network & Cabling</option>
@@ -956,8 +1156,8 @@
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Site Lokasi</label>
-          <select id="empSite" required class="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-navy bg-white">
+          <label class="block font-bold text-slate-900 mb-1">Site Lokasi</label>
+          <select id="empSite" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white">
             <option value="CGK1">CGK1</option>
             <option value="CGK2">CGK2</option>
             <option value="CGK3">CGK3</option>
@@ -967,12 +1167,12 @@
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Nomor WhatsApp / HP</label>
-          <input type="text" id="empNoHp" required placeholder="0812xxxxxxx" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block font-bold text-slate-900 mb-1">Nomor WhatsApp / HP</label>
+          <input type="text" id="empNoHp" required placeholder="0812xxxxxxx" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" onclick="closeEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="button" onclick="closeEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
           <button type="submit" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md">
             Simpan Karyawan
           </button>
@@ -981,26 +1181,26 @@
     </div>
   </div>
 
-  <div id="bulkEmployeeModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="bulkEmployeeModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4">
-      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-navy text-lg">Upload Bulk Data Karyawan</h3>
-        <button type="button" onclick="closeBulkEmployeeModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-[#1C1B8E] text-lg">Upload Bulk Data Karyawan</h3>
+        <button type="button" onclick="closeBulkEmployeeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <form onsubmit="handleBulkUploadEmployee(event)" class="space-y-4 text-xs">
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-blue-800 space-y-1">
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-[#1C1B8E] space-y-1">
           <p class="font-bold"><i class="fa-solid fa-circle-info mr-1"></i> Petunjuk Upload Bulk:</p>
-          <p class="text-[11px] text-muted-grey">Gunakan template CSV dengan header: <code class="bg-white px-1 py-0.5 rounded text-navy">NIK,Nama Lengkap,Email,Jabatan,Departemen,Site,No HP</code></p>
+          <p class="text-[11px] text-slate-600">Gunakan template CSV dengan header: <code class="bg-white px-1 py-0.5 rounded text-[#1C1B8E]">NIK,Nama Lengkap,Email,Jabatan,Departemen,Site,No HP</code></p>
         </div>
 
         <div>
-          <label class="block font-bold text-navy mb-1">Pilih Berkas CSV</label>
-          <input type="file" id="csvFileInput" accept=".csv" required class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <label class="block font-bold text-slate-900 mb-1">Pilih Berkas CSV</label>
+          <input type="file" id="csvFileInput" accept=".csv" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-[#1C1B8E] hover:file:bg-indigo-100">
         </div>
 
         <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" onclick="closeBulkEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="button" onclick="closeBulkEmployeeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
           <button type="submit" id="btnSubmitBulk" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
             <i class="fa-solid fa-cloud-arrow-up mr-1"></i> <span>Proses Upload</span>
           </button>
@@ -1009,22 +1209,22 @@
     </div>
   </div>
 
-  <div id="courseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div id="courseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4">
-      <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-navy text-lg">Tambah Materi Pelatihan Baru</h3>
-        <button type="button" onclick="closeCourseModal()" class="text-muted-grey hover:text-navy"><i class="fa-solid fa-xmark text-xl"></i></button>
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-[#1C1B8E] text-lg">Tambah Materi Pelatihan Baru</h3>
+        <button type="button" onclick="closeCourseModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
       </div>
 
       <form onsubmit="handleCreateCourse(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Judul Materi Pelatihan</label>
-          <input type="text" id="newTitle" required placeholder="Contoh: Maintenance Battery UPS Tripping Emergency" class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Judul Materi Pelatihan</label>
+          <input type="text" id="newTitle" required placeholder="Contoh: Maintenance Battery UPS Tripping Emergency" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Group</label>
-          <select id="newCategory" required class="w-full p-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-navy bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Group</label>
+          <select id="newCategory" required class="w-full p-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
             <option value="Introduction">Introduction</option>
             <option value="Elementary">Elementary</option>
             <option value="Data Center Fundamental (Basic)">Data Center Fundamental (Basic)</option>
@@ -1033,20 +1233,20 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Upload File Dokumen PDF</label>
-          <input type="file" id="pdfFileInput" accept="application/pdf" required class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <label class="block text-xs font-bold text-slate-900 mb-1">Upload File Dokumen PDF</label>
+          <input type="file" id="pdfFileInput" accept="application/pdf" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-[#1C1B8E] hover:file:bg-indigo-100">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-navy mb-1">Tautan / Link Video Pelatihan (Google Drive / YouTube)</label>
-          <input type="url" id="videoUrlInput" required placeholder="https://drive.google.com/file/d/.../view" class="w-full p-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <p class="text-[11px] text-muted-grey mt-1"><i class="fa-solid fa-link text-teal-600 mr-1"></i> Tempelkan link video Google Drive atau YouTube secara langsung.</p>
+          <label class="block text-xs font-bold text-slate-900 mb-1">Tautan / Link Video Pelatihan (Google Drive / YouTube)</label>
+          <input type="url" id="videoUrlInput" required placeholder="https://drive.google.com/file/d/.../view" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+          <p class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-link text-[#0D9488] mr-1"></i> Tempelkan link video Google Drive atau YouTube secara langsung.</p>
         </div>
 
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label class="block text-xs font-bold text-navy">Quick Text-Parser Kuis (Opsional - Copas Soal)</label>
-            <span class="text-[10px] text-teal-600 font-semibold bg-teal-50 px-2 py-0.5 rounded-md"><i class="fa-solid fa-bolt mr-1"></i>Parser Teks</span>
+            <label class="block text-xs font-bold text-slate-900">Quick Text-Parser Kuis (Opsional - Copas Soal)</label>
+            <span class="text-[10px] text-[#0D9488] font-bold bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100"><i class="fa-solid fa-bolt mr-1"></i>Parser Teks</span>
           </div>
           <textarea id="quizTextInput" rows="4" placeholder="Format Copas Soal:
 1. Berapa suhu ideal ASHRAE untuk Server Room?
@@ -1055,19 +1255,19 @@ B. 18-27°C *
 C. 30-35°C
 D. 35-40°C
 
-*(Gunakan tanda * di akhir baris opsi sebagai kunci jawaban)" class="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-gray-700 bg-gray-50/50"></textarea>
+*(Gunakan tanda * di akhir baris opsi sebagai kunci jawaban)" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E] font-mono text-slate-700 bg-slate-50/50"></textarea>
         </div>
 
-        <div id="uploadProgressIndicator" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+        <div id="uploadProgressIndicator" class="hidden bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs text-[#1C1B8E] space-y-1">
           <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-sm"></i>
+            <i class="fa-solid fa-circle-notch fa-spin text-[#1C1B8E] text-sm"></i>
             <span class="font-bold">Mengunggah file & memproses materi...</span>
           </div>
-          <p class="text-muted-grey text-[11px]">Mohon tunggu hingga penyimpanan file selesai.</p>
+          <p class="text-slate-500 text-[11px]">Mohon tunggu hingga penyimpanan file selesai.</p>
         </div>
 
         <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" id="btnCancelCreate" onclick="closeCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-muted-grey hover:bg-gray-100">Batal</button>
+          <button type="button" id="btnCancelCreate" onclick="closeCourseModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
           <button type="submit" id="btnSubmitCreate" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1">
             <i class="fa-solid fa-cloud-arrow-up mr-1"></i> <span>Simpan Materi</span>
           </button>
@@ -1076,11 +1276,29 @@ D. 35-40°C
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-20 md:bottom-5 right-5 bg-navy text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold hidden transition z-50">
+  <!-- GLOBAL LOADING SPINNER ANIMATION OVERLAY -->
+  <div id="globalLoadingSpinner" class="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center hidden transition-opacity">
+    <div class="bg-white/95 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl border border-white/20 flex items-center space-x-3 text-[#1C1B8E]">
+      <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#F38F00]"></i>
+      <span class="font-bold text-sm text-slate-800">Memuat Data...</span>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast" class="fixed bottom-20 md:bottom-5 right-5 bg-[#1C1B8E] text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold hidden transition z-50 border border-white/20">
     <span id="toastMsg">Notifikasi</span>
   </div>
 
+  <!-- Including Modular JavaScript Engines -->
   <?!= include('media_tracker'); ?>
-  <?!= include('javascript'); ?>
+  <?!= include('js_core'); ?>
+  <?!= include('js_auth'); ?>
+  <?!= include('js_dashboard'); ?>
+  <?!= include('js_courses'); ?>
+  <?!= include('js_employees'); ?>
+  <?!= include('js_missions'); ?>
+  <?!= include('js_overtime'); ?>
+  <?!= include('js_quiz_media'); ?>
+  <?!= include('js_users'); ?>
 </body>
 </html>
