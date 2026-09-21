@@ -1,0 +1,374 @@
+<script>
+  /**
+   * Course Management & Catalog Controller (Dukungan Transkrip 3-Pilar)
+   * System: e-LMS Data Center KSPS
+   */
+
+  function loadCourses(page) {
+    var cat = document.getElementById("categoryFilter") ? document.getElementById("categoryFilter").value : "all";
+    var search = document.getElementById("globalSearchInput") ? document.getElementById("globalSearchInput").value : "";
+    var userId = currentUser ? currentUser.user_id : 'USR-0003';
+
+    callBackend('getCoursesPaginated', [page, 10, search, cat, userId], function(res) {
+      if (res.success) {
+        renderCourseTable(res.data, res.currentPage, 10);
+        renderPaginationControls(res.currentPage, res.totalPages, res.totalItems);
+      }
+    });
+  }
+
+  function renderCourseTable(list, currentPage, limit) {
+    var tbody = document.getElementById("courseTableBody");
+    var thead = document.getElementById("courseTableHead");
+    if (!tbody || !thead) return;
+
+    tbody.innerHTML = "";
+    thead.innerHTML = "";
+
+    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var isPmOrAdmin = currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin');
+
+    var trHead = document.createElement("tr");
+    trHead.className = "bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-slate-500 uppercase tracking-wider";
+
+    if (isKaryawan) {
+      trHead.innerHTML = '<th class="py-3.5 px-4 w-12 text-center">NO.</th>' +
+        '<th class="py-3.5 px-4">GROUP</th>' +
+        '<th class="py-3.5 px-4">JUDUL MATERI</th>' +
+        '<th class="py-3.5 px-4 text-center">SKOR PDF (20%)</th>' +
+        '<th class="py-3.5 px-4 text-center">SKOR VIDEO (30%)</th>' +
+        '<th class="py-3.5 px-4 text-center">SKOR KUIS (50%)</th>' +
+        '<th class="py-3.5 px-4 text-center">NILAI KOMPOSIT</th>' +
+        '<th class="py-3.5 px-4 text-center">MEDIA / AKSI</th>';
+    } else {
+      trHead.innerHTML = '<th class="py-3.5 px-4 w-12 text-center">NO.</th>' +
+        '<th class="py-3.5 px-4">GROUP</th>' +
+        '<th class="py-3.5 px-4">JUDUL MATERI</th>' +
+        '<th class="py-3.5 px-4 text-center">PESERTA</th>' +
+        '<th class="py-3.5 px-4 text-center">NILAI RATA-RATA</th>' +
+        '<th class="py-3.5 px-4 text-center">MEDIA / AKSI</th>' +
+        '<th class="py-3.5 px-4 text-center">TRANSKRIP KARYAWAN</th>';
+    }
+    thead.appendChild(trHead);
+
+    if (!list || list.length === 0) {
+      var colSpan = isKaryawan ? 8 : 7;
+      tbody.innerHTML = '<tr><td colspan="' + colSpan + '" class="text-center text-slate-500 text-sm py-8">Tidak ada materi ditemukan.</td></tr>';
+      return;
+    }
+
+    list.forEach(function(item, idx) {
+      var rowNo = (currentPage - 1) * limit + idx + 1;
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-blue-50/30 transition border-b border-gray-50";
+
+      var groupBadge = '<span class="text-[11px] bg-teal-50 text-[#0D9488] px-2.5 py-1 rounded-full font-bold inline-block">' + item.kategori_dc + '</span>';
+      var avgScoreDisplay = item.avg_score > 0 ? (item.avg_score + " / 100") : "Belum ada";
+
+      var safeTitle = (item.judul_materi || '').replace(/'/g, "\\'");
+      var safePdf = (item.pdf_link || '').replace(/'/g, "\\'");
+      var safeVideo = (item.video_url || '').replace(/'/g, "\\'");
+
+      var editBtnHtml = isPmOrAdmin ? 
+        '<button type="button" onclick="openEditCourseModal(\'' + item.course_id + '\')" class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 flex items-center justify-center transition" title="Edit Materi (PM)"><i class="fa-solid fa-pen"></i></button>' : '';
+
+      var deleteBtnHtml = isPmOrAdmin ?
+        '<button type="button" onclick="confirmDeleteCourse(\'' + item.course_id + '\', \'' + safeTitle + '\')" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition" title="Hapus Materi"><i class="fa-solid fa-trash"></i></button>' : '';
+
+      var actionsHtml = '<div class="flex items-center justify-center space-x-1.5">' +
+        '<button type="button" onclick="trackPdf(\'' + item.course_id + '\', \'' + safePdf + '\', \'' + safeTitle + '\', \'' + safeVideo + '\')" class="w-8 h-8 rounded-lg bg-red-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition" title="1. Baca PDF SOP"><i class="fa-solid fa-file-pdf"></i></button>' +
+        '<button type="button" onclick="trackVideo(\'' + item.course_id + '\', \'' + safeVideo + '\', \'' + safeTitle + '\', \'' + safePdf + '\')" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition" title="2. Menonton Video"><i class="fa-solid fa-play"></i></button>' +
+        '<button type="button" onclick="openQuizModal(\'' + item.course_id + '\', \'' + safeTitle + '\')" class="w-8 h-8 rounded-lg btn-primary text-xs flex items-center justify-center transition" title="3. Kerjakan Kuis Evaluasi"><i class="fa-solid fa-pen-to-square"></i></button>' +
+        editBtnHtml +
+        deleteBtnHtml +
+        '</div>';
+
+      if (isKaryawan) {
+        var pdfScorePill = '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100">' + (item.user_pdf_score || 0) + ' / 100</span>';
+        var videoScorePill = '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">' + (item.user_video_score || 0) + ' / 100</span>';
+        var quizScorePill = '<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-[#0D9488] border border-teal-100">' + (item.user_quiz_score || 0) + ' / 100</span>';
+        var gradeBadge = getGradeBadgeHtml(item.user_composite_score || 0);
+
+        tr.innerHTML = '<td class="py-3.5 px-4 text-center font-bold text-slate-500 text-xs">' + rowNo + '</td>' +
+                       '<td class="py-3.5 px-4">' + groupBadge + '</td>' +
+                       '<td class="py-3.5 px-4 font-bold text-[#1C1B8E] text-sm">' + item.judul_materi + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + pdfScorePill + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + videoScorePill + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + quizScorePill + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + gradeBadge + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + actionsHtml + '</td>';
+      } else {
+        var pesertaText = item.peserta_selesai + " / " + item.total_peserta + " Karyawan";
+        var colPeserta = '<span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">' + pesertaText + '</span>';
+
+        var detailBtnHtml = '<button type="button" onclick="openCourseEmployeeDetailModal(\'' + item.course_id + '\', \'' + safeTitle + '\')" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0D9488] text-xs font-bold transition flex items-center justify-center space-x-1 mx-auto">' +
+          '<i class="fa-solid fa-file-excel text-emerald-600"></i>' +
+          '<span>Transkrip 3-Pilar</span>' +
+          '</button>';
+
+        tr.innerHTML = '<td class="py-3.5 px-4 text-center font-bold text-slate-500 text-xs">' + rowNo + '</td>' +
+                       '<td class="py-3.5 px-4">' + groupBadge + '</td>' +
+                       '<td class="py-3.5 px-4 font-bold text-[#1C1B8E] text-sm">' + item.judul_materi + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + colPeserta + '</td>' +
+                       '<td class="py-3.5 px-4 text-center font-bold text-sm text-[#1C1B8E]">' + avgScoreDisplay + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + actionsHtml + '</td>' +
+                       '<td class="py-3.5 px-4 text-center">' + detailBtnHtml + '</td>';
+      }
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openCourseEmployeeDetailModal(courseId, title) {
+    activeCourseDetailId = courseId;
+    activeCourseDetailTitle = title;
+
+    document.getElementById("courseDetailModalTitle").innerText = "Laporan Transkrip 3-Pilar: " + title;
+    document.getElementById("courseEmployeeDetailModal").classList.remove("hidden");
+
+    var tbody = document.getElementById("courseDetailTableBody");
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 py-8"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Memuat transkrip nilai 3-pilar...</td></tr>';
+
+    callBackend('getCourseEmployeeDetails', [courseId], function(res) {
+      if (res && res.success) {
+        activeCourseDetailCache = res.data || [];
+        renderCourseEmployeeDetailTable(activeCourseDetailCache);
+      } else {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-rose-500 py-8">Gagal memuat detail karyawan.</td></tr>';
+      }
+    });
+  }
+
+  function renderCourseEmployeeDetailTable(list) {
+    var tbody = document.getElementById("courseDetailTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 py-8">Belum ada karyawan yang mengakses materi ini.</td></tr>';
+      return;
+    }
+
+    list.forEach(function(emp, idx) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-blue-50/20 border-b border-slate-100 transition";
+
+      var pdfBox = '<span class="font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md">' + (emp.pdf_score || 0) + ' / 100</span>';
+      var videoBox = '<span class="font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">' + (emp.video_score || 0) + ' / 100</span>';
+      var quizBox = '<span class="font-bold text-[#0D9488] bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md">' + (emp.quiz_score || 0) + ' / 100</span>';
+      var gradeBadge = getGradeBadgeHtml(emp.composite_score || 0);
+
+      tr.innerHTML = '<td class="py-2.5 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
+        '<td class="py-2.5 px-3"><div class="font-bold text-[#1C1B8E]">' + emp.nama_lengkap + '</div><div class="text-[10px] text-slate-500">' + emp.nik + '</div></td>' +
+        '<td class="py-2.5 px-3 text-center"><span class="bg-indigo-50 text-[#1C1B8E] px-2 py-0.5 rounded-full text-[10px] font-bold border border-indigo-100">' + emp.site + '</span></td>' +
+        '<td class="py-2.5 px-3 text-slate-500">' + emp.departemen + '</td>' +
+        '<td class="py-2.5 px-3 text-center">' + pdfBox + '</td>' +
+        '<td class="py-2.5 px-3 text-center">' + videoBox + '</td>' +
+        '<td class="py-2.5 px-3 text-center">' + quizBox + '</td>' +
+        '<td class="py-2.5 px-3 text-center">' + gradeBadge + '</td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function closeCourseEmployeeDetailModal() {
+    document.getElementById("courseEmployeeDetailModal").classList.add("hidden");
+  }
+
+  function exportCourseEmployeeDetailCsv() {
+    if (!activeCourseDetailCache || activeCourseDetailCache.length === 0) return;
+
+    var csvRows = [];
+    csvRows.push("==========================================================================");
+    csvRows.push("LAPORAN TRANSKRIP KOMPETENSI 3-PILAR KARYAWAN (e-LMS KSPS)");
+    csvRows.push("Judul Materi: " + activeCourseDetailTitle);
+    csvRows.push("Formula Penilaian: (20% Skor PDF) + (30% Skor Video) + (50% Skor Kuis)");
+    csvRows.push("Tanggal Ekspor: " + new Date().toLocaleString('id-ID'));
+    csvRows.push("==========================================================================");
+    csvRows.push("");
+    csvRows.push("NO,NAMA KARYAWAN,NIK,SITE LOKASI,DEPARTEMEN,SKOR PDF (20%),SKOR VIDEO (30%),SKOR KUIS (50%),NILAI KOMPOSIT,GRADE");
+
+    activeCourseDetailCache.forEach(function(emp, idx) {
+      csvRows.push([
+        (idx + 1),
+        '"' + emp.nama_lengkap + '"',
+        '"' + emp.nik + '"',
+        emp.site,
+        '"' + emp.departemen + '"',
+        emp.pdf_score || 0,
+        emp.video_score || 0,
+        emp.quiz_score || 0,
+        emp.composite_score || 0,
+        '"' + (emp.composite_score >= 90 ? 'Grade A (Master Operator)' : (emp.composite_score >= 80 ? 'Grade B (Compliant)' : (emp.composite_score >= 70 ? 'Grade C (Needs Review)' : 'Grade D (Remedial Wajib)'))) + '"'
+      ].join(","));
+    });
+
+    var csvContent = csvRows.join("\n");
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Transkrip_3Pilar_" + activeCourseDetailId + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function renderPaginationControls(current, total, totalItems) {
+    var infoEl = document.getElementById("paginationInfo");
+    if (infoEl) infoEl.innerText = "Menampilkan Halaman " + current + " dari " + total + " (" + totalItems + " Materi)";
+    
+    var ctrl = document.getElementById("paginationControls");
+    if (!ctrl) return;
+    ctrl.innerHTML = "";
+
+    for (var i = 1; i <= total; i++) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerText = i;
+      btn.className = "w-8 h-8 rounded-lg text-xs font-bold " + (i === current ? "bg-[#1C1B8E] text-white" : "bg-slate-100 text-[#1C1B8E]");
+      (function(page) {
+        btn.onclick = function() { loadCourses(page); };
+      })(i);
+      ctrl.appendChild(btn);
+    }
+  }
+
+  function confirmDeleteCourse(courseId, title) {
+    courseToDeleteId = courseId;
+    document.getElementById("deleteCourseTitleDisplay").innerText = title;
+    document.getElementById("deleteCourseModal").classList.remove("hidden");
+  }
+
+  function closeDeleteCourseModal() {
+    courseToDeleteId = null;
+    document.getElementById("deleteCourseModal").classList.add("hidden");
+  }
+
+  function executeDeleteCourse() {
+    if (!courseToDeleteId) return;
+    var btn = document.getElementById("btnConfirmDeleteCourse");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menghapus...';
+
+    callBackend('deleteCourse', [courseToDeleteId], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = 'Hapus Permanen';
+      closeDeleteCourseModal();
+
+      if (res.success) {
+        loadCourses(1);
+        loadDashboard();
+      }
+    });
+  }
+
+  function openCreateCourseModal() {
+    document.getElementById("courseModal").classList.remove("hidden");
+  }
+
+  function closeCourseModal() {
+    document.getElementById("courseModal").classList.add("hidden");
+    document.getElementById("uploadProgressIndicator").classList.add("hidden");
+    document.getElementById("btnSubmitCreate").disabled = false;
+    if (document.getElementById("quizTextInput")) document.getElementById("quizTextInput").value = "";
+  }
+
+  function openEditCourseModal(courseId) {
+    callBackend('getCourseDetailsForEdit', [courseId], function(res) {
+      if (res.success) {
+        var d = res.data;
+        document.getElementById("editCourseId").value = d.course_id;
+        document.getElementById("editTitle").value = d.judul_materi;
+        document.getElementById("editCategory").value = d.kategori_dc || "Introduction";
+        document.getElementById("editVideoUrlInput").value = d.video_url;
+        document.getElementById("editQuizTextInput").value = d.quiz_text || "";
+        document.getElementById("editCourseModal").classList.remove("hidden");
+      }
+    });
+  }
+
+  function closeEditCourseModal() {
+    document.getElementById("editCourseModal").classList.add("hidden");
+    document.getElementById("editUploadIndicator").classList.add("hidden");
+    document.getElementById("btnSubmitEdit").disabled = false;
+  }
+
+  async function handleCreateCourse(e) {
+    e.preventDefault();
+    
+    var titleInput = document.getElementById("newTitle").value;
+    var categoryInput = document.getElementById("newCategory").value;
+    var pdfFile = document.getElementById("pdfFileInput").files[0];
+    var videoUrlInput = document.getElementById("videoUrlInput").value;
+    var quizText = document.getElementById("quizTextInput") ? document.getElementById("quizTextInput").value : "";
+
+    if (!pdfFile || !videoUrlInput || videoUrlInput.trim() === "") return;
+
+    document.getElementById("uploadProgressIndicator").classList.remove("hidden");
+    document.getElementById("btnSubmitCreate").disabled = true;
+
+    try {
+      var pdfData = await readFileAsBase64(pdfFile);
+
+      var courseData = {
+        judul_materi: titleInput,
+        kategori_dc: categoryInput,
+        created_by: currentUser ? currentUser.name : "Project Manager"
+      };
+
+      callBackend('saveCourseWithFiles', [courseData, pdfData, videoUrlInput, quizText], function(res) {
+        document.getElementById("uploadProgressIndicator").classList.add("hidden");
+        document.getElementById("btnSubmitCreate").disabled = false;
+
+        if (res.success) {
+          document.getElementById("newTitle").value = "";
+          document.getElementById("pdfFileInput").value = "";
+          document.getElementById("videoUrlInput").value = "";
+          if (document.getElementById("quizTextInput")) document.getElementById("quizTextInput").value = "";
+          closeCourseModal();
+          loadCourses(1);
+        }
+      });
+    } catch (err) {
+      document.getElementById("uploadProgressIndicator").classList.add("hidden");
+      document.getElementById("btnSubmitCreate").disabled = false;
+    }
+  }
+
+  async function handleEditCourse(e) {
+    e.preventDefault();
+    
+    var courseId = document.getElementById("editCourseId").value;
+    var titleInput = document.getElementById("editTitle").value;
+    var categoryInput = document.getElementById("editCategory").value;
+    var pdfFile = document.getElementById("editPdfFileInput").files[0];
+    var videoUrlInput = document.getElementById("editVideoUrlInput").value;
+    var quizText = document.getElementById("editQuizTextInput").value;
+
+    document.getElementById("editUploadIndicator").classList.remove("hidden");
+    document.getElementById("btnSubmitEdit").disabled = true;
+
+    try {
+      var pdfData = pdfFile ? await readFileAsBase64(pdfFile) : null;
+
+      var courseData = {
+        judul_materi: titleInput,
+        kategori_dc: categoryInput
+      };
+
+      callBackend('updateCourseWithFiles', [courseId, courseData, pdfData, videoUrlInput, quizText], function(res) {
+        document.getElementById("editUploadIndicator").classList.add("hidden");
+        document.getElementById("btnSubmitEdit").disabled = false;
+
+        if (res.success) {
+          closeEditCourseModal();
+          loadCourses(1);
+        }
+      });
+    } catch (err) {
+      document.getElementById("editUploadIndicator").classList.add("hidden");
+      document.getElementById("btnSubmitEdit").disabled = false;
+    }
+  }
+</script>
