@@ -1,10 +1,12 @@
 <script>
   /**
-   * Overtime Management, Digital Signature Engine & Dual/Combined Print PDF Engine
+   * Overtime Management, Digital Signature Engine, Cascading PM Filters & Dual Print PDF Engine
    * System: e-LMS Data Center KSPS
    */
 
   var currentOvertimeCache = [];
+  var currentFilteredOvertimeCache = [];
+  var overtimeMasterEmployees = [];
   var activeSigMode = "draw"; // 'draw' atau 'upload'
   var isDrawing = false;
   var sigCanvasContext = null;
@@ -143,7 +145,6 @@
     document.getElementById("signatureModal").classList.remove("hidden");
     clearSignatureCanvas();
 
-    // Tampilkan TTD aktif jika tersimpan di sesi user
     var currentSigWrapper = document.getElementById("currentSigPreviewWrapper");
     var currentSigImg = document.getElementById("currentSigImg");
 
@@ -211,7 +212,7 @@
   }
 
   /* =========================================================
-   * 2. PENGHITUNG JAM & MANAJEMEN LEMBUR
+   * 2. PENGHITUNG JAM & MANAJEMEN LEMBUR (MULTI-FILTER PM)
    * ========================================================= */
 
   function calculateOvertimeHours() {
@@ -247,14 +248,108 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
+    // Inisialisasi daftar karyawan untuk dropdown PM
+    if (!isKaryawan && overtimeMasterEmployees.length === 0) {
+      callBackend('getEmployeesList', [], function(empRes) {
+        if (empRes && empRes.success) {
+          overtimeMasterEmployees = empRes.data || [];
+          populatePmEmployeeDropdown("ALL");
+        }
+      });
+    }
+
     callBackend('getOvertimeData', [userId, period], function(res) {
       if (res && res.success) {
         currentOvertimeCache = res.data || [];
-        var totalHoursEl = document.getElementById("ovtTotalMonthHours");
-        if (totalHoursEl) totalHoursEl.innerText = (res.totalHours || 0) + " Jam";
-        renderOvertimeTable(currentOvertimeCache);
+
+        // Update opsi dropdown PM jika list karyawan master belum lengkap
+        if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
+          var uniqueEmps = {};
+          currentOvertimeCache.forEach(function(item) {
+            if (item.user_id && !uniqueEmps[item.user_id]) {
+              uniqueEmps[item.user_id] = {
+                user_id: item.user_id,
+                nama_lengkap: item.nama_lengkap,
+                site: item.site || "CGK1",
+                nik: item.nik || "-",
+                departemen: item.departemen || "Operations"
+              };
+            }
+          });
+          overtimeMasterEmployees = Object.values(uniqueEmps);
+          populatePmEmployeeDropdown(document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL");
+        }
+
+        applyOvertimeFilters();
       }
     });
+  }
+
+  function populatePmEmployeeDropdown(selectedSite) {
+    var empSelect = document.getElementById("overtimeEmployeeFilter");
+    if (!empSelect) return;
+
+    var currentVal = empSelect.value || "ALL";
+    empSelect.innerHTML = '<option value="ALL">Semua Karyawan</option>';
+
+    var filtered = overtimeMasterEmployees;
+    if (selectedSite && selectedSite !== "ALL") {
+      filtered = overtimeMasterEmployees.filter(function(emp) {
+        return (emp.site === selectedSite);
+      });
+    }
+
+    filtered.forEach(function(emp) {
+      var opt = document.createElement("option");
+      opt.value = emp.user_id;
+      opt.innerText = emp.nama_lengkap + " (" + (emp.site || 'Site') + ")";
+      empSelect.appendChild(opt);
+    });
+
+    // Pertahankan nilai yang terpilih jika masih tersedia di site tersebut
+    var stillExists = Array.from(empSelect.options).some(function(o) { return o.value === currentVal; });
+    empSelect.value = stillExists ? currentVal : "ALL";
+  }
+
+  function handleOvertimeSiteChange() {
+    var siteVal = document.getElementById("overtimeSiteFilter").value;
+    populatePmEmployeeDropdown(siteVal);
+    applyOvertimeFilters();
+  }
+
+  function handleOvertimeEmployeeChange() {
+    applyOvertimeFilters();
+  }
+
+  function applyOvertimeFilters() {
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    
+    if (isKaryawan) {
+      currentFilteredOvertimeCache = currentOvertimeCache.slice();
+    } else {
+      var siteVal = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+      var empVal = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+      currentFilteredOvertimeCache = currentOvertimeCache.filter(function(item) {
+        var matchSite = (siteVal === "ALL" || item.site === siteVal);
+        var matchEmp = (empVal === "ALL" || item.user_id === empVal);
+        return matchSite && matchEmp;
+      });
+    }
+
+    // Hitung akumulasi total jam dinamis sesuai filter yang sedang aktif
+    var totalHrs = 0;
+    currentFilteredOvertimeCache.forEach(function(item) {
+      totalHrs += (parseFloat(item.total_jam) || 0);
+    });
+    totalHrs = Math.round(totalHrs * 10) / 10;
+
+    var totalHoursEl = document.getElementById("ovtTotalMonthHours");
+    if (totalHoursEl) {
+      totalHoursEl.innerText = totalHrs + " Jam";
+    }
+
+    renderOvertimeTable(currentFilteredOvertimeCache);
   }
 
   function UtilitiesFormatDateMonth() {
@@ -265,6 +360,13 @@
     return year + '-' + month;
   }
 
+  function getOvertimeItem(idx) {
+    if (currentFilteredOvertimeCache && currentFilteredOvertimeCache[idx]) {
+      return currentFilteredOvertimeCache[idx];
+    }
+    return currentOvertimeCache[idx];
+  }
+
   function renderOvertimeTable(list) {
     var tbody = document.getElementById("overtimeTableBody");
     if (!tbody) return;
@@ -273,7 +375,7 @@
     var isPmOrAdmin = currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin');
 
     if (!list || list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 text-sm py-8">Belum ada data lembur untuk periode ini.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 text-sm py-8">Belum ada data lembur untuk kriteria filter periode ini.</td></tr>';
       return;
     }
 
@@ -296,8 +398,11 @@
         '<i class="fa-solid fa-file-lines"></i><span>Surat Tugas</span>' +
         '</button>';
 
-      // Kolom Deskripsi + Kotak Catatan Revisi PM (jika ada)
-      var descHtml = '<div><p class="font-medium text-slate-800">' + item.deskripsi + '</p>';
+      // Kolom Deskripsi & Nama Karyawan (jika PM sedang melihat semua)
+      var empNameSub = (isPmOrAdmin && item.nama_lengkap) ?
+        '<p class="text-[10px] text-indigo-700 font-bold mb-0.5"><i class="fa-solid fa-user mr-1"></i>' + item.nama_lengkap + ' (' + (item.site || 'Site') + ')</p>' : '';
+
+      var descHtml = '<div>' + empNameSub + '<p class="font-medium text-slate-800">' + item.deskripsi + '</p>';
       if (item.catatan && item.catatan !== '-') {
         descHtml += '<p class="text-[11px] text-slate-500 mt-0.5"><span class="font-semibold">Note:</span> ' + item.catatan + '</p>';
       }
@@ -324,7 +429,6 @@
           actionsHtml = '<span class="text-[11px] font-bold text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-circle-check mr-1"></i>' + (item.approved_by || 'Disetujui') + '</span>';
         }
       } else {
-        // Akun Karyawan
         if (item.status_approval === 'Perlu Revisi') {
           actionsHtml = '<button type="button" onclick="startEditOvertime(' + idx + ')" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold shadow-sm transition flex items-center justify-center space-x-1 mx-auto">' +
             '<i class="fa-solid fa-pen-to-square"></i><span>Koreksi</span></button>';
@@ -352,10 +456,9 @@
    * ========================================================= */
 
   function handlePmApprove(itemIndex) {
-    var item = currentOvertimeCache[itemIndex];
+    var item = getOvertimeItem(itemIndex);
     if (!item) return;
 
-    // Validasi apakah PM sudah memiliki tanda tangan digital
     if (!currentUser.signature) {
       showToast("Anda belum memiliki Tanda Tangan Digital. Silakan buat TTD terlebih dahulu.");
       openSignatureModal();
@@ -380,7 +483,7 @@
   }
 
   function openPmRevisionModal(itemIndex) {
-    var item = currentOvertimeCache[itemIndex];
+    var item = getOvertimeItem(itemIndex);
     if (!item) return;
 
     document.getElementById("pmRevisionTargetId").value = item.overtime_id;
@@ -424,7 +527,7 @@
    * ========================================================= */
 
   function startEditOvertime(itemIndex) {
-    var item = currentOvertimeCache[itemIndex];
+    var item = getOvertimeItem(itemIndex);
     if (!item) return;
 
     document.getElementById("ovtEditId").value = item.overtime_id;
@@ -436,7 +539,6 @@
 
     calculateOvertimeHours();
 
-    // Tampilkan Banner Edit
     var banner = document.getElementById("ovtEditBanner");
     var noteEl = document.getElementById("ovtEditRevisionNote");
     if (banner && noteEl) {
@@ -452,7 +554,6 @@
     var title = document.getElementById("ovtFormTitle");
     if (title) title.innerText = "Koreksi Aktivitas Lembur";
 
-    // Smooth Scroll ke Form
     document.getElementById("ovtForm").scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -536,15 +637,40 @@
   }
 
   /* =========================================================
-   * 6. CETAK REKAPITULASI LEMBUR (SHIFT) PDF
+   * 6. CETAK REKAPITULASI LEMBUR (SHIFT) PDF (TERTARGET SESUAI FILTER PM)
    * ========================================================= */
 
   function printOvertimePDF() {
-    var empName = currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN";
-    var empNik = currentUser ? (currentUser.nik || "7259500591") : "7259500591";
-    var empDept = currentUser ? currentUser.departemen : "DC OPERATION TBS";
-    var empSite = currentUser ? currentUser.site : "CGK3";
-    
+    var dataset = (currentFilteredOvertimeCache && currentFilteredOvertimeCache.length > 0) ? 
+      currentFilteredOvertimeCache : currentOvertimeCache;
+
+    if (!dataset || dataset.length === 0) {
+      showToast("Tidak ada data lembur untuk dicetak pada kriteria ini!");
+      return;
+    }
+
+    // Deteksi Target Karyawan (Jika PM login, ambil karyawan yang dipilih di filter)
+    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var empFilter = document.getElementById("overtimeEmployeeFilter");
+    var selectedEmpId = empFilter ? empFilter.value : "ALL";
+
+    var targetItem = dataset[0];
+
+    if (!isKaryawan && selectedEmpId === "ALL") {
+      // Periksa apakah data berisi lebih dari 1 karyawan
+      var distinctUsers = {};
+      dataset.forEach(function(d) { distinctUsers[d.user_id] = true; });
+      if (Object.keys(distinctUsers).length > 1) {
+        showToast("Harap pilih nama salah satu Karyawan pada filter di atas sebelum mencetak Rekap Bulanan!");
+        return;
+      }
+    }
+
+    var empName = targetItem.nama_lengkap || (currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN");
+    var empNik = targetItem.nik || (currentUser ? currentUser.nik : "7259500591");
+    var empDept = targetItem.departemen || "DC OPERATION TBS";
+    var empSite = targetItem.site || "CGK3";
+
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : "2026-09";
     var parts = periodVal.split("-");
@@ -560,23 +686,26 @@
     var entryByDay = {};
     var latestApproverName = "Tommy Hardiansyah";
     var latestApproverSig = "";
-    var userSig = (currentUser && currentUser.signature) ? currentUser.signature : "";
+    var userSig = targetItem.user_signature || ((currentUser && currentUser.signature) ? currentUser.signature : "");
 
-    if (currentOvertimeCache && currentOvertimeCache.length > 0) {
-      currentOvertimeCache.forEach(function(item) {
-        if (item.tanggal) {
-          var tParts = item.tanggal.split("-");
-          var dNum = parseInt(tParts[2], 10);
-          if (!isNaN(dNum)) {
-            entryByDay[dNum] = item;
-          }
+    dataset.forEach(function(item) {
+      if (item.tanggal) {
+        var tParts = item.tanggal.split("-");
+        var dNum = parseInt(tParts[2], 10);
+        if (!isNaN(dNum)) {
+          entryByDay[dNum] = item;
         }
-        if (item.user_signature && !userSig) userSig = item.user_signature;
-        if (item.status_approval === 'Approved' && item.approver_signature) {
-          latestApproverSig = item.approver_signature;
-          if (item.approved_by) latestApproverName = item.approved_by;
-        }
-      });
+      }
+      if (item.user_signature && !userSig) userSig = item.user_signature;
+      if (item.status_approval === 'Approved' && item.approver_signature) {
+        latestApproverSig = item.approver_signature;
+        if (item.approved_by) latestApproverName = item.approved_by;
+      }
+    });
+
+    // Jika PM saat ini login dan belum disetujui, pakai TTD PM jika tersedia
+    if (!latestApproverSig && currentUser && currentUser.role === 'Project Manager' && currentUser.signature) {
+      latestApproverName = currentUser.name || "Budi PM Infrastructure";
     }
 
     var rowsHtml = "";
@@ -598,7 +727,6 @@
         '</tr>';
     }
 
-    // Blok Tanda Tangan Karyawan & PM (Dinamis)
     var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
 
@@ -700,7 +828,7 @@
    * ========================================================= */
 
   function printSuratTugasPDF(itemIndex) {
-    var item = currentOvertimeCache[itemIndex];
+    var item = getOvertimeItem(itemIndex);
     if (!item) return;
 
     var empName = item.nama_lengkap || (currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN");
@@ -826,19 +954,37 @@
   }
 
   /* =========================================================
-   * 8. CETAK GABUNGAN REKAPITULASI + SEMUA STL PDF
+   * 8. CETAK GABUNGAN REKAPITULASI + SEMUA STL PDF (TERTARGET SESUAI FILTER PM)
    * ========================================================= */
 
   function printCombinedOvertimePDF() {
-    if (!currentOvertimeCache || currentOvertimeCache.length === 0) {
+    var dataset = (currentFilteredOvertimeCache && currentFilteredOvertimeCache.length > 0) ? 
+      currentFilteredOvertimeCache : currentOvertimeCache;
+
+    if (!dataset || dataset.length === 0) {
       showToast("Tidak ada data lembur untuk dicetak pada periode ini!");
       return;
     }
 
-    var empName = currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN";
-    var empNik = currentUser ? (currentUser.nik || "7259500591") : "7259500591";
-    var empDept = currentUser ? currentUser.departemen : "DC OPERATION TBS";
-    var empSite = currentUser ? currentUser.site : "CGK3";
+    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var empFilter = document.getElementById("overtimeEmployeeFilter");
+    var selectedEmpId = empFilter ? empFilter.value : "ALL";
+
+    var targetItem = dataset[0];
+
+    if (!isKaryawan && selectedEmpId === "ALL") {
+      var distinctUsers = {};
+      dataset.forEach(function(d) { distinctUsers[d.user_id] = true; });
+      if (Object.keys(distinctUsers).length > 1) {
+        showToast("Harap pilih nama salah satu Karyawan pada filter di atas sebelum mencetak Dokumen Gabungan!");
+        return;
+      }
+    }
+
+    var empName = targetItem.nama_lengkap || (currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN");
+    var empNik = targetItem.nik || (currentUser ? currentUser.nik : "7259500591");
+    var empDept = targetItem.departemen || "DC OPERATION TBS";
+    var empSite = targetItem.site || "CGK3";
     
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : "2026-09";
@@ -855,9 +1001,9 @@
     var entryByDay = {};
     var latestApproverName = "Tommy Hardiansyah";
     var latestApproverSig = "";
-    var userSig = (currentUser && currentUser.signature) ? currentUser.signature : "";
+    var userSig = targetItem.user_signature || ((currentUser && currentUser.signature) ? currentUser.signature : "");
 
-    currentOvertimeCache.forEach(function(item) {
+    dataset.forEach(function(item) {
       if (item.tanggal) {
         var tParts = item.tanggal.split("-");
         var dNum = parseInt(tParts[2], 10);
@@ -871,6 +1017,10 @@
         if (item.approved_by) latestApproverName = item.approved_by;
       }
     });
+
+    if (!latestApproverSig && currentUser && currentUser.role === 'Project Manager' && currentUser.signature) {
+      latestApproverName = currentUser.name || "Budi PM Infrastructure";
+    }
 
     var rowsHtml = "";
     for (var day = 1; day <= daysInMonth; day++) {
@@ -977,8 +1127,8 @@
       '</table>' +
       '</div>';
 
-    // HALAMAN 2 S.D. N: SURAT TUGAS LEMBUR (STL) PER ELEMEN DENGAN TTD LENGKAP
-    currentOvertimeCache.forEach(function(item) {
+    // HALAMAN 2 S.D. N: SURAT TUGAS LEMBUR (STL) PER ELEMEN SESUAI DATASET FILTER
+    dataset.forEach(function(item) {
       var itemEmpName = item.nama_lengkap || empName;
       var itemEmpNik = item.nik || empNik;
       var itemEmpDept = item.departemen || empDept;
