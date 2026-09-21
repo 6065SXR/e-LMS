@@ -1,0 +1,145 @@
+<script>
+  /**
+   * Employee Directory & Bulk Data Controller (Dukungan Transkrip 3-Pilar)
+   * System: e-LMS Data Center KSPS
+   */
+
+  function loadEmployees() {
+    callBackend('getEmployeesList', [], function(res) {
+      if (res.success) {
+        renderEmployeeTable(res.data);
+      }
+    });
+  }
+
+  function renderEmployeeTable(list) {
+    var tbody = document.getElementById("employeeTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-slate-500 text-sm py-8">Belum ada data karyawan.</td></tr>';
+      return;
+    }
+
+    list.forEach(function(emp, idx) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-blue-50/30 transition border-b border-gray-50";
+
+      var nikDisplay = '<div class="font-bold text-[#1C1B8E] text-xs flex items-center space-x-1"><span>' + emp.nik + '</span></div>' +
+                       '<div class="text-[10px] text-slate-500">' + emp.employee_id + '</div>';
+
+      var siteBadge = '<span class="bg-indigo-50 text-[#1C1B8E] px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-indigo-100">' + (emp.site || 'CGK1') + '</span>';
+
+      var pdfPill = '<span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center justify-center space-x-1 bg-rose-50 text-rose-600 border border-rose-200 whitespace-nowrap">' +
+                      '<i class="fa-solid fa-file-pdf"></i>' +
+                      '<span>' + (emp.pdf_score_avg || 0) + '%</span>' +
+                    '</span>';
+
+      var videoPill = '<span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center justify-center space-x-1 bg-blue-50 text-blue-600 border border-blue-200 whitespace-nowrap">' +
+                        '<i class="fa-solid fa-play"></i>' +
+                        '<span>' + (emp.video_score_avg || 0) + '%</span>' +
+                      '</span>';
+
+      var quizPill = '<span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center justify-center space-x-1 bg-teal-50 text-[#0D9488] border border-teal-200 whitespace-nowrap">' +
+                       '<i class="fa-solid fa-pen-to-square"></i>' +
+                       '<span>' + (emp.quiz_score_avg || 0) + ' / 100</span>' +
+                     '</span>';
+
+      var gradeBadge = getGradeBadgeHtml(emp.composite_avg || 0);
+
+      tr.innerHTML = '<td class="py-3.5 px-3 text-center font-bold text-slate-500 text-xs">' + (idx + 1) + '</td>' +
+                     '<td class="py-3.5 px-3">' + nikDisplay + '</td>' +
+                     '<td class="py-3.5 px-3 font-bold text-xs text-slate-900">' + emp.nama_lengkap + '</td>' +
+                     '<td class="py-3.5 px-3 text-xs text-slate-500">' + emp.email + '</td>' +
+                     '<td class="py-3.5 px-3 text-xs font-semibold text-slate-900">' + emp.jabatan + '</td>' +
+                     '<td class="py-3.5 px-3 text-xs text-slate-500">' + emp.departemen + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + siteBadge + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + pdfPill + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + videoPill + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + quizPill + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + gradeBadge + '</td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openEmployeeModal() {
+    document.getElementById("employeeModal").classList.remove("hidden");
+  }
+
+  function closeEmployeeModal() {
+    document.getElementById("employeeModal").classList.add("hidden");
+  }
+
+  function handleSaveEmployee(e) {
+    e.preventDefault();
+    var empData = {
+      nik: document.getElementById("empNik").value,
+      nama_lengkap: document.getElementById("empNama").value,
+      email: document.getElementById("empEmail").value,
+      jabatan: document.getElementById("empJabatan").value,
+      departemen: document.getElementById("empDepartemen").value,
+      site: document.getElementById("empSite").value,
+      no_hp: document.getElementById("empNoHp").value
+    };
+
+    callBackend('saveEmployee', [empData], function(res) {
+      if (res.success) {
+        closeEmployeeModal();
+        loadEmployees();
+      }
+    });
+  }
+
+  function downloadEmployeeTemplate() {
+    var csvContent = "NIK,Nama Lengkap,Email,Jabatan,Departemen,Site,No HP\n" +
+                     "317101990001,Ahmad DC Operator,ahmad@datacenter.com,Junior Operator,Operations,CGK1,08123456789\n" +
+                     "317101990002,Bambang Cabling,bambang@datacenter.com,Cabling Specialist,Network & Cabling,CGK2,08129876543";
+
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Template_Data_Karyawan_eLMS.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function openBulkEmployeeModal() {
+    document.getElementById("bulkEmployeeModal").classList.remove("hidden");
+  }
+
+  function closeBulkEmployeeModal() {
+    document.getElementById("bulkEmployeeModal").classList.add("hidden");
+  }
+
+  function handleBulkUploadEmployee(e) {
+    e.preventDefault();
+    var fileInput = document.getElementById("csvFileInput");
+    var file = fileInput.files[0];
+
+    if (!file) return;
+
+    var btn = document.getElementById("btnSubmitBulk");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Memproses...';
+
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+      var csvText = evt.target.result;
+      callBackend('bulkUploadEmployees', [csvText], function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1"></i> <span>Proses Upload</span>';
+
+        if (res.success) {
+          fileInput.value = "";
+          closeBulkEmployeeModal();
+          loadEmployees();
+        }
+      });
+    };
+    reader.readAsText(file);
+  }
+</script>
