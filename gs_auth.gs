@@ -24,13 +24,13 @@ function registerUser(data) {
 
     userSheet.appendRow([
       nextUserId, data.nama, data.email, "Karyawan", data.departemen || "Operations",
-      "Pending", data.password, "FALSE", token, dateStr, userSite
+      "Pending", data.password, "FALSE", token, dateStr, userSite, ""
     ]);
 
     empSheet.appendRow([
       nextEmpId, nextUserId, data.nik || ("NIK-" + Math.floor(100000 + Math.random() * 900000)),
       data.nama, data.email, "Karyawan Operasional", data.departemen || "Operations",
-      data.no_hp || "-", "Pending Verification", dateStr, userSite
+      data.no_hp || "-", "Pending Verification", dateStr, userSite, ""
     ]);
 
     SpreadsheetApp.flush();
@@ -124,7 +124,8 @@ function loginUser(email, password) {
             email: users[i][2],
             role: users[i][3],
             departemen: users[i][4],
-            site: users[i][10] || "CGK1"
+            site: users[i][10] || "CGK1",
+            signature: users[i][11] || "" // Mengembalikan tanda tangan tersimpan
           }
         };
       }
