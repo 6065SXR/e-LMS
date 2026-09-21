@@ -1,0 +1,215 @@
+<script>
+  /**
+   * Monthly Missions & Smart Mission Dispatcher Engine (Dual-Group Cascading)
+   * System: e-LMS Data Center KSPS
+   */
+
+  var allAvailableCourses = [];
+
+  function handleSmartMissionDispatch(e) {
+    e.preventDefault();
+    var dispatchData = {
+      targetSite: document.getElementById("dispatchSite").value,
+      targetCategory1: document.getElementById("dispatchDept1").value,
+      targetCategory2: document.getElementById("dispatchDept2").value,
+      course1_id: document.getElementById("dispatchCourse1").value,
+      course2_id: document.getElementById("dispatchCourse2").value,
+      periode: document.getElementById("missionPeriodFilter") ? document.getElementById("missionPeriodFilter").value : '2026-09'
+    };
+
+    var btn = document.getElementById("btnSubmitDispatch");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Mengirim Misi...';
+
+    callBackend('dispatchCustomMission', [dispatchData], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Misi Target</span>';
+
+      if (res.success) {
+        loadMonthlyMissions();
+      }
+    });
+  }
+
+  function updateDispatchCourseOptions(targetGroupNumber) {
+    if (!allAvailableCourses || allAvailableCourses.length === 0) return;
+
+    if (!targetGroupNumber || targetGroupNumber === 1) {
+      var group1 = document.getElementById("dispatchDept1") ? document.getElementById("dispatchDept1").value : "ALL";
+      var c1Select = document.getElementById("dispatchCourse1");
+      if (c1Select) {
+        var filtered1 = allAvailableCourses.filter(function(c) {
+          return (group1 === "ALL" || c.kategori_dc === group1);
+        });
+        if (filtered1.length === 0) filtered1 = allAvailableCourses;
+
+        c1Select.innerHTML = "";
+        filtered1.forEach(function(item) {
+          var opt = document.createElement("option");
+          opt.value = item.course_id;
+          opt.className = "text-slate-900";
+          opt.innerText = item.course_id + ": " + item.judul_materi + " (" + item.kategori_dc + ")";
+          c1Select.appendChild(opt);
+        });
+      }
+    }
+
+    if (!targetGroupNumber || targetGroupNumber === 2) {
+      var group2 = document.getElementById("dispatchDept2") ? document.getElementById("dispatchDept2").value : "ALL";
+      var c2Select = document.getElementById("dispatchCourse2");
+      if (c2Select) {
+        var filtered2 = allAvailableCourses.filter(function(c) {
+          return (group2 === "ALL" || c.kategori_dc === group2);
+        });
+        if (filtered2.length === 0) filtered2 = allAvailableCourses;
+
+        c2Select.innerHTML = "";
+        filtered2.forEach(function(item) {
+          var opt = document.createElement("option");
+          opt.value = item.course_id;
+          opt.className = "text-slate-900";
+          opt.innerText = item.course_id + ": " + item.judul_materi + " (" + item.kategori_dc + ")";
+          c2Select.appendChild(opt);
+        });
+
+        if (filtered2.length > 1) {
+          c2Select.selectedIndex = 1;
+        }
+      }
+    }
+  }
+
+  function loadMonthlyMissions() {
+    var userId = currentUser ? currentUser.user_id : 'USR-0003';
+    var userRole = currentUser ? currentUser.role : 'Karyawan';
+    var periodFilter = document.getElementById("missionPeriodFilter");
+    var period = periodFilter ? periodFilter.value : '2026-09';
+
+    callBackend('getMonthlyMissionsData', [userId, userRole, period], function(res) {
+      if (res && res.success) {
+        if (res.availableCourses && res.availableCourses.length > 0) {
+          allAvailableCourses = res.availableCourses;
+          updateDispatchCourseOptions(1);
+          updateDispatchCourseOptions(2);
+        }
+
+        if (userRole === 'Karyawan') {
+          var empView = document.getElementById("employeeMissionView");
+          var admView = document.getElementById("adminMissionView");
+          if (empView) empView.classList.remove("hidden");
+          if (admView) admView.classList.add("hidden");
+          renderEmployeeMissionView(res);
+        } else {
+          var admView2 = document.getElementById("adminMissionView");
+          var empView2 = document.getElementById("employeeMissionView");
+          if (admView2) admView2.classList.remove("hidden");
+          if (empView2) empView2.classList.add("hidden");
+          renderAdminMissionView(res);
+        }
+      }
+    });
+  }
+
+  function renderEmployeeMissionView(res) {
+    var badge = document.getElementById("myMissionProgressBadge");
+    var statusText = document.getElementById("myMissionStatusText");
+    if (badge && res.misiStatus) badge.innerText = res.misiStatus.completed + " / " + res.misiStatus.target + " Selesai";
+    if (statusText && res.misiStatus) statusText.innerText = res.misiStatus.status === "Completed" ? "Tuntas 100% - Syarat SLA Terpenuhi!" : "Selesaikan 2 Materi Wajib Bulan Ini";
+
+    var container = document.getElementById("assignedCoursesContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (!res.assignedCourses || res.assignedCourses.length === 0) {
+      container.innerHTML = '<div class="col-span-2 text-center text-slate-500 text-sm py-8 bg-white rounded-2xl card-shadow">Belum ada materi ditugaskan untuk bulan ini.</div>';
+      return;
+    }
+
+    res.assignedCourses.forEach(function(item, idx) {
+      var card = document.createElement("div");
+      card.className = "bg-white p-5 rounded-2xl card-shadow space-y-4 border border-slate-100 hover:border-indigo-200 transition";
+
+      var statusBadge = item.is_completed ?
+        '<span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1"><i class="fa-solid fa-circle-check"></i> <span>TUNTAS</span></span>' :
+        '<span class="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1"><i class="fa-solid fa-hourglass-half"></i> <span>DALAM PROSES</span></span>';
+
+      var pdfScore = (item.pdf_score !== undefined && item.pdf_score !== null) ? item.pdf_score : (item.is_pdf_downloaded ? 100 : 0);
+      var videoScore = (item.video_score !== undefined && item.video_score !== null) ? item.video_score : (item.is_video_watched ? 100 : 0);
+      var quizScore = (item.quiz_score !== undefined && item.quiz_score !== null) ? item.quiz_score : 0;
+      var compositeScore = (item.composite_score !== undefined && item.composite_score !== null) ? item.composite_score : Math.round((0.2 * pdfScore) + (0.3 * videoScore) + (0.5 * quizScore));
+
+      var gradeBadge = getGradeBadgeHtml(compositeScore);
+
+      var safeTitle = (item.judul_materi || '').replace(/'/g, "\\'");
+      var safePdf = (item.pdf_link || '').replace(/'/g, "\\'");
+      var safeVideo = (item.video_url || '').replace(/'/g, "\\'");
+
+      card.innerHTML = '<div class="flex items-center justify-between">' +
+                          '<span class="text-xs bg-indigo-50 text-[#1C1B8E] px-2.5 py-1 rounded-full font-bold border border-indigo-100">Misi #' + (idx + 1) + ' • ' + (item.kategori_dc || 'General') + '</span>' +
+                          statusBadge +
+                        '</div>' +
+                        '<div>' +
+                          '<div class="flex items-start justify-between">' +
+                            '<h4 class="font-bold text-[#1C1B8E] text-base">' + item.judul_materi + '</h4>' +
+                            '<div class="ml-2 flex-shrink-0">' + gradeBadge + '</div>' +
+                          '</div>' +
+                          '<div class="mt-4 space-y-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">' +
+                            '<p class="font-bold text-slate-700 text-[11px] uppercase tracking-wider mb-1"><i class="fa-solid fa-chart-simple text-[#0D9488] mr-1"></i> Status Indeks 3-Pilar:</p>' +
+                            '<div>' +
+                              '<div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-0.5"><span>1. PDF SOP (20%)</span><span class="font-bold text-rose-600">' + pdfScore + '%</span></div>' +
+                              '<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden"><div class="bg-rose-500 h-full rounded-full" style="width: ' + pdfScore + '%"></div></div>' +
+                            '</div>' +
+                            '<div>' +
+                              '<div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-0.5"><span>2. Video Tutorial (30%)</span><span class="font-bold text-blue-600">' + videoScore + '%</span></div>' +
+                              '<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden"><div class="bg-blue-500 h-full rounded-full" style="width: ' + videoScore + '%"></div></div>' +
+                            '</div>' +
+                            '<div>' +
+                              '<div class="flex justify-between text-[11px] font-semibold text-slate-600 mb-0.5"><span>3. Kuis Evaluasi (50%)</span><span class="font-bold text-[#0D9488]">' + quizScore + ' / 100</span></div>' +
+                              '<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden"><div class="bg-[#0D9488] h-full rounded-full" style="width: ' + quizScore + '%"></div></div>' +
+                            '</div>' +
+                          '</div>' +
+                        '</div>' +
+                        '<div class="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">' +
+                          '<button type="button" onclick="trackPdf(\'' + item.course_id + '\', \'' + safePdf + '\', \'' + safeTitle + '\', \'' + safeVideo + '\')" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition flex items-center space-x-1"><i class="fa-solid fa-file-pdf"></i> <span>1. Baca SOP</span></button>' +
+                          '<button type="button" onclick="trackVideo(\'' + item.course_id + '\', \'' + safeVideo + '\', \'' + safeTitle + '\', \'' + safePdf + '\')" class="px-3 py-1.5 rounded-xl bg-teal-50 text-[#0D9488] hover:bg-teal-100 text-xs font-bold transition flex items-center space-x-1"><i class="fa-solid fa-play"></i> <span>2. Nonton Video</span></button>' +
+                          '<button type="button" onclick="openQuizModal(\'' + item.course_id + '\', \'' + safeTitle + '\')" class="btn-primary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1"><i class="fa-solid fa-pen-to-square"></i> <span>3. Kerjakan Kuis</span></button>' +
+                        '</div>';
+
+      container.appendChild(card);
+    });
+  }
+
+  function renderAdminMissionView(res) {
+    if (res.stats) {
+      document.getElementById("statMsnTotal").innerText = res.stats.totalKaryawan;
+      document.getElementById("statMsnSelesai").innerText = res.stats.selesai;
+      document.getElementById("statMsnProses").innerText = res.stats.dalamProses;
+      document.getElementById("statMsnBelum").innerText = res.stats.belumStart;
+    }
+
+    var tbody = document.getElementById("adminMissionTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!res.tableData || res.tableData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-500 text-sm py-8">Belum ada data misi untuk periode ini.</td></tr>';
+      return;
+    }
+
+    res.tableData.forEach(function(row, idx) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+
+      var badgeClass = row.status === "Completed" ? "bg-emerald-50 text-emerald-600" : (row.status === "In Progress" ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-600");
+
+      tr.innerHTML = '<td class="py-3 px-3 text-center font-bold text-slate-500 text-xs">' + (idx + 1) + '</td>' +
+                     '<td class="py-3 px-3"><div class="font-bold text-slate-900 text-xs">' + row.nama_lengkap + '</div><div class="text-[10px] text-slate-500">' + row.nik + '</div></td>' +
+                     '<td class="py-3 px-3 text-center"><span class="bg-indigo-50 text-[#1C1B8E] px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-indigo-100">' + row.site + '</span></td>' +
+                     '<td class="py-3 px-3 text-xs text-slate-900 font-medium">' + row.materi_assigned + '</td>' +
+                     '<td class="py-3 px-3 text-center font-bold text-xs text-slate-900">' + row.materi_selesai + ' / ' + row.target_materi + '</td>' +
+                     '<td class="py-3 px-3 text-center"><span class="' + badgeClass + ' px-2.5 py-1 rounded-full text-[11px] font-bold">' + row.status + '</span></td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+</script>
