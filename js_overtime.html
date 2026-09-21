@@ -1,10 +1,218 @@
 <script>
   /**
-   * Overtime Management & Dual/Combined Print PDF Engine (Rekap Shift & Surat Tugas)
+   * Overtime Management, Digital Signature Engine & Dual/Combined Print PDF Engine
    * System: e-LMS Data Center KSPS
    */
 
   var currentOvertimeCache = [];
+  var activeSigMode = "draw"; // 'draw' atau 'upload'
+  var isDrawing = false;
+  var sigCanvasContext = null;
+  var uploadedSignatureBase64 = null;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    initSignatureCanvas();
+  });
+
+  /* =========================================================
+   * 1. DIGITAL SIGNATURE PAD (CANVAS & UPLOAD)
+   * ========================================================= */
+
+  function initSignatureCanvas() {
+    var canvas = document.getElementById("sigCanvas");
+    if (!canvas) return;
+    sigCanvasContext = canvas.getContext("2d");
+
+    sigCanvasContext.strokeStyle = "#1C1B8E";
+    sigCanvasContext.lineWidth = 2.5;
+    sigCanvasContext.lineCap = "round";
+    sigCanvasContext.lineJoin = "round";
+
+    // Mouse Events
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseleave", stopDrawing);
+
+    // Touch Events (Smartphone & Tablet)
+    canvas.addEventListener("touchstart", function(e) {
+      e.preventDefault();
+      var touch = e.touches[0];
+      var mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function(e) {
+      e.preventDefault();
+      var touch = e.touches[0];
+      var mouseEvent = new MouseEvent("mousemove", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function(e) {
+      e.preventDefault();
+      var mouseEvent = new MouseEvent("mouseup", {});
+      canvas.dispatchEvent(mouseEvent);
+    }, { passive: false });
+  }
+
+  function getCanvasCoordinates(e) {
+    var canvas = document.getElementById("sigCanvas");
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  }
+
+  function startDrawing(e) {
+    isDrawing = true;
+    var coords = getCanvasCoordinates(e);
+    sigCanvasContext.beginPath();
+    sigCanvasContext.moveTo(coords.x, coords.y);
+    var placeholder = document.getElementById("sigPlaceholderText");
+    if (placeholder) placeholder.classList.add("hidden");
+  }
+
+  function draw(e) {
+    if (!isDrawing) return;
+    var coords = getCanvasCoordinates(e);
+    sigCanvasContext.lineTo(coords.x, coords.y);
+    sigCanvasContext.stroke();
+  }
+
+  function stopDrawing() {
+    if (isDrawing) {
+      sigCanvasContext.closePath();
+      isDrawing = false;
+    }
+  }
+
+  function clearSignatureCanvas() {
+    var canvas = document.getElementById("sigCanvas");
+    if (!canvas || !sigCanvasContext) return;
+    sigCanvasContext.clearRect(0, 0, canvas.width, canvas.height);
+    var placeholder = document.getElementById("sigPlaceholderText");
+    if (placeholder) placeholder.classList.remove("hidden");
+  }
+
+  function switchSigTab(mode) {
+    activeSigMode = mode;
+    var drawContainer = document.getElementById("sigDrawContainer");
+    var uploadContainer = document.getElementById("sigUploadContainer");
+    var tabDrawBtn = document.getElementById("tabSigDrawBtn");
+    var tabUploadBtn = document.getElementById("tabSigUploadBtn");
+
+    if (mode === 'draw') {
+      drawContainer.classList.remove("hidden");
+      uploadContainer.classList.add("hidden");
+      tabDrawBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-[#1C1B8E] shadow-sm transition";
+      tabUploadBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+    } else {
+      drawContainer.classList.add("hidden");
+      uploadContainer.classList.remove("hidden");
+      tabUploadBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-[#1C1B8E] shadow-sm transition";
+      tabDrawBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+    }
+  }
+
+  function handleSigFileUpload(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+      uploadedSignatureBase64 = evt.target.result;
+      var previewBox = document.getElementById("sigUploadPreviewBox");
+      var img = document.getElementById("sigUploadedImg");
+      if (previewBox && img) {
+        img.src = uploadedSignatureBase64;
+        previewBox.classList.remove("hidden");
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function openSignatureModal() {
+    document.getElementById("signatureModal").classList.remove("hidden");
+    clearSignatureCanvas();
+
+    // Tampilkan TTD aktif jika tersimpan di sesi user
+    var currentSigWrapper = document.getElementById("currentSigPreviewWrapper");
+    var currentSigImg = document.getElementById("currentSigImg");
+
+    if (currentUser && currentUser.signature) {
+      currentSigImg.src = currentUser.signature;
+      currentSigWrapper.classList.remove("hidden");
+    } else {
+      currentSigWrapper.classList.add("hidden");
+    }
+
+    switchSigTab('draw');
+  }
+
+  function closeSignatureModal() {
+    document.getElementById("signatureModal").classList.add("hidden");
+  }
+
+  function isCanvasBlank(canvas) {
+    var context = canvas.getContext('2d');
+    var pixelBuffer = new Uint32Array(
+      context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+    );
+    return !pixelBuffer.some(function(color) { return color !== 0; });
+  }
+
+  function saveSignatureData() {
+    var finalSignatureBase64 = "";
+
+    if (activeSigMode === "draw") {
+      var canvas = document.getElementById("sigCanvas");
+      if (isCanvasBlank(canvas)) {
+        showToast("Tanda tangan pada canvas masih kosong!");
+        return;
+      }
+      finalSignatureBase64 = canvas.toDataURL("image/png");
+    } else {
+      if (!uploadedSignatureBase64) {
+        showToast("Harap pilih gambar tanda tangan terlebih dahulu!");
+        return;
+      }
+      finalSignatureBase64 = uploadedSignatureBase64;
+    }
+
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var btn = document.getElementById("btnSaveSigSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+
+    callBackend('saveUserSignature', [uid, finalSignatureBase64], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Simpan Tanda Tangan</span>';
+
+      if (res && res.success) {
+        showToast("Tanda tangan digital berhasil diperbarui!");
+        if (currentUser) {
+          currentUser.signature = finalSignatureBase64;
+          localStorage.setItem("elms_session", JSON.stringify(currentUser));
+        }
+        closeSignatureModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan tanda tangan");
+      }
+    });
+  }
+
+  /* =========================================================
+   * 2. PENGHITUNG JAM & MANAJEMEN LEMBUR
+   * ========================================================= */
 
   function calculateOvertimeHours() {
     var startVal = document.getElementById("ovtStart").value;
@@ -34,7 +242,8 @@
   }
 
   function loadOvertimeData() {
-    var userId = (currentUser && currentUser.role === 'Karyawan') ? currentUser.user_id : 'ALL';
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    var userId = isKaryawan ? currentUser.user_id : 'ALL';
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
@@ -61,6 +270,8 @@
     if (!tbody) return;
     tbody.innerHTML = "";
 
+    var isPmOrAdmin = currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin');
+
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 text-sm py-8">Belum ada data lembur untuk periode ini.</td></tr>';
       return;
@@ -70,33 +281,203 @@
       var tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
 
+      // Badge Status & Catatan Revisi
       var statusBadge = '<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">Pending</span>';
       if (item.status_approval === 'Approved') {
-        statusBadge = '<span class="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200">Approved</span>';
+        statusBadge = '<span class="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-check mr-1"></i>Approved</span>';
+      } else if (item.status_approval === 'Perlu Revisi') {
+        statusBadge = '<span class="bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200"><i class="fa-solid fa-rotate-left mr-1"></i>Perlu Revisi</span>';
       } else if (item.status_approval === 'Rejected') {
-        statusBadge = '<span class="bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-200">Rejected</span>';
+        statusBadge = '<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300">Rejected</span>';
       }
 
+      // Tombol Cetak Surat Tugas
       var printSingleBtn = '<button type="button" onclick="printSuratTugasPDF(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#1C1B8E] text-[11px] font-bold transition flex items-center justify-center space-x-1 mx-auto border border-indigo-100">' +
         '<i class="fa-solid fa-file-lines"></i><span>Surat Tugas</span>' +
         '</button>';
 
+      // Kolom Deskripsi + Kotak Catatan Revisi PM (jika ada)
+      var descHtml = '<div><p class="font-medium text-slate-800">' + item.deskripsi + '</p>';
+      if (item.catatan && item.catatan !== '-') {
+        descHtml += '<p class="text-[11px] text-slate-500 mt-0.5"><span class="font-semibold">Note:</span> ' + item.catatan + '</p>';
+      }
+      if (item.status_approval === 'Perlu Revisi' && item.catatan_revisi) {
+        descHtml += '<div class="mt-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">' +
+          '<span class="font-bold flex items-center"><i class="fa-solid fa-triangle-exclamation text-rose-600 mr-1"></i> Catatan Revisi PM:</span>' +
+          '<p class="mt-0.5 text-rose-900">' + item.catatan_revisi + '</p>' +
+          '</div>';
+      }
+      descHtml += '</div>';
+
+      // Kolom AKSI: PM (Approve & Revisi) vs Karyawan (Koreksi)
+      var actionsHtml = '<span class="text-slate-400 text-[11px]">-</span>';
+
+      if (isPmOrAdmin) {
+        if (item.status_approval === 'Pending' || item.status_approval === 'Perlu Revisi') {
+          actionsHtml = '<div class="flex items-center justify-center space-x-1.5">' +
+            '<button type="button" onclick="handlePmApprove(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition" title="Setujui Lembur">' +
+            '<i class="fa-solid fa-check mr-1"></i>Approve</button>' +
+            '<button type="button" onclick="openPmRevisionModal(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold border border-amber-200 transition" title="Minta Revisi">' +
+            '<i class="fa-solid fa-rotate-left mr-1"></i>Revisi</button>' +
+            '</div>';
+        } else if (item.status_approval === 'Approved') {
+          actionsHtml = '<span class="text-[11px] font-bold text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-circle-check mr-1"></i>' + (item.approved_by || 'Disetujui') + '</span>';
+        }
+      } else {
+        // Akun Karyawan
+        if (item.status_approval === 'Perlu Revisi') {
+          actionsHtml = '<button type="button" onclick="startEditOvertime(' + idx + ')" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold shadow-sm transition flex items-center justify-center space-x-1 mx-auto">' +
+            '<i class="fa-solid fa-pen-to-square"></i><span>Koreksi</span></button>';
+        } else if (item.status_approval === 'Pending') {
+          actionsHtml = '<button type="button" onclick="startEditOvertime(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center justify-center space-x-1 mx-auto">' +
+            '<i class="fa-solid fa-pen"></i><span>Edit</span></button>';
+        }
+      }
+
       tr.innerHTML = '<td class="py-3.5 px-3 text-center font-bold text-slate-500 text-xs">' + (idx + 1) + '</td>' +
-                     '<td class="py-3.5 px-3 font-bold text-slate-900 text-xs">' + item.tanggal + '</td>' +
-                     '<td class="py-3.5 px-3 text-center text-xs text-slate-700 font-semibold">' + item.jam_mulai + ' - ' + item.jam_selesai + '</td>' +
-                     '<td class="py-3.5 px-3 text-center font-extrabold text-xs text-[#1C1B8E]">' + item.total_jam + ' Jam</td>' +
-                     '<td class="py-3.5 px-3 text-xs text-slate-800 font-medium max-w-xs">' + item.deskripsi + '</td>' +
-                     '<td class="py-3.5 px-3 text-xs text-slate-500 max-w-xs">' + (item.catatan || '-') + '</td>' +
+                     '<td class="py-3.5 px-3 font-bold text-slate-900 text-xs whitespace-nowrap">' + item.tanggal + '</td>' +
+                     '<td class="py-3.5 px-3 text-center text-xs text-slate-700 font-semibold whitespace-nowrap">' + item.jam_mulai + ' - ' + item.jam_selesai + '</td>' +
+                     '<td class="py-3.5 px-3 text-center font-extrabold text-xs text-[#1C1B8E] whitespace-nowrap">' + item.total_jam + ' Jam</td>' +
+                     '<td class="py-3.5 px-3 text-xs max-w-sm">' + descHtml + '</td>' +
                      '<td class="py-3.5 px-3 text-center">' + printSingleBtn + '</td>' +
-                     '<td class="py-3.5 px-3 text-center">' + statusBadge + '</td>';
+                     '<td class="py-3.5 px-3 text-center">' + statusBadge + '</td>' +
+                     '<td class="py-3.5 px-3 text-center">' + actionsHtml + '</td>';
 
       tbody.appendChild(tr);
     });
   }
 
+  /* =========================================================
+   * 3. SIKLUS APPROVAL & REVISI PM
+   * ========================================================= */
+
+  function handlePmApprove(itemIndex) {
+    var item = currentOvertimeCache[itemIndex];
+    if (!item) return;
+
+    // Validasi apakah PM sudah memiliki tanda tangan digital
+    if (!currentUser.signature) {
+      showToast("Anda belum memiliki Tanda Tangan Digital. Silakan buat TTD terlebih dahulu.");
+      openSignatureModal();
+      return;
+    }
+
+    if (!confirm("Setujui pengajuan lembur tanggal " + item.tanggal + " (" + item.nama_lengkap + ")? Tanda tangan Anda akan disematkan pada dokumen.")) {
+      return;
+    }
+
+    var pmName = currentUser.name || "Budi PM Infrastructure";
+    var pmSig = currentUser.signature;
+
+    callBackend('approveOvertime', [item.overtime_id, currentUser.user_id, pmSig, pmName], function(res) {
+      if (res && res.success) {
+        showToast("Pengajuan lembur berhasil disetujui & ditandatangani!");
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyetujui lembur");
+      }
+    });
+  }
+
+  function openPmRevisionModal(itemIndex) {
+    var item = currentOvertimeCache[itemIndex];
+    if (!item) return;
+
+    document.getElementById("pmRevisionTargetId").value = item.overtime_id;
+    document.getElementById("pmRevisionText").value = item.catatan_revisi || "";
+    document.getElementById("pmRevisionModal").classList.remove("hidden");
+  }
+
+  function closePmRevisionModal() {
+    document.getElementById("pmRevisionModal").classList.add("hidden");
+  }
+
+  function submitPmRevision() {
+    var targetId = document.getElementById("pmRevisionTargetId").value;
+    var revisionNote = document.getElementById("pmRevisionText").value.trim();
+
+    if (!revisionNote) {
+      showToast("Harap isi instruksi revisi yang perlu diperbaiki oleh karyawan!");
+      return;
+    }
+
+    var btn = document.getElementById("btnSubmitPmRevision");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Mengirim...';
+
+    callBackend('requestOvertimeRevision', [targetId, revisionNote, currentUser.user_id], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Instruksi Revisi</span>';
+
+      if (res && res.success) {
+        showToast("Instruksi revisi berhasil dikirim ke karyawan!");
+        closePmRevisionModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal mengirim revisi");
+      }
+    });
+  }
+
+  /* =========================================================
+   * 4. SIKLUS EDIT & KOREKSI OLEH KARYAWAN
+   * ========================================================= */
+
+  function startEditOvertime(itemIndex) {
+    var item = currentOvertimeCache[itemIndex];
+    if (!item) return;
+
+    document.getElementById("ovtEditId").value = item.overtime_id;
+    document.getElementById("ovtDate").value = item.tanggal;
+    document.getElementById("ovtStart").value = item.jam_mulai;
+    document.getElementById("ovtFinish").value = item.jam_selesai;
+    document.getElementById("ovtDesc").value = item.deskripsi;
+    document.getElementById("ovtNotes").value = (item.catatan === '-' ? '' : item.catatan);
+
+    calculateOvertimeHours();
+
+    // Tampilkan Banner Edit
+    var banner = document.getElementById("ovtEditBanner");
+    var noteEl = document.getElementById("ovtEditRevisionNote");
+    if (banner && noteEl) {
+      noteEl.innerHTML = item.catatan_revisi ? 
+        '<strong>Catatan PM:</strong> ' + item.catatan_revisi : 
+        'Silakan perbaiki data jam atau rincian pekerjaan Anda.';
+      banner.classList.remove("hidden");
+    }
+
+    var btnText = document.getElementById("btnSubmitOvertimeText");
+    if (btnText) btnText.innerText = "Perbarui & Ajukan Ulang";
+
+    var title = document.getElementById("ovtFormTitle");
+    if (title) title.innerText = "Koreksi Aktivitas Lembur";
+
+    // Smooth Scroll ke Form
+    document.getElementById("ovtForm").scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelOvertimeEdit() {
+    var form = document.getElementById("ovtForm");
+    if (form) form.reset();
+
+    document.getElementById("ovtEditId").value = "";
+    document.getElementById("ovtTotalHoursDisplay").innerText = "0 Jam";
+    document.getElementById("ovtTotalHoursInput").value = "0";
+
+    var banner = document.getElementById("ovtEditBanner");
+    if (banner) banner.classList.add("hidden");
+
+    var btnText = document.getElementById("btnSubmitOvertimeText");
+    if (btnText) btnText.innerText = "Simpan Lembur";
+
+    var title = document.getElementById("ovtFormTitle");
+    if (title) title.innerText = "Input Aktivitas Lembur";
+  }
+
   async function handleSaveOvertime(e) {
     e.preventDefault();
 
+    var editId = document.getElementById("ovtEditId").value;
     var dateVal = document.getElementById("ovtDate").value;
     var startVal = document.getElementById("ovtStart").value;
     var finishVal = document.getElementById("ovtFinish").value;
@@ -105,20 +486,20 @@
     var noteVal = document.getElementById("ovtNotes").value;
 
     if (!dateVal || !startVal || !finishVal || hoursVal <= 0 || !descVal) {
-      if (typeof showToast === 'function') {
-        showToast("Harap lengkapi tanggal, jam mulai, jam selesai, dan deskripsi pekerjaan lembur!");
-      }
+      showToast("Harap lengkapi tanggal, jam mulai, jam selesai, dan deskripsi pekerjaan lembur!");
       return;
     }
 
     var data = {
+      overtime_id: editId || "",
       user_id: currentUser ? currentUser.user_id : 'USR-0003',
       tanggal: dateVal,
       jam_mulai: startVal,
       jam_selesai: finishVal,
       total_jam: hoursVal,
       deskripsi: descVal,
-      catatan: noteVal
+      catatan: noteVal,
+      user_signature: currentUser ? (currentUser.signature || "") : ""
     };
 
     var btn = document.getElementById("btnSubmitOvertime");
@@ -130,23 +511,33 @@
     callBackend('saveOvertimeEntry', [data], function(res) {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> <span>Simpan Lembur</span>';
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> <span id="btnSubmitOvertimeText">Simpan Lembur</span>';
       }
 
       if (res && res.success) {
-        var form = document.getElementById("ovtForm");
-        if (form) form.reset();
-        var displayEl = document.getElementById("ovtTotalHoursDisplay");
-        if (displayEl) displayEl.innerText = "0 Jam";
-        var inputEl = document.getElementById("ovtTotalHoursInput");
-        if (inputEl) inputEl.value = "0";
-        if (typeof showToast === 'function') {
-          showToast("Data lembur berhasil disimpan!");
-        }
+        showToast(res.message || "Data lembur berhasil disimpan!");
+        cancelOvertimeEdit();
         loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan lembur");
       }
     });
   }
+
+  /* =========================================================
+   * 5. HELPER INJEKSI TANDA TANGAN DIGITAL PADA DOKUMEN CETAK
+   * ========================================================= */
+
+  function renderSignatureHtml(signatureData, defaultFallbackSvg) {
+    if (signatureData && signatureData.indexOf("data:image") !== -1) {
+      return '<img src="' + signatureData + '" style="max-height: 52px; max-width: 140px; object-fit: contain; margin: 0 auto;" alt="Digital Signature" />';
+    }
+    return defaultFallbackSvg;
+  }
+
+  /* =========================================================
+   * 6. CETAK REKAPITULASI LEMBUR (SHIFT) PDF
+   * ========================================================= */
 
   function printOvertimePDF() {
     var empName = currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN";
@@ -155,19 +546,22 @@
     var empSite = currentUser ? currentUser.site : "CGK3";
     
     var periodFilter = document.getElementById("overtimePeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : "2026-06"; // YYYY-MM
+    var periodVal = periodFilter ? periodFilter.value : "2026-09";
     var parts = periodVal.split("-");
     var yearNum = parseInt(parts[0], 10) || 2026;
-    var monthNum = parseInt(parts[1], 10) || 6;
+    var monthNum = parseInt(parts[1], 10) || 9;
 
     var monthNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
-    var monthName = monthNames[monthNum - 1] || "JUNI";
+    var monthName = monthNames[monthNum - 1] || "SEPTEMBER";
     var daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
     var periodText = "01-" + daysInMonth + " " + monthName + " " + yearNum;
 
-    // Map overtime entries by day number
     var entryByDay = {};
+    var latestApproverName = "Tommy Hardiansyah";
+    var latestApproverSig = "";
+    var userSig = (currentUser && currentUser.signature) ? currentUser.signature : "";
+
     if (currentOvertimeCache && currentOvertimeCache.length > 0) {
       currentOvertimeCache.forEach(function(item) {
         if (item.tanggal) {
@@ -176,6 +570,11 @@
           if (!isNaN(dNum)) {
             entryByDay[dNum] = item;
           }
+        }
+        if (item.user_signature && !userSig) userSig = item.user_signature;
+        if (item.status_approval === 'Approved' && item.approver_signature) {
+          latestApproverSig = item.approver_signature;
+          if (item.approved_by) latestApproverName = item.approved_by;
         }
       });
     }
@@ -199,6 +598,14 @@
         '</tr>';
     }
 
+    // Blok Tanda Tangan Karyawan & PM (Dinamis)
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
+
+    var pmSigHtml = latestApproverSig ?
+      renderSignatureHtml(latestApproverSig, '') :
+      '<span style="font-size: 10px; color: #777; font-style: italic;">(Belum Disetujui PM)</span>';
+
     var printContent = '<!DOCTYPE html><html><head><title>REKAPITULASI LEMBUR (SHIFT) - ' + empName + '</title>' +
       '<style>' +
       '@page { size: A4 portrait; margin: 12mm; }' +
@@ -211,7 +618,7 @@
       '.data-table th { border: 1px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #f2f2f2; }' +
       '.signature-table { width: 100%; margin-top: 30px; font-size: 13px; text-align: center; }' +
       '.signature-table td { vertical-align: top; width: 50%; }' +
-      '.signature-box { height: 60px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }' +
+      '.signature-box { height: 55px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }' +
       '</style></head><body>' +
 
       '<!-- HEADER DUAL LOGO -->' +
@@ -221,16 +628,8 @@
       '  <svg viewBox="0 0 340 120" style="height: 42px; width: auto;">' +
       '    <text x="5" y="92" font-family="sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>' +
       '    <g transform="translate(260, 55) scale(0.85)">' +
-      '      <circle cx="0" cy="-42" r="11" fill="#F38F00" />' +
-      '      <circle cx="40" cy="-13" r="11" fill="#F38F00" />' +
-      '      <circle cx="25" cy="34" r="11" fill="#F38F00" />' +
-      '      <circle cx="-25" cy="34" r="11" fill="#F38F00" />' +
-      '      <circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
-      '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" />' +
-      '      <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" />' +
-      '      <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" />' +
-      '      <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" />' +
-      '      <path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
+      '      <circle cx="0" cy="-42" r="11" fill="#F38F00" /><circle cx="40" cy="-13" r="11" fill="#F38F00" /><circle cx="25" cy="34" r="11" fill="#F38F00" /><circle cx="-25" cy="34" r="11" fill="#F38F00" /><circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
+      '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
       '    </g>' +
       '  </svg>' +
       '</td>' +
@@ -268,22 +667,18 @@
       '<tbody>' + rowsHtml + '</tbody>' +
       '</table>' +
 
-      '<!-- SIGNATURE SECTION -->' +
+      '<!-- SIGNATURE SECTION DENGAN DIGITAL SIGNATURE -->' +
       '<table class="signature-table">' +
       '<tr>' +
       '<td>' +
       '  Menyetujui,<br><br>' +
-      '  <div class="signature-box"></div>' +
-      '  <span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>' +
-      '  NIK: 7268900080' +
+      '  <div class="signature-box">' + pmSigHtml + '</div>' +
+      '  <span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>' +
+      '  Project Manager' +
       '</td>' +
       '<td>' +
       '  Dibuat Oleh,<br><br>' +
-      '  <div class="signature-box">' +
-      '    <svg viewBox="0 0 100 40" style="height: 45px;">' +
-      '      <path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/>' +
-      '    </svg>' +
-      '  </div>' +
+      '  <div class="signature-box">' + employeeSigHtml + '</div>' +
       '  <span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>' +
       '  NIK: ' + empNik +
       '</td>' +
@@ -300,6 +695,10 @@
     }
   }
 
+  /* =========================================================
+   * 7. CETAK SURAT TUGAS LEMBUR (STL) PDF TUNGGAL
+   * ========================================================= */
+
   function printSuratTugasPDF(itemIndex) {
     var item = currentOvertimeCache[itemIndex];
     if (!item) return;
@@ -312,7 +711,14 @@
     var jamText = item.jam_mulai + " – " + item.jam_selesai;
     var descText = item.deskripsi || "Standby Support kegiatan BMS dan IT CGK3A";
 
-    // CSS Ditingkatkan untuk Mengisi 100% Height A4 Tanpa Terpotong
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var employeeSigHtml = renderSignatureHtml(item.user_signature || (currentUser ? currentUser.signature : ''), fallbackEmpSvg);
+
+    var pmApproverName = item.approved_by || "Tommy Hardiansyah";
+    var pmSigHtml = (item.status_approval === 'Approved' && item.approver_signature) ?
+      renderSignatureHtml(item.approver_signature, '') :
+      '<span style="font-size: 9.5px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
+
     var printContent = '<!DOCTYPE html><html><head><title>Surat Tugas Lembur - ' + empName + '</title>' +
       '<style>' +
       '@page { size: A4 portrait; margin: 10mm 14mm; }' +
@@ -325,7 +731,7 @@
       '.info-block td { padding: 2.5px 0; vertical-align: top; }' +
       '.signature-table { width: 100%; margin-top: 18px; font-size: 12px; text-align: center; }' +
       '.signature-table td { vertical-align: top; width: 50%; }' +
-      '.signature-box { height: 42px; display: flex; align-items: center; justify-content: center; }' +
+      '.signature-box { height: 44px; display: flex; align-items: center; justify-content: center; }' +
       '.divider-line { border-top: 1.5px dashed #000; margin: 16px 0; }' +
       'p { margin: 5px 0; }' +
       'ul { margin: 4px 0 10px 20px; padding: 0; }' +
@@ -345,9 +751,7 @@
       '    </g>' +
       '  </svg>' +
       '</td>' +
-      '<td style="text-align: center;">' +
-      '  <div class="doc-title">SURAT TUGAS LEMBUR</div>' +
-      '</td>' +
+      '<td style="text-align: center;"><div class="doc-title">SURAT TUGAS LEMBUR</div></td>' +
       '<td style="width: 30%; text-align: right;">' +
       '  <div style="border: 2px solid #102a43; padding: 2px 6px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
       '    <span style="font-weight: 900; font-size: 12px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 9.5px;">INDONESIA</span></span><br>' +
@@ -376,8 +780,8 @@
 
       '<table class="signature-table">' +
       '<tr>' +
-      '<td>Mengetahui Atasan Langsung<br><br><br><span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>NIK: 7268900080</td>' +
-      '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="signature-box"><svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg></div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
+      '<td>Mengetahui Atasan Langsung<br><div class="signature-box">' + pmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + pmApproverName + '</span><br>Project Manager</td>' +
+      '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
 
@@ -406,8 +810,8 @@
 
       '<table class="signature-table">' +
       '<tr>' +
-      '<td>Mengetahui Atasan Langsung<br><br><br><span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>NIK: 7268900080</td>' +
-      '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="signature-box"><svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg></div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
+      '<td>Mengetahui Atasan Langsung<br><div class="signature-box">' + pmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + pmApproverName + '</span><br>Project Manager</td>' +
+      '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
 
@@ -421,11 +825,13 @@
     }
   }
 
+  /* =========================================================
+   * 8. CETAK GABUNGAN REKAPITULASI + SEMUA STL PDF
+   * ========================================================= */
+
   function printCombinedOvertimePDF() {
     if (!currentOvertimeCache || currentOvertimeCache.length === 0) {
-      if (typeof showToast === 'function') {
-        showToast("Tidak ada data lembur untuk dicetak pada periode ini!");
-      }
+      showToast("Tidak ada data lembur untuk dicetak pada periode ini!");
       return;
     }
 
@@ -435,19 +841,22 @@
     var empSite = currentUser ? currentUser.site : "CGK3";
     
     var periodFilter = document.getElementById("overtimePeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : "2026-06"; // YYYY-MM
+    var periodVal = periodFilter ? periodFilter.value : "2026-09";
     var parts = periodVal.split("-");
     var yearNum = parseInt(parts[0], 10) || 2026;
-    var monthNum = parseInt(parts[1], 10) || 6;
+    var monthNum = parseInt(parts[1], 10) || 9;
 
     var monthNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
-    var monthName = monthNames[monthNum - 1] || "JUNI";
+    var monthName = monthNames[monthNum - 1] || "SEPTEMBER";
     var daysInMonth = new Date(yearNum, monthNum, 0).getDate();
 
     var periodText = "01-" + daysInMonth + " " + monthName + " " + yearNum;
 
-    // Map overtime entries by day number
     var entryByDay = {};
+    var latestApproverName = "Tommy Hardiansyah";
+    var latestApproverSig = "";
+    var userSig = (currentUser && currentUser.signature) ? currentUser.signature : "";
+
     currentOvertimeCache.forEach(function(item) {
       if (item.tanggal) {
         var tParts = item.tanggal.split("-");
@@ -455,6 +864,11 @@
         if (!isNaN(dNum)) {
           entryByDay[dNum] = item;
         }
+      }
+      if (item.user_signature && !userSig) userSig = item.user_signature;
+      if (item.status_approval === 'Approved' && item.approver_signature) {
+        latestApproverSig = item.approver_signature;
+        if (item.approved_by) latestApproverName = item.approved_by;
       }
     });
 
@@ -477,7 +891,13 @@
         '</tr>';
     }
 
-    // HTML DOKUMEN GABUNGAN (PAGE 1 = REKAP SHIFT, PAGE 2..N = STL PER ELEMEN)
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
+
+    var pmSigHtml = latestApproverSig ?
+      renderSignatureHtml(latestApproverSig, '') :
+      '<span style="font-size: 10px; color: #777; font-style: italic;">(Belum Disetujui PM)</span>';
+
     var combinedHtml = '<!DOCTYPE html><html><head><title>DOKUMEN LEMBUR GABUNGAN - ' + empName + '</title>' +
       '<style>' +
       '@page { size: A4 portrait; margin: 10mm 12mm; }' +
@@ -551,13 +971,13 @@
 
       '<table class="signature-table">' +
       '<tr>' +
-      '<td>Menyetujui,<br><br><div class="signature-box"></div><span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>NIK: 7268900080</td>' +
-      '<td>Dibuat Oleh,<br><br><div class="signature-box"><svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg></div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
+      '<td>Menyetujui,<br><div class="signature-box">' + pmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>Project Manager</td>' +
+      '<td>Dibuat Oleh,<br><div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
       '</div>';
 
-    // HALAMAN 2 S.D. N: SURAT TUGAS LEMBUR (STL) UNTUK SETIAP ENTRI LEMBUR
+    // HALAMAN 2 S.D. N: SURAT TUGAS LEMBUR (STL) PER ELEMEN DENGAN TTD LENGKAP
     currentOvertimeCache.forEach(function(item) {
       var itemEmpName = item.nama_lengkap || empName;
       var itemEmpNik = item.nik || empNik;
@@ -566,6 +986,13 @@
       var tglText = item.tanggal || "05 July 2026";
       var jamText = item.jam_mulai + " – " + item.jam_selesai;
       var descText = item.deskripsi || "Standby Support kegiatan BMS dan IT CGK3A";
+
+      var singleEmpSigHtml = renderSignatureHtml(item.user_signature || userSig, '<svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>');
+
+      var itemPmApproverName = item.approved_by || latestApproverName;
+      var itemPmSigHtml = (item.status_approval === 'Approved' && item.approver_signature) ?
+        renderSignatureHtml(item.approver_signature, '') :
+        '<span style="font-size: 9.5px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
 
       combinedHtml += '<div class="page-break"></div>' +
         '<div>' +
@@ -582,9 +1009,7 @@
         '    </g>' +
         '  </svg>' +
         '</td>' +
-        '<td style="text-align: center;">' +
-        '  <div class="doc-title">SURAT TUGAS LEMBUR</div>' +
-        '</td>' +
+        '<td style="text-align: center;"><div class="doc-title">SURAT TUGAS LEMBUR</div></td>' +
         '<td style="width: 30%; text-align: right;">' +
         '  <div style="border: 2px solid #102a43; padding: 2px 6px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
         '    <span style="font-weight: 900; font-size: 12px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 9.5px;">INDONESIA</span></span><br>' +
@@ -613,8 +1038,8 @@
 
         '<table class="stl-signature-table">' +
         '<tr>' +
-        '<td>Mengetahui Atasan Langsung<br><br><br><span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>NIK: 7268900080</td>' +
-        '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="stl-signature-box"><svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg></div><span style="text-decoration: underline; font-weight: bold;">' + itemEmpName + '</span><br>NIK: ' + itemEmpNik + '</td>' +
+        '<td>Mengetahui Atasan Langsung<br><div class="stl-signature-box">' + itemPmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + itemPmApproverName + '</span><br>Project Manager</td>' +
+        '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="stl-signature-box">' + singleEmpSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + itemEmpName + '</span><br>NIK: ' + itemEmpNik + '</td>' +
         '</tr>' +
         '</table>' +
 
@@ -642,8 +1067,8 @@
 
         '<table class="stl-signature-table">' +
         '<tr>' +
-        '<td>Mengetahui Atasan Langsung<br><br><br><span style="text-decoration: underline; font-weight: bold;">Tommy Hardiansyah</span><br>NIK: 7268900080</td>' +
-        '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="stl-signature-box"><svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg></div><span style="text-decoration: underline; font-weight: bold;">' + itemEmpName + '</span><br>NIK: ' + itemEmpNik + '</td>' +
+        '<td>Mengetahui Atasan Langsung<br><div class="stl-signature-box">' + itemPmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + itemPmApproverName + '</span><br>Project Manager</td>' +
+        '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="stl-signature-box">' + singleEmpSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + itemEmpName + '</span><br>NIK: ' + itemEmpNik + '</td>' +
         '</tr>' +
         '</table>' +
         '</div>';
