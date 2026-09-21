@@ -1,0 +1,242 @@
+<script>
+  /**
+   * Dashboard, Analytics & Risk Heatmap Engine
+   * System: e-LMS Data Center KSPS
+   */
+
+  function loadDashboard() {
+    var userId = currentUser ? currentUser.user_id : 'USR-0003';
+    var userRole = currentUser ? currentUser.role : 'Karyawan';
+
+    callBackend('getDashboardData', [userId, userRole, '2026-09'], function(res) {
+      if (res.success) {
+        var d = res.data;
+        dashboardDetailCache = d.details || {};
+
+        document.getElementById("statCompleted").innerText = d.completedCourses;
+        document.getElementById("statAvgScore").innerText = d.avgScore + " / 100";
+        document.getElementById("statMissionStatus").innerText = d.mission.completed + " / " + d.mission.target + " Selesai";
+
+        renderPerSiteChart(d.siteChart);
+      }
+    });
+
+    if (currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin')) {
+      loadCompetencyHeatmap();
+    }
+  }
+
+  function loadCompetencyHeatmap() {
+    callBackend('getCompetencyHeatmapData', ['2026-09'], function(res) {
+      if (res.success) {
+        renderCompetencyHeatmapTable(res.data);
+      }
+    });
+  }
+
+  function renderCompetencyHeatmapTable(data) {
+    var tbody = document.getElementById("heatmapTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    var sites = data.sites || ["CGK1", "CGK2", "CGK3", "CGK3A", "CGK4"];
+    var matrix = data.matrix || {};
+
+    sites.forEach(function(s) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 border-b border-slate-100 transition";
+
+      var siteLabel = '<td class="py-3 px-3 font-bold text-[#1C1B8E] flex items-center space-x-2"><i class="fa-solid fa-server text-[#0D9488]"></i> <span>Site ' + s + '</span></td>';
+
+      var pillars = ["cooling", "power", "safety", "network"];
+      var cellsHtml = "";
+
+      pillars.forEach(function(pId) {
+        var pData = (matrix[s] && matrix[s][pId]) ? matrix[s][pId] : { avg: 85, risk: "green" };
+        var badgeClass = "bg-emerald-50 text-emerald-600 border-emerald-200";
+
+        if (pData.risk === "red") {
+          badgeClass = "bg-rose-50 text-rose-600 border-rose-200 animate-pulse";
+        } else if (pData.risk === "yellow") {
+          badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+        }
+
+        cellsHtml += '<td class="py-3 px-3 text-center">' +
+          '<span class="inline-block px-3 py-1 rounded-xl text-xs font-bold border ' + badgeClass + '">' + pData.avg + ' / 100</span>' +
+          '</td>';
+      });
+
+      tr.innerHTML = siteLabel + cellsHtml;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderPerSiteChart(chartData) {
+    var ctx = document.getElementById('monthlyChart');
+    if (!ctx) return;
+
+    if (myChart) {
+      myChart.destroy();
+    }
+
+    var labels = (chartData && chartData.labels) ? chartData.labels : ['Site CGK1', 'Site CGK2', 'Site CGK3', 'Site CGK3A', 'Site CGK4'];
+    var avgScores = (chartData && chartData.avgScores) ? chartData.avgScores : [85, 78, 90, 82, 75];
+    var complianceRates = (chartData && chartData.complianceRates) ? chartData.complianceRates : [100, 50, 100, 50, 50];
+
+    myChart = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Rata-Rata Nilai Kuis',
+            data: avgScores,
+            backgroundColor: 'rgba(28, 27, 142, 0.85)',
+            borderRadius: 8,
+            barPercentage: 0.6
+          },
+          {
+            label: 'Kepatuhan 2 Materi (%)',
+            data: complianceRates,
+            backgroundColor: 'rgba(243, 143, 0, 0.85)',
+            borderRadius: 8,
+            barPercentage: 0.6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' } } }
+        },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function openDashboardDetailModal(type) {
+    if (!dashboardDetailCache) return;
+
+    var iconEl = document.getElementById("dashDetailModalIcon");
+    var titleEl = document.getElementById("dashDetailModalTitle");
+    var subEl = document.getElementById("dashDetailModalSubtitle");
+    var thead = document.getElementById("dashDetailTableHead");
+    var tbody = document.getElementById("dashDetailTableBody");
+
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    if (type === 'mission') {
+      iconEl.className = "w-10 h-10 rounded-xl bg-amber-50 text-[#F38F00] flex items-center justify-center text-lg font-bold border border-amber-100";
+      iconEl.innerHTML = '<i class="fa-solid fa-bullseye"></i>';
+      titleEl.innerText = "Rincian Target Misi Bulanan (2 Materi)";
+      subEl.innerText = "Daftar 2 materi wajib yang ditugaskan untuk bulan berjalan";
+
+      thead.innerHTML = '<tr class="bg-slate-50 border-b border-slate-100 uppercase text-[11px] font-bold text-slate-500">' +
+        '<th class="py-2.5 px-3">NO.</th><th class="py-2.5 px-3">JUDUL MATERI</th><th class="py-2.5 px-3">GROUP</th><th class="py-2.5 px-3 text-center">NILAI KUIS</th><th class="py-2.5 px-3 text-center">STATUS</th>' +
+        '</tr>';
+
+      var list = dashboardDetailCache.missionDetail || [];
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500 py-6">Belum ada rincian misi.</td></tr>';
+      } else {
+        list.forEach(function(item, idx) {
+          var tr = document.createElement("tr");
+          var badge = item.status === "Selesai" ? '<span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold text-[10px]">TUNTAS</span>' : '<span class="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold text-[10px]">IN PROGRESS</span>';
+          tr.innerHTML = '<td class="py-2.5 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
+            '<td class="py-2.5 px-3 font-bold text-slate-900">' + item.title + '</td>' +
+            '<td class="py-2.5 px-3 text-slate-500">' + item.category + '</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-slate-900">' + item.score + '</td>' +
+            '<td class="py-2.5 px-3 text-center">' + badge + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+    } else if (type === 'completed') {
+      iconEl.className = "w-10 h-10 rounded-xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-lg font-bold border border-indigo-100";
+      iconEl.innerHTML = '<i class="fa-solid fa-graduation-cap"></i>';
+      titleEl.innerText = "Riwayat Materi Selesai Dipelajari";
+      subEl.innerText = "Daftar seluruh judul materi yang telah berhasil dituntaskan";
+
+      thead.innerHTML = '<tr class="bg-slate-50 border-b border-slate-100 uppercase text-[11px] font-bold text-slate-500">' +
+        '<th class="py-2.5 px-3">NO.</th><th class="py-2.5 px-3">JUDUL MATERI</th><th class="py-2.5 px-3">GROUP</th><th class="py-2.5 px-3 text-center">TANGGAL LULUS</th><th class="py-2.5 px-3 text-center">SKOR KUIS</th>' +
+        '</tr>';
+
+      var listC = dashboardDetailCache.completedDetail || [];
+      if (listC.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500 py-6">Belum ada materi selesai.</td></tr>';
+      } else {
+        listC.forEach(function(item, idx) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = '<td class="py-2.5 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
+            '<td class="py-2.5 px-3 font-bold text-slate-900">' + item.title + '</td>' +
+            '<td class="py-2.5 px-3 text-slate-500">' + item.category + '</td>' +
+            '<td class="py-2.5 px-3 text-center text-slate-500">' + item.updated + '</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-emerald-600">' + item.score + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+    } else if (type === 'score') {
+      iconEl.className = "w-10 h-10 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center text-lg font-bold border border-teal-100";
+      iconEl.innerHTML = '<i class="fa-solid fa-chart-line"></i>';
+      titleEl.innerText = "Transkrip Nilai Kuis Knowledge";
+      subEl.innerText = "Rincian skor hasil pengerjaan kuis materi Data Center KSPS";
+
+      thead.innerHTML = '<tr class="bg-slate-50 border-b border-slate-100 uppercase text-[11px] font-bold text-slate-500">' +
+        '<th class="py-2.5 px-3">NO.</th><th class="py-2.5 px-3">JUDUL MATERI</th><th class="py-2.5 px-3 text-center">SKOR KUIS</th><th class="py-2.5 px-3 text-center">STATUS</th><th class="py-2.5 px-3 text-center">TANGGAL</th>' +
+        '</tr>';
+
+      var listS = dashboardDetailCache.scoreDetail || [];
+      if (listS.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500 py-6">Belum ada riwayat kuis.</td></tr>';
+      } else {
+        listS.forEach(function(item, idx) {
+          var tr = document.createElement("tr");
+          var badge = item.score >= 80 ? '<span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold text-[10px]">LULUS</span>' : '<span class="bg-indigo-50 text-[#1C1B8E] px-2 py-0.5 rounded-full font-bold text-[10px]">SELESAI</span>';
+          tr.innerHTML = '<td class="py-2.5 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
+            '<td class="py-2.5 px-3 font-bold text-slate-900">' + item.title + '</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-slate-900 text-sm">' + item.score + ' / 100' + '</td>' +
+            '<td class="py-2.5 px-3 text-center">' + badge + '</td>' +
+            '<td class="py-2.5 px-3 text-center text-slate-500">' + item.updated + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+    } else if (type === 'site') {
+      iconEl.className = "w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-lg font-bold border border-blue-100";
+      iconEl.innerHTML = '<i class="fa-solid fa-building-user"></i>';
+      titleEl.innerText = "Analisis Performa Belajar Per-Site Lokasi";
+      subEl.innerText = "Resume rata-rata nilai & persentase kepatuhan target 2 materi per site";
+
+      thead.innerHTML = '<tr class="bg-slate-50 border-b border-slate-100 uppercase text-[11px] font-bold text-slate-500">' +
+        '<th class="py-2.5 px-3">LOKASI SITE</th><th class="py-2.5 px-3 text-center">TOTAL KARYAWAN</th><th class="py-2.5 px-3 text-center">TUNTAS MISI (2/2)</th><th class="py-2.5 px-3 text-center">RATA-RATA NILAI</th><th class="py-2.5 px-3 text-center">KEPATUHAN SITE</th>' +
+        '</tr>';
+
+      var listSt = dashboardDetailCache.siteDetail || [];
+      if (listSt.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500 py-6">Belum ada data per-site.</td></tr>';
+      } else {
+        listSt.forEach(function(item) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = '<td class="py-2.5 px-3 font-bold text-[#1C1B8E] flex items-center space-x-2"><i class="fa-solid fa-server text-[#0D9488]"></i> <span>Site ' + item.site + '</span></td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-slate-900">' + item.total_karyawan + ' Orang</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-emerald-600">' + item.misi_tuntas + ' Karyawan</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-slate-900">' + item.avg_score + ' / 100</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-[#1C1B8E]">' + item.compliance_rate + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    document.getElementById("dashboardDetailModal").classList.remove("hidden");
+  }
+
+  function closeDashboardDetailModal() {
+    document.getElementById("dashboardDetailModal").classList.add("hidden");
+  }
+</script>
