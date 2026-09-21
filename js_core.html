@@ -1,0 +1,269 @@
+<script>
+  /**
+   * Core Engine, State Management & Grade Badging Utilities
+   * System: e-LMS Data Center KSPS
+   */
+  var currentUser = null;
+  var activeCourseForQuiz = null;
+  var currentQuizList = [];
+  var myChart = null;
+  var courseToDeleteId = null;
+
+  var activeCourseDetailCache = null;
+  var activeCourseDetailTitle = "";
+  var activeCourseDetailId = "";
+
+  var activeMediaCourseId = null;
+  var activeMediaTitle = "";
+  var activeMediaPdfUrl = "";
+  var activeMediaVideoUrl = "";
+  var isCurrentPdfTracked = false;
+  var isCurrentVideoTracked = false;
+
+  var dashboardDetailCache = null;
+
+  function showGlobalSpinner() {
+    var sp = document.getElementById("globalLoadingSpinner");
+    if (sp) sp.classList.remove("hidden");
+  }
+
+  function hideGlobalSpinner() {
+    var sp = document.getElementById("globalLoadingSpinner");
+    if (sp) sp.classList.add("hidden");
+  }
+
+  function callBackend(funcName, params, callbackSuccess) {
+    showGlobalSpinner();
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      var runner = google.script.run
+        .withSuccessHandler(function(res) {
+          hideGlobalSpinner();
+          if (callbackSuccess) callbackSuccess(res);
+        })
+        .withFailureHandler(function(err) {
+          hideGlobalSpinner();
+          console.error("Backend error: ", err);
+        });
+      runner[funcName].apply(runner, params);
+    } else {
+      console.warn("Menjalankan mode simulasi Canvas ( google.script.run tidak terdefinisi )");
+      setTimeout(function() {
+        hideGlobalSpinner();
+        if (funcName === 'loginUser') {
+          var inputEmail = (params[0] || '').toLowerCase();
+          var simulatedRole = 'Karyawan';
+          var simulatedName = 'Eko Tech Operator';
+          var simulatedUserId = 'USR-0003';
+
+          if (inputEmail.indexOf('admin') !== -1) {
+            simulatedRole = 'Super Admin';
+            simulatedName = 'Admin Data Center KSPS';
+            simulatedUserId = 'USR-0001';
+          } else if (inputEmail.indexOf('pm') !== -1 || inputEmail.indexOf('budi') !== -1) {
+            simulatedRole = 'Project Manager';
+            simulatedName = 'Budi PM Infrastructure';
+            simulatedUserId = 'USR-0002';
+          }
+
+          callbackSuccess({
+            success: true,
+            user: { user_id: simulatedUserId, name: simulatedName, role: simulatedRole, email: params[0], departemen: 'Operations', site: 'CGK1' }
+          });
+        } else if (funcName === 'getEmployeesList') {
+          callbackSuccess({
+            success: true,
+            data: [
+              { employee_id: 'EMP-0001', nik: '31710123001', nama_lengkap: 'Eko Tech Operator', email: 'eko.tech@datacenter.com', jabatan: 'Junior DC Technician', departemen: 'Operations', site: 'CGK3', pdf_score_avg: 100, video_score_avg: 100, quiz_score_avg: 85, composite_avg: 92, grade_badge: 'A', status_karyawan: 'Aktif' },
+              { employee_id: 'EMP-0002', nik: '31710123002', nama_lengkap: 'Rina DC Technician', email: 'rina.tech@datacenter.com', jabatan: 'Cabling Specialist', departemen: 'Network & Cabling', site: 'CGK3A', pdf_score_avg: 50, video_score_avg: 40, quiz_score_avg: 0, composite_avg: 22, grade_badge: 'D', status_karyawan: 'Aktif' }
+            ]
+          });
+        } else if (funcName === 'getCoursesPaginated') {
+          callbackSuccess({
+            success: true,
+            currentPage: params[0] || 1,
+            totalPages: 1,
+            totalItems: 2,
+            data: [
+              { course_id: 'CRS-0001', judul_materi: 'Cooling System CRAH & Chiller SOP', kategori_dc: 'Introduction', pdf_link: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', video_url: 'https://drive.google.com/file/d/15YCCYywuOOPVhr_J_0DUdx4p-hA6uKF8/view?usp=sharing', created_by: 'PM Infrastructure', peserta_selesai: 1, total_peserta: 4, avg_score: 85, is_user_completed: true, user_status: 'Completed', user_pdf_score: 100, user_video_score: 100, user_quiz_score: 85, user_composite_score: 92 },
+              { course_id: 'CRS-0002', judul_materi: 'Redundansi UPS N+1 Maintenance', kategori_dc: 'Data Center Fundamental (Basic)', pdf_link: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', video_url: 'https://drive.google.com/file/d/15YCCYywuOOPVhr_J_0DUdx4p-hA6uKF8/view?usp=sharing', created_by: 'PM Infrastructure', peserta_selesai: 0, total_peserta: 4, avg_score: 0, is_user_completed: false, user_status: 'Belum dipelajari', user_pdf_score: 0, user_video_score: 0, user_quiz_score: 0, user_composite_score: 0 }
+            ]
+          });
+        } else if (funcName === 'getOvertimeData') {
+          callbackSuccess({
+            success: true,
+            totalHours: 7.5,
+            period: '2026-09',
+            data: [
+              { overtime_id: 'OVT-0001', user_id: 'USR-0003', nik: '31710123001', nama_lengkap: 'Eko Tech Operator', site: 'CGK1', departemen: 'Operations', tanggal: '2026-09-18', jam_mulai: '18:00', jam_selesai: '21:30', total_jam: 3.5, deskripsi: 'Maintenance emergency Chiller #2', catatan: 'Sparepart Replacement', evidence_url: '#', status_approval: 'Approved', created_at: '2026-09-18 21:35:00' },
+              { overtime_id: 'OVT-0002', user_id: 'USR-0003', nik: '31710123001', nama_lengkap: 'Eko Tech Operator', site: 'CGK1', departemen: 'Operations', tanggal: '2026-09-20', jam_mulai: '17:00', jam_selesai: '21:00', total_jam: 4.0, deskripsi: 'Overhaul Panel ATS Main Generator', catatan: 'Testing Normal', evidence_url: '#', status_approval: 'Pending', created_at: '2026-09-20 21:05:00' }
+            ]
+          });
+        } else {
+          callbackSuccess({ success: true, message: 'Simulasi berhasil!' });
+        }
+      }, 400);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    checkUserSession();
+    initClickOutsideModalListener();
+  });
+
+  /**
+   * GLOBAL CLICK OUTSIDE MODAL LISTENER
+   * Clicking anywhere outside a modal's card (on the backdrop overlay) closes the modal.
+   */
+  function initClickOutsideModalListener() {
+    document.addEventListener("click", function(e) {
+      var modalIds = [
+        "videoCheckpointModal", "dashboardDetailModal", "courseEmployeeDetailModal",
+        "deleteCourseModal", "quizModal", "pdfModal", "videoModal",
+        "editCourseModal", "employeeModal", "bulkEmployeeModal", "courseModal"
+      ];
+
+      modalIds.forEach(function(mId) {
+        var modalEl = document.getElementById(mId);
+        if (modalEl && !modalEl.classList.contains("hidden") && e.target === modalEl) {
+          if (mId === "pdfModal") closePdfModal();
+          else if (mId === "videoModal") closeVideoModal();
+          else if (mId === "quizModal") closeQuizModal();
+          else if (mId === "dashboardDetailModal") closeDashboardDetailModal();
+          else if (mId === "courseEmployeeDetailModal") closeCourseEmployeeDetailModal();
+          else if (mId === "deleteCourseModal") closeDeleteCourseModal();
+          else if (mId === "editCourseModal") closeEditCourseModal();
+          else if (mId === "employeeModal") closeEmployeeModal();
+          else if (mId === "bulkEmployeeModal") closeBulkEmployeeModal();
+          else if (mId === "courseModal") closeCourseModal();
+          else modalEl.classList.add("hidden");
+        }
+      });
+    });
+  }
+
+  function getGradeBadgeHtml(score) {
+    var val = parseFloat(score) || 0;
+    var badgeClass = "";
+    var label = "";
+    var icon = "";
+
+    if (val >= 90) {
+      badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+      label = "Grade A (" + val + ")";
+      icon = '<i class="fa-solid fa-crown text-amber-500 mr-1"></i>';
+    } else if (val >= 80) {
+      badgeClass = "bg-indigo-50 text-[#1C1B8E] border-indigo-200";
+      label = "Grade B (" + val + ")";
+      icon = '<i class="fa-solid fa-shield-check text-[#1C1B8E] mr-1"></i>';
+    } else if (val >= 70) {
+      badgeClass = "bg-amber-50 text-amber-800 border-amber-200";
+      label = "Grade C (" + val + ")";
+      icon = '<i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>';
+    } else {
+      badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+      label = "Grade D (" + val + ")";
+      icon = '<i class="fa-solid fa-circle-xmark text-rose-600 mr-1"></i>';
+    }
+
+    return '<span class="px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center justify-center space-x-1 whitespace-nowrap ' + badgeClass + '" title="' + label + '">' +
+      icon + '<span>' + label + '</span></span>';
+  }
+
+  function formatSecondsToMinSec(totalSeconds) {
+    var sec = parseInt(totalSeconds, 10) || 0;
+    if (sec <= 0) return "0 Menit";
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    if (m === 0) return s + " Detik";
+    if (s === 0) return m + " Menit";
+    return m + "m " + s + "s";
+  }
+
+  function showToast(msg) {
+    var toast = document.getElementById("toast");
+    var toastMsg = document.getElementById("toastMsg");
+    if (!toast || !toastMsg) return;
+    toastMsg.innerText = msg;
+    toast.classList.remove("hidden");
+    setTimeout(function() { toast.classList.add("hidden"); }, 3500);
+  }
+
+  function switchTab(tabId) {
+    var views = ['dashboard', 'katalog', 'karyawan', 'misi', 'overtime', 'users'];
+    views.forEach(function(v) {
+      var el = document.getElementById('view-' + v);
+      var nav = document.getElementById('nav-' + v);
+      var mNav = document.getElementById('mobile-nav-' + v);
+
+      if (el) el.classList.add('hidden');
+      if (nav) nav.classList.remove('active-nav');
+      if (mNav) mNav.classList.remove('active-mobile-nav');
+    });
+
+    var activeEl = document.getElementById('view-' + tabId);
+    var activeNav = document.getElementById('nav-' + tabId);
+    var activeMNav = document.getElementById('mobile-nav-' + tabId);
+
+    if (activeEl) activeEl.classList.remove('hidden');
+    if (activeNav) activeNav.classList.add('active-nav');
+    if (activeMNav) activeMNav.classList.add('active-mobile-nav');
+
+    if (tabId === 'dashboard') loadDashboard();
+    if (tabId === 'katalog') loadCourses(1);
+    if (tabId === 'karyawan') loadEmployees();
+    if (tabId === 'misi') loadMonthlyMissions();
+    if (tabId === 'overtime') loadOvertimeData();
+    if (tabId === 'users') loadUsers();
+  }
+
+  function convertToEmbedUrl(url) {
+    if (!url || url === '#' || url.trim() === '') return '';
+    var cleanUrl = url.trim();
+
+    if (cleanUrl.indexOf('drive.google.com') !== -1) {
+      var matchId = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/) || cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchId && matchId[1]) {
+        return 'https://drive.google.com/file/d/' + matchId[1] + '/preview';
+      }
+      if (cleanUrl.indexOf('/preview') !== -1) return cleanUrl;
+      cleanUrl = cleanUrl.replace(/\/view(\?.*)?$/, '/preview');
+      cleanUrl = cleanUrl.replace(/\/edit(\?.*)?$/, '/preview');
+      if (cleanUrl.indexOf('/preview') === -1) {
+        cleanUrl = cleanUrl.replace(/\?usp=.*$/, '') + '/preview';
+      }
+      return cleanUrl;
+    }
+
+    if (cleanUrl.indexOf('youtube.com') !== -1 || cleanUrl.indexOf('youtu.be') !== -1) {
+      var ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        return 'https://www.youtube.com/embed/' + ytMatch[1] + '?autoplay=1&enablejsapi=1';
+      }
+    }
+
+    return cleanUrl;
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise(function(resolve, reject) {
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        resolve({
+          name: file.name,
+          type: file.type,
+          base64: e.target.result
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleSearch() {
+    loadCourses(1);
+  }
+</script>
