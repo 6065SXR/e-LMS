@@ -1,3 +1,56 @@
+<!-- MODAL: INPUT REKAPITULASI KELEBIHAN JAM KERJA (KJK) -->
+<div id="kjkModal" onclick="if(event.target===this) closeKjkModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4 text-slate-900 relative">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#1C1B8E] text-base">Input Rekapitulasi KJK</h3>
+          <p class="text-xs text-slate-500">Kelebihan Jam Kerja Karyawan Shift</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeKjkModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+
+    <form onsubmit="handleSaveKjk(event)" class="space-y-3.5 text-xs">
+      <div>
+        <label class="block font-bold text-slate-800 mb-1">Periode (Bulan)</label>
+        <select id="kjkMonthSelect" required class="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+          <option value="January">Januari (January)</option>
+          <option value="February">Februari (February)</option>
+          <option value="March">Maret (March)</option>
+          <option value="April">April (April)</option>
+          <option value="May">Mei (May)</option>
+          <option value="June">Juni (June)</option>
+          <option value="July">Juli (July)</option>
+          <option value="August">Agustus (August)</option>
+          <option value="September" selected>September (September)</option>
+          <option value="October">Oktober (October)</option>
+          <option value="November">November (November)</option>
+          <option value="December">Desember (December)</option>
+        </select>
+        <p class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-circle-info text-amber-500 mr-1"></i>Nama bulan akan disimpan ke database sheet OVERTIME.</p>
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-800 mb-1">Total Kelebihan Jam Kerja (Jam)</label>
+        <input type="number" id="kjkTotalHoursInput" min="0" step="0.5" required placeholder="Contoh: 0" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+        <p class="text-[11px] text-slate-500 mt-1">Isikan jumlah total jam kelebihan Anda pada periode bulan bersangkutan.</p>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+        <button type="button" onclick="closeKjkModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
+        <button type="submit" id="btnSubmitKjk" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1.5">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Simpan Data KJK</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- MODAL 1: ATUR TANDA TANGAN DIGITAL (CANVAS & UPLOAD) -->
 <div id="signatureModal" onclick="if(event.target===this) closeSignatureModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4 text-slate-900 relative">
@@ -65,6 +118,64 @@
         <span>Simpan Tanda Tangan</span>
       </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: CHANGE PASSWORD PENGGUNA -->
+<div id="changePasswordModal" onclick="if(event.target===this) closeChangePasswordModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4 text-slate-900 relative">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#1C1B8E] text-base">Ganti Password Akun</h3>
+          <p class="text-xs text-slate-500">Perbarui kata sandi akun Anda untuk keamanan</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeChangePasswordModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+
+    <form onsubmit="handleChangePasswordSubmit(event)" class="space-y-3.5 text-xs">
+      <div>
+        <label class="block font-bold text-slate-800 mb-1">Password Saat Ini</label>
+        <div class="relative">
+          <input type="password" id="cpCurrentPass" required placeholder="Masukkan password lama Anda" class="w-full p-2.5 pr-10 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+          <button type="button" onclick="togglePasswordVisibility('cpCurrentPass')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-eye text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-800 mb-1">Password Baru (Minimal 6 Karakter)</label>
+        <div class="relative">
+          <input type="password" id="cpNewPass" minlength="6" required placeholder="Masukkan password baru" class="w-full p-2.5 pr-10 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+          <button type="button" onclick="togglePasswordVisibility('cpNewPass')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-eye text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-bold text-slate-800 mb-1">Konfirmasi Password Baru</label>
+        <div class="relative">
+          <input type="password" id="cpConfirmPass" minlength="6" required placeholder="Ulangi password baru" class="w-full p-2.5 pr-10 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#1C1B8E]">
+          <button type="button" onclick="togglePasswordVisibility('cpConfirmPass')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-eye text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+        <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
+        <button type="submit" id="btnChangePasswordSubmit" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1.5">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Simpan Password</span>
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
