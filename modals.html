@@ -1,3 +1,82 @@
+<!-- MODAL: DOWNLOAD HR.OVERTIME (EXCEL KHUSUS PROJECT MANAGER) -->
+<div id="downloadOvertimeModal" onclick="if(event.target===this) closeDownloadOvertimeModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+  <div class="bg-white rounded-2xl max-w-lg w-full p-6 card-shadow space-y-4 text-slate-900 relative border border-indigo-100">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-lg font-bold">
+          <i class="fa-solid fa-file-arrow-down"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-[#1C1B8E] text-base">Download hr.Overtime (Excel)</h3>
+          <p class="text-xs text-slate-500">Ekspor berkas lembur yang telah disetujui (Approved) per karyawan</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeDownloadOvertimeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+
+    <div class="space-y-4 text-xs">
+      <!-- PILIHAN SITE LOKASI -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="font-bold text-slate-900">Pilih Site Lokasi:</label>
+          <label class="flex items-center space-x-1.5 cursor-pointer text-indigo-700 hover:text-indigo-900 font-bold text-[11px]">
+            <input type="checkbox" id="chkAllSites" onchange="toggleAllSites(this)" checked class="rounded text-[#1C1B8E] focus:ring-0">
+            <span>Pilih Semua Site</span>
+          </label>
+        </div>
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-slate-800 font-semibold">
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" class="site-chk rounded text-[#1C1B8E] focus:ring-0" value="CGK1" onchange="handleSiteCheckboxChange()" checked>
+            <span>CGK1</span>
+          </label>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" class="site-chk rounded text-[#1C1B8E] focus:ring-0" value="CGK2" onchange="handleSiteCheckboxChange()" checked>
+            <span>CGK2</span>
+          </label>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" class="site-chk rounded text-[#1C1B8E] focus:ring-0" value="CGK3" onchange="handleSiteCheckboxChange()" checked>
+            <span>CGK3</span>
+          </label>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" class="site-chk rounded text-[#1C1B8E] focus:ring-0" value="CGK3A" onchange="handleSiteCheckboxChange()" checked>
+            <span>CGK3A</span>
+          </label>
+          <label class="flex items-center space-x-1.5 cursor-pointer">
+            <input type="checkbox" class="site-chk rounded text-[#1C1B8E] focus:ring-0" value="CGK4" onchange="handleSiteCheckboxChange()" checked>
+            <span>CGK4</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- PILIHAN KARYAWAN -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="font-bold text-slate-900">Pilih Karyawan:</label>
+          <label class="flex items-center space-x-1.5 cursor-pointer text-indigo-700 hover:text-indigo-900 font-bold text-[11px]">
+            <input type="checkbox" id="chkAllEmployees" onchange="toggleAllEmployees(this)" checked class="rounded text-[#1C1B8E] focus:ring-0">
+            <span>Pilih Semua Karyawan</span>
+          </label>
+        </div>
+        <div id="downloadOvertimeEmployeeList" class="max-h-48 overflow-y-auto space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <p class="text-slate-400 text-center py-4">Memuat daftar karyawan...</p>
+        </div>
+        <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info text-indigo-600 mr-1"></i>Hanya transaksi lembur berstatus <strong>Approved</strong> yang dimasukkan ke dalam format kolom: <code>NRP</code>, <code>Employee</code>, <code>Date from</code>, <code>Date to</code>.</p>
+      </div>
+    </div>
+
+    <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+      <span class="text-[11px] text-slate-500 font-semibold" id="downloadOvertimeSelectedCount">0 Karyawan terpilih</span>
+      <div class="flex space-x-2">
+        <button type="button" onclick="closeDownloadOvertimeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100">Batal</button>
+        <button type="button" id="btnExecuteDownloadOvertime" onclick="executeDownloadHrOvertime()" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center space-x-1.5">
+          <i class="fa-solid fa-download"></i>
+          <span>Download Excel (.xlsx / .zip)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: INPUT REKAPITULASI KELEBIHAN JAM KERJA (KJK) -->
 <div id="kjkModal" onclick="if(event.target===this) closeKjkModal()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
   <div class="bg-white rounded-2xl max-w-md w-full p-6 card-shadow space-y-4 text-slate-900 relative">
@@ -31,7 +110,7 @@
           <option value="November">November (November)</option>
           <option value="December">Desember (December)</option>
         </select>
-        <p class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-circle-info text-amber-500 mr-1"></i>Nama bulan akan disimpan ke database sheet OVERTIME.</p>
+        <p class="text-[11px] text-slate-500 mt-1"><i class="fa-solid fa-circle-info text-amber-500 mr-1"></i>Data KJK tersimpan otomatis ke sheet khusus KJK.</p>
       </div>
 
       <div>
