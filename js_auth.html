@@ -1,7 +1,8 @@
 <script>
   /**
-   * Authentication & Role Session Management & Profile Dropdown Controller
+   * Authentication & Role Session Management & Profile Dropdown Controller (Production Ready)
    * System: e-LMS Data Center KSPS
+   * Catatan: Seluruh simulasi bypass dan registrasi mandiri telah dibersihkan untuk peluncuran resmi.
    */
 
   function checkUserSession() {
@@ -21,19 +22,6 @@
       loadCourses(1);
     } else {
       document.getElementById("authOverlay").classList.remove("hidden");
-    }
-  }
-
-  function toggleAuthMode(mode) {
-    var loginCard = document.getElementById("loginCard");
-    var regCard = document.getElementById("registerCard");
-
-    if (mode === 'register') {
-      loginCard.classList.add("hidden");
-      regCard.classList.remove("hidden");
-    } else {
-      regCard.classList.add("hidden");
-      loginCard.classList.remove("hidden");
     }
   }
 
@@ -64,65 +52,11 @@
     });
   }
 
-  function handleRegister(e) {
-    e.preventDefault();
-    var data = {
-      nama: document.getElementById("regName").value,
-      email: document.getElementById("regEmail").value,
-      password: document.getElementById("regPassword").value,
-      departemen: document.getElementById("regDept").value,
-      site: document.getElementById("regSite").value
-    };
-
-    var btn = document.getElementById("btnRegisterSubmit");
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Mengirim Link Otentikasi...';
-
-    callBackend('registerUser', [data], function(res) {
-      btn.disabled = false;
-      btn.innerHTML = 'Daftar Akun Baru';
-
-      if (res.success) {
-        toggleAuthMode('login');
-        showToast(res.message || "Pendaftaran berhasil! Cek email untuk aktivasi akun.");
-      } else {
-        showToast(res ? res.error : "Gagal mendaftarkan akun");
-      }
-    });
-  }
-
   function logoutUser() {
     closeProfileDropdown();
     localStorage.removeItem("elms_session");
     currentUser = null;
     document.getElementById("authOverlay").classList.remove("hidden");
-  }
-
-  function handleRoleChange(isMobile) {
-    var selector = isMobile ? document.getElementById("mobileRoleSelector") : document.getElementById("roleSelector");
-    if (!selector) return;
-    var newRole = selector.value;
-    
-    if (!currentUser) {
-      currentUser = { user_id: 'USR-0003', name: 'Eko Tech Operator', role: newRole, email: 'eko.tech@datacenter.com', departemen: 'Operations', site: 'CGK1' };
-    }
-
-    currentUser.role = newRole;
-    if (newRole === 'Super Admin') {
-      currentUser.name = 'Admin Data Center KSPS';
-      currentUser.user_id = 'USR-0001';
-    } else if (newRole === 'Project Manager') {
-      currentUser.name = 'Budi PM Infrastructure';
-      currentUser.user_id = 'USR-0002';
-    } else {
-      currentUser.name = 'Eko Tech Operator';
-      currentUser.user_id = 'USR-0003';
-    }
-
-    localStorage.setItem("elms_session", JSON.stringify(currentUser));
-    updateUIForUser();
-    loadDashboard();
-    loadCourses(1);
   }
 
   function getUserInitials(name) {
@@ -146,12 +80,6 @@
     var mobileRoleEl = document.getElementById("mobileUserRoleBadge");
     if (mobileUserEl) mobileUserEl.innerText = currentUser.name;
     if (mobileRoleEl) mobileRoleEl.innerText = currentUser.role;
-
-    var roleSelector = document.getElementById("roleSelector");
-    if (roleSelector) roleSelector.value = currentUser.role;
-
-    var mobileRoleSelector = document.getElementById("mobileRoleSelector");
-    if (mobileRoleSelector) mobileRoleSelector.value = currentUser.role;
 
     var pmElems = document.querySelectorAll('.role-pm');
     var adminElems = document.querySelectorAll('.role-admin');
