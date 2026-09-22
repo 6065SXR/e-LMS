@@ -100,6 +100,11 @@
         <i class="fa-solid fa-users-gear w-5"></i>
         <span>Manajemen User</span>
       </button>
+      <!-- MENU BARU SUPER ADMIN: BACKUP & RESTORE -->
+      <button type="button" onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
+        <i class="fa-solid fa-database w-5 text-indigo-600"></i>
+        <span>Backup &amp; Restore</span>
+      </button>
     </nav>
   </div>
 
@@ -148,5 +153,11 @@
       <i class="fa-solid fa-users-gear"></i>
     </div>
     <span class="floating-label">Users</span>
+  </button>
+  <button type="button" onclick="switchTab('backup')" id="mobile-nav-backup" class="floating-nav-item hidden role-admin">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-database"></i>
+    </div>
+    <span class="floating-label">Backup</span>
   </button>
 </nav>
