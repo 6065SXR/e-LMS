@@ -489,20 +489,34 @@
             </select>
           </div>
 
-          <!-- Tombol Cetak Dokumen & Input KJK -->
+          <!-- TOMBOL AKSI BERDASARKAN ROLE -->
           <div class="flex items-center space-x-2">
-            <!-- Tombol Input KJK Khusus Karyawan -->
-            <button type="button" id="btnInputKjk" onclick="openKjkModal()" class="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap">
+            <!-- 1. Tombol Download KJK (Excel) Khusus PM & Super Admin -->
+            <button type="button" id="btnDownloadKjkExcel" onclick="handleDownloadKjkExcel()" class="hidden role-pm role-admin px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap" title="Download Rekap KJK Per-Site format Excel">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>Download KJK (Excel)</span>
+            </button>
+
+            <!-- 2. Tombol Baru: Download hr.Overtime Khusus PM & Super Admin -->
+            <button type="button" id="btnDownloadHrOvertime" onclick="openDownloadOvertimeModal()" class="hidden role-pm role-admin px-3.5 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap" title="Download Berkas Excel hr.Overtime Karyawan">
+              <i class="fa-solid fa-file-arrow-down"></i>
+              <span>Download hr.Overtime</span>
+            </button>
+
+            <!-- 3. Tombol Input KJK Khusus Karyawan -->
+            <button type="button" id="btnInputKjk" onclick="openKjkModal()" class="role-karyawan px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap">
               <i class="fa-solid fa-clock-rotate-left"></i>
               <span>Input KJK</span>
             </button>
 
-            <button type="button" onclick="printOvertimePDF()" class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap">
+            <!-- 4. Tombol Cetak Rekap (PDF) Khusus Karyawan -->
+            <button type="button" id="btnPrintRekapPdf" onclick="printOvertimePDF()" class="role-karyawan px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap">
               <i class="fa-solid fa-print"></i>
               <span>Cetak Rekap (PDF)</span>
             </button>
 
-            <button type="button" onclick="printCombinedOvertimePDF()" class="px-3.5 py-2.5 rounded-xl bg-[#1C1B8E] hover:bg-[#121163] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap" title="Gabungkan Rekap Bulanan + KJK + Seluruh Surat Tugas Lembur dalam 1 File PDF">
+            <!-- 5. Tombol Cetak Gabungan Khusus Karyawan -->
+            <button type="button" id="btnPrintCombinedPdf" onclick="printCombinedOvertimePDF()" class="role-karyawan px-3.5 py-2.5 rounded-xl bg-[#1C1B8E] hover:bg-[#121163] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md whitespace-nowrap" title="Gabungkan Rekap Bulanan + KJK + Seluruh Surat Tugas Lembur dalam 1 File PDF">
               <i class="fa-solid fa-file-pdf"></i>
               <span>Cetak Gabungan (Rekap + STL + KJK)</span>
             </button>
