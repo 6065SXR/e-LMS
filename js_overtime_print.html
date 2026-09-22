@@ -1,12 +1,57 @@
 <script>
   /**
-   * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, STL & Gabungan)
+   * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, KJK, STL & Gabungan)
    * System: e-LMS Data Center KSPS
+   * Update:
+   * 1. Menyisipkan Formulir KJK di Halaman 2 dokumen cetak gabungan (setelah Rekap dan sebelum STL).
+   * 2. Header margin browser dinonaktifkan permanen (@page margin 0).
+   * 3. Dukungan logo resmi KSPS (PNG Drive / Direct Vektor SVG).
    */
+
+  var KSPS_LOGO_CUSTOM_URL = "";
+
+  function getKspsLogoHtml() {
+    if (typeof KSPS_LOGO_CUSTOM_URL === "string" && KSPS_LOGO_CUSTOM_URL.trim() !== "") {
+      var finalUrl = KSPS_LOGO_CUSTOM_URL.trim();
+      if (!finalUrl.startsWith("http") && !finalUrl.startsWith("data:")) {
+        finalUrl = "https://lh3.googleusercontent.com/d/" + finalUrl;
+      }
+      return '<img src="' + finalUrl + '" style="height: 48px; width: auto; max-width: 145px; object-fit: contain; display: block;" alt="KSPS Logo" />';
+    }
+    return getKspsLogoSvgHtml();
+  }
+
+  function getKspsLogoSvgHtml() {
+    return '<svg viewBox="0 0 460 250" style="height: 46px; width: auto; display: block;" xmlns="http://www.w3.org/2000/svg">' +
+      '  <g transform="translate(345, 96) scale(0.95)">' +
+      '    <g transform="rotate(0)">' +
+      '      <circle cx="0" cy="-68" r="15" fill="#F38F00" />' +
+      '      <path d="M0,0 C14,-18 32,-38 48,-58 C24,-52 8,-50 -10,-60 C2,-42 2,-20 0,0 Z" fill="#1C1B8E" />' +
+      '    </g>' +
+      '    <g transform="rotate(72)">' +
+      '      <circle cx="0" cy="-68" r="15" fill="#F38F00" />' +
+      '      <path d="M0,0 C14,-18 32,-38 48,-58 C24,-52 8,-50 -10,-60 C2,-42 2,-20 0,0 Z" fill="#1C1B8E" />' +
+      '    </g>' +
+      '    <g transform="rotate(144)">' +
+      '      <circle cx="0" cy="-68" r="15" fill="#F38F00" />' +
+      '      <path d="M0,0 C14,-18 32,-38 48,-58 C24,-52 8,-50 -10,-60 C2,-42 2,-20 0,0 Z" fill="#1C1B8E" />' +
+      '    </g>' +
+      '    <g transform="rotate(216)">' +
+      '      <circle cx="0" cy="-68" r="15" fill="#F38F00" />' +
+      '      <path d="M0,0 C14,-18 32,-38 48,-58 C24,-52 8,-50 -10,-60 C2,-42 2,-20 0,0 Z" fill="#1C1B8E" />' +
+      '    </g>' +
+      '    <g transform="rotate(288)">' +
+      '      <circle cx="0" cy="-68" r="15" fill="#F38F00" />' +
+      '      <path d="M0,0 C14,-18 32,-38 48,-58 C24,-52 8,-50 -10,-60 C2,-42 2,-20 0,0 Z" fill="#1C1B8E" />' +
+      '    </g>' +
+      '  </g>' +
+      '  <text x="0" y="240" font-family="\'Arial Black\', \'Impact\', \'Plus Jakarta Sans\', sans-serif" font-weight="900" font-size="140" fill="#1C1B8E" letter-spacing="-10">KSPS</text>' +
+      '</svg>';
+  }
 
   function renderSignatureHtml(signatureData, defaultFallbackSvg) {
     if (signatureData && signatureData.indexOf("data:image") !== -1) {
-      return '<img src="' + signatureData + '" style="max-height: 52px; max-width: 140px; object-fit: contain; margin: 0 auto;" alt="Digital Signature" />';
+      return '<img src="' + signatureData + '" class="sig-monochrome-black" style="max-height: 44px; max-width: 135px; object-fit: contain; margin: 0 auto; filter: grayscale(100%) contrast(300%) brightness(0); -webkit-filter: grayscale(100%) contrast(300%) brightness(0);" alt="Digital Signature" />';
     }
     return defaultFallbackSvg;
   }
@@ -20,7 +65,6 @@
       return;
     }
 
-    // Deteksi Target Karyawan (Jika PM login, ambil karyawan yang dipilih di filter)
     var isKaryawan = currentUser && currentUser.role === 'Karyawan';
     var empFilter = document.getElementById("overtimeEmployeeFilter");
     var selectedEmpId = empFilter ? empFilter.value : "ALL";
@@ -28,7 +72,6 @@
     var targetItem = dataset[0];
 
     if (!isKaryawan && selectedEmpId === "ALL") {
-      // Periksa apakah data berisi lebih dari 1 karyawan
       var distinctUsers = {};
       dataset.forEach(function(d) { distinctUsers[d.user_id] = true; });
       if (Object.keys(distinctUsers).length > 1) {
@@ -74,9 +117,9 @@
       }
     });
 
-    // Jika PM saat ini login dan belum disetujui, pakai TTD PM jika tersedia
-    if (!latestApproverSig && currentUser && currentUser.role === 'Project Manager' && currentUser.signature) {
-      latestApproverName = currentUser.name || "Budi PM Infrastructure";
+    if (currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin') && currentUser.signature) {
+      latestApproverSig = currentUser.signature;
+      latestApproverName = currentUser.name || latestApproverName;
     }
 
     var rowsHtml = "";
@@ -88,61 +131,56 @@
       var desc = entry ? entry.deskripsi : "";
       var disetujui = (entry && entry.status_approval === 'Approved') ? "✓" : "";
 
-      rowsHtml += '<tr style="height: 22px; font-size: 11px;">' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + day + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + mulai + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + akhir + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; padding: 2px;">' + totalJam + '</td>' +
-        '<td style="border: 1px solid #000; padding: 2px 6px;">' + desc + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + disetujui + '</td>' +
+      rowsHtml += '<tr style="height: 18px; font-size: 10px; line-height: 1.2;">' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + day + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + mulai + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + akhir + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; padding: 1.5px;">' + totalJam + '</td>' +
+        '<td style="border: 1px solid #000; padding: 1.5px 6px;">' + desc + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + disetujui + '</td>' +
         '</tr>';
     }
 
-    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 42px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
 
     var pmSigHtml = latestApproverSig ?
       renderSignatureHtml(latestApproverSig, '') :
       '<span style="font-size: 10px; color: #777; font-style: italic;">(Belum Disetujui PM)</span>';
 
-    var printContent = '<!DOCTYPE html><html><head><title>REKAPITULASI LEMBUR (SHIFT) - ' + empName + '</title>' +
+    var printContent = '<!DOCTYPE html><html><head><title></title>' +
       '<style>' +
-      '@page { size: A4 portrait; margin: 12mm; }' +
-      'body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 10px; line-height: 1.2; }' +
-      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }' +
+      '@page { size: A4 portrait; margin: 0; }' +
+      '@media print { html, body { margin: 0; padding: 0; } }' +
+      'html, body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.2; font-size: 11px; }' +
+      '* { box-sizing: border-box; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
+      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
       '.header-table td { vertical-align: middle; }' +
-      '.info-table { width: 100%; margin-bottom: 15px; font-size: 13px; font-weight: bold; }' +
-      '.info-table td { padding: 2px 0; }' +
-      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 11px; }' +
-      '.data-table th { border: 1px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #f2f2f2; }' +
-      '.signature-table { width: 100%; margin-top: 30px; font-size: 13px; text-align: center; }' +
-      '.signature-table td { vertical-align: top; width: 50%; }' +
-      '.signature-box { height: 55px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }' +
+      '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
+      '.info-table td { padding: 1.5px 0; }' +
+      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
+      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; }' +
+      '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
+      '.signature-box img { max-height: 44px; max-width: 135px; filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
       '</style></head><body>' +
 
-      '<!-- HEADER DUAL LOGO -->' +
+      '<div class="sheet-page">' +
       '<table class="header-table">' +
       '<tr>' +
-      '<td style="width: 25%;">' +
-      '  <svg viewBox="0 0 340 120" style="height: 42px; width: auto;">' +
-      '    <text x="5" y="92" font-family="sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>' +
-      '    <g transform="translate(260, 55) scale(0.85)">' +
-      '      <circle cx="0" cy="-42" r="11" fill="#F38F00" /><circle cx="40" cy="-13" r="11" fill="#F38F00" /><circle cx="25" cy="34" r="11" fill="#F38F00" /><circle cx="-25" cy="34" r="11" fill="#F38F00" /><circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
-      '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
-      '    </g>' +
-      '  </svg>' +
-      '</td>' +
-      '<td style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase;">REKAPITULASI LEMBUR (SHIFT)</td>' +
-      '<td style="width: 30%; text-align: right;">' +
-      '  <div style="border: 2px solid #102a43; padding: 4px 8px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
-      '    <span style="font-weight: 900; font-size: 14px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 11px;">INDONESIA</span></span><br>' +
+      '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
+      '<td style="text-align: center; font-size: 15px; font-weight: bold; text-transform: uppercase;">REKAPITULASI LEMBUR (SHIFT)</td>' +
+      '<td style="width: 28%; text-align: right;">' +
+      '  <div style="border: 1.5px solid #102a43; padding: 3px 7px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
+      '    <span style="font-weight: 900; font-size: 12.5px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
       '    <span style="font-size: 7px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
       '  </div>' +
       '</td>' +
       '</tr>' +
       '</table>' +
 
-      '<!-- INFO METADATA -->' +
       '<table class="info-table">' +
       '<tr><td style="width: 110px;">Nama</td><td style="width: 15px;">:</td><td>' + empName.toUpperCase() + '</td></tr>' +
       '<tr><td>Jabatan</td><td>:</td><td>TECHNICIAN</td></tr>' +
@@ -151,46 +189,49 @@
       '<tr><td>Periode</td><td>:</td><td>' + periodText + '</td></tr>' +
       '</table>' +
 
-      '<!-- DATA TABEL 1-31 HARI -->' +
       '<table class="data-table">' +
       '<thead>' +
       '<tr>' +
-      '<th style="width: 45px;">TGL</th>' +
-      '<th style="width: 75px;">MULAI</th>' +
-      '<th style="width: 75px;">AKHIR</th>' +
-      '<th style="width: 90px;">TOTAL JAM<br>LEMBUR</th>' +
+      '<th style="width: 42px;">TGL</th>' +
+      '<th style="width: 72px;">MULAI</th>' +
+      '<th style="width: 72px;">AKHIR</th>' +
+      '<th style="width: 88px;">TOTAL JAM<br>LEMBUR</th>' +
       '<th>DESKRIPSI LEMBUR</th>' +
-      '<th style="width: 85px;">DISETUJUI</th>' +
+      '<th style="width: 82px;">DISETUJUI</th>' +
       '</tr>' +
       '</thead>' +
       '<tbody>' + rowsHtml + '</tbody>' +
       '</table>' +
 
-      '<!-- SIGNATURE SECTION DENGAN DIGITAL SIGNATURE -->' +
       '<table class="signature-table">' +
       '<tr>' +
       '<td>' +
-      '  Menyetujui,<br><br>' +
+      '  Menyetujui,<br>' +
       '  <div class="signature-box">' + pmSigHtml + '</div>' +
       '  <span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>' +
       '  Project Manager' +
       '</td>' +
       '<td>' +
-      '  Dibuat Oleh,<br><br>' +
+      '  Dibuat Oleh,<br>' +
       '  <div class="signature-box">' + employeeSigHtml + '</div>' +
       '  <span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>' +
       '  NIK: ' + empNik +
       '</td>' +
       '</tr>' +
       '</table>' +
+      '</div>' +
 
       '</body></html>';
 
     var printWindow = window.open('', '_blank', 'width=900,height=750');
     if (printWindow) {
       printWindow.document.write(printContent);
+      printWindow.document.title = "";
       printWindow.document.close();
-      setTimeout(function() { printWindow.print(); }, 500);
+      setTimeout(function() { 
+        printWindow.document.title = "";
+        printWindow.print(); 
+      }, 500);
     }
   }
 
@@ -206,51 +247,53 @@
     var jamText = item.jam_mulai + " – " + item.jam_selesai;
     var descText = item.deskripsi || "Standby Support kegiatan BMS dan IT CGK3A";
 
-    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 40px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(item.user_signature || (currentUser ? currentUser.signature : ''), fallbackEmpSvg);
 
-    var pmApproverName = item.approved_by || "Tommy Hardiansyah";
-    var pmSigHtml = (item.status_approval === 'Approved' && item.approver_signature) ?
-      renderSignatureHtml(item.approver_signature, '') :
-      '<span style="font-size: 9.5px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
+    var pmApproverName = item.approved_by || (currentUser && currentUser.role === 'Project Manager' ? currentUser.name : "Tommy Hardiansyah");
+    var activePmSignature = item.approver_signature || "";
 
-    var printContent = '<!DOCTYPE html><html><head><title>Surat Tugas Lembur - ' + empName + '</title>' +
+    if (currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin') && currentUser.signature) {
+      activePmSignature = currentUser.signature;
+      pmApproverName = currentUser.name || pmApproverName;
+    }
+
+    var pmSigHtml = (item.status_approval === 'Approved' || (currentUser && currentUser.role === 'Project Manager')) && activePmSignature ?
+      renderSignatureHtml(activePmSignature, '') :
+      '<span style="font-size: 10px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
+
+    var printContent = '<!DOCTYPE html><html><head><title></title>' +
       '<style>' +
-      '@page { size: A4 portrait; margin: 10mm 14mm; }' +
+      '@page { size: A4 portrait; margin: 0; }' +
+      '@media print { html, body { margin: 0; padding: 0; } }' +
       'html, body { margin: 0; padding: 0; font-family: "Times New Roman", Times, serif; color: #000; font-size: 12px; line-height: 1.35; }' +
       '* { box-sizing: border-box; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
       '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
       '.header-table td { vertical-align: middle; }' +
       '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
       '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
-      '.info-block td { padding: 2.5px 0; vertical-align: top; }' +
-      '.signature-table { width: 100%; margin-top: 18px; font-size: 12px; text-align: center; }' +
+      '.info-block td { padding: 3px 0; vertical-align: top; }' +
+      '.signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
       '.signature-table td { vertical-align: top; width: 50%; }' +
-      '.signature-box { height: 44px; display: flex; align-items: center; justify-content: center; }' +
-      '.divider-line { border-top: 1.5px dashed #000; margin: 16px 0; }' +
+      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
+      '.signature-box img { filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+      '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
       'p { margin: 5px 0; }' +
-      'ul { margin: 4px 0 10px 20px; padding: 0; }' +
+      'ul { margin: 4px 0 10px 22px; padding: 0; }' +
       '</style></head><body>' +
 
+      '<div class="sheet-page">' +
       '<p style="font-size: 10px; color: #333; margin: 0 0 6px 0;">Form Lembur Karyawan Shift</p>' +
 
-      '<!-- BAGIAN 1: SURAT TUGAS LEMBUR -->' +
       '<table class="header-table">' +
       '<tr>' +
-      '<td style="width: 25%;">' +
-      '  <svg viewBox="0 0 340 120" style="height: 36px; width: auto;">' +
-      '    <text x="5" y="92" font-family="sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>' +
-      '    <g transform="translate(260, 55) scale(0.85)">' +
-      '      <circle cx="0" cy="-42" r="11" fill="#F38F00" /><circle cx="40" cy="-13" r="11" fill="#F38F00" /><circle cx="25" cy="34" r="11" fill="#F38F00" /><circle cx="-25" cy="34" r="11" fill="#F38F00" /><circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
-      '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
-      '    </g>' +
-      '  </svg>' +
-      '</td>' +
+      '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
       '<td style="text-align: center;"><div class="doc-title">SURAT TUGAS LEMBUR</div></td>' +
-      '<td style="width: 30%; text-align: right;">' +
-      '  <div style="border: 2px solid #102a43; padding: 2px 6px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
-      '    <span style="font-weight: 900; font-size: 12px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 9.5px;">INDONESIA</span></span><br>' +
-      '    <span style="font-size: 6.5px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
+      '<td style="width: 28%; text-align: right;">' +
+      '  <div style="border: 1.5px solid #102a43; padding: 3px 7px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
+      '    <span style="font-weight: 900; font-size: 12.5px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
+      '    <span style="font-size: 7px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
       '  </div>' +
       '</td>' +
       '</tr>' +
@@ -282,7 +325,6 @@
 
       '<div class="divider-line"></div>' +
 
-      '<!-- BAGIAN 2: LAPORAN PELAKSANAAN LEMBUR -->' +
       '<div class="doc-title" style="margin-bottom: 8px;">LAPORAN PELAKSANAAN LEMBUR</div>' +
 
       '<p>Berdasarkan Surat Tugas Lembur No. : ' + (item.overtime_id || "OVT-001") + '</p>' +
@@ -309,14 +351,19 @@
       '<td>Jakarta, ' + tglText + '<br>Yang Diberi Tugas<br><div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
+      '</div>' +
 
       '</body></html>';
 
     var printWindow = window.open('', '_blank', 'width=850,height=900');
     if (printWindow) {
       printWindow.document.write(printContent);
+      printWindow.document.title = "";
       printWindow.document.close();
-      setTimeout(function() { printWindow.print(); }, 500);
+      setTimeout(function() { 
+        printWindow.document.title = "";
+        printWindow.print(); 
+      }, 500);
     }
   }
 
@@ -357,14 +404,18 @@
 
     var monthNames = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
     var monthName = monthNames[monthNum - 1] || "SEPTEMBER";
-    var daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+    var monthNamesEn = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+    var monthNameEn = monthNamesEn[monthNum - 1] || "SEPTEMBER";
 
+    var daysInMonth = new Date(yearNum, monthNum, 0).getDate();
     var periodText = "01-" + daysInMonth + " " + monthName + " " + yearNum;
+    var kjkPeriodText = "1 - " + daysInMonth + " " + monthNameEn + " " + yearNum;
 
     var entryByDay = {};
     var latestApproverName = "Tommy Hardiansyah";
     var latestApproverSig = "";
     var userSig = targetItem.user_signature || ((currentUser && currentUser.signature) ? currentUser.signature : "");
+    var totalOvertimeSum = 0;
 
     dataset.forEach(function(item) {
       if (item.tanggal) {
@@ -374,6 +425,7 @@
           entryByDay[dNum] = item;
         }
       }
+      totalOvertimeSum += (parseFloat(item.total_jam) || 0);
       if (item.user_signature && !userSig) userSig = item.user_signature;
       if (item.status_approval === 'Approved' && item.approver_signature) {
         latestApproverSig = item.approver_signature;
@@ -381,8 +433,18 @@
       }
     });
 
-    if (!latestApproverSig && currentUser && currentUser.role === 'Project Manager' && currentUser.signature) {
-      latestApproverName = currentUser.name || "Budi PM Infrastructure";
+    totalOvertimeSum = Math.round(totalOvertimeSum * 10) / 10;
+
+    // Ambil data KJK tersimpan karyawan untuk bulan ini
+    var targetKjkHours = 0;
+    var kjkKey = targetItem.user_id + "_" + monthNameEn.toLowerCase();
+    if (currentKjkMap && currentKjkMap[kjkKey] !== undefined) {
+      targetKjkHours = currentKjkMap[kjkKey];
+    }
+
+    if (currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin') && currentUser.signature) {
+      latestApproverSig = currentUser.signature;
+      latestApproverName = currentUser.name || latestApproverName;
     }
 
     var rowsHtml = "";
@@ -394,67 +456,70 @@
       var desc = entry ? entry.deskripsi : "";
       var disetujui = (entry && entry.status_approval === 'Approved') ? "✓" : "";
 
-      rowsHtml += '<tr style="height: 22px; font-size: 11px;">' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + day + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + mulai + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + akhir + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; padding: 2px;">' + totalJam + '</td>' +
-        '<td style="border: 1px solid #000; padding: 2px 6px;">' + desc + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; padding: 2px;">' + disetujui + '</td>' +
+      rowsHtml += '<tr style="height: 18px; font-size: 10px; line-height: 1.2;">' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + day + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + mulai + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + akhir + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; padding: 1.5px;">' + totalJam + '</td>' +
+        '<td style="border: 1px solid #000; padding: 1.5px 6px;">' + desc + '</td>' +
+        '<td style="border: 1px solid #000; text-align: center; padding: 1.5px;">' + disetujui + '</td>' +
         '</tr>';
     }
 
-    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 45px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
+    var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 42px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
 
     var pmSigHtml = latestApproverSig ?
       renderSignatureHtml(latestApproverSig, '') :
       '<span style="font-size: 10px; color: #777; font-style: italic;">(Belum Disetujui PM)</span>';
 
-    var combinedHtml = '<!DOCTYPE html><html><head><title>DOKUMEN LEMBUR GABUNGAN - ' + empName + '</title>' +
+    var combinedHtml = '<!DOCTYPE html><html><head><title></title>' +
       '<style>' +
-      '@page { size: A4 portrait; margin: 10mm 12mm; }' +
-      'body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.2; font-size: 11px; }' +
+      '@page { size: A4 portrait; margin: 0; }' +
+      '@media print { html, body { margin: 0; padding: 0; } }' +
+      'body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; }' +
       '* { box-sizing: border-box; }' +
-      '.page-break { page-break-before: always; }' +
-      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
+      '.page-break { page-break-before: always; break-before: page; }' +
+      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
       '.header-table td { vertical-align: middle; }' +
-      '.info-table { width: 100%; margin-bottom: 12px; font-size: 12px; font-weight: bold; }' +
-      '.info-table td { padding: 2px 0; }' +
-      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }' +
-      '.data-table th { border: 1px solid #000; padding: 5px 4px; font-weight: bold; text-align: center; background: #f2f2f2; }' +
-      '.signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; }' +
-      '.signature-table td { vertical-align: top; width: 50%; }' +
-      '.signature-box { height: 50px; display: flex; align-items: center; justify-content: center; margin: 5px 0; }' +
+      '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
+      '.info-table td { padding: 1.5px 0; }' +
+      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
+      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; }' +
+      '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
+      '.signature-box img, .stl-signature-box img, .kjk-signature-box img { filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
       '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
       '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
-      '.info-block td { padding: 2.5px 0; vertical-align: top; }' +
-      '.stl-signature-table { width: 100%; margin-top: 18px; font-size: 12px; text-align: center; }' +
+      '.info-block td { padding: 3px 0; vertical-align: top; }' +
+      '.stl-signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
       '.stl-signature-table td { vertical-align: top; width: 50%; }' +
-      '.stl-signature-box { height: 42px; display: flex; align-items: center; justify-content: center; }' +
-      '.divider-line { border-top: 1.5px dashed #000; margin: 16px 0; }' +
+      '.stl-signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
+      '.kjk-info-table { width: 100%; margin-top: 15px; margin-bottom: 18px; font-size: 12px; font-weight: bold; }' +
+      '.kjk-info-table td { padding: 3px 0; }' +
+      '.kjk-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 11.5px; }' +
+      '.kjk-table th { border: 1.5px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #fff; font-size: 11.5px; }' +
+      '.kjk-table td { border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-size: 11.5px; }' +
+      '.kjk-signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.kjk-signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.kjk-signature-box { height: 52px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }' +
+      '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
       'p { margin: 5px 0; }' +
-      'ul { margin: 4px 0 10px 20px; padding: 0; }' +
+      'ul { margin: 4px 0 10px 22px; padding: 0; }' +
       '</style></head><body>' +
 
-      '<!-- HALAMAN 1: REKAPITULASI LEMBUR BULANAN -->' +
-      '<div>' +
+      '<!-- HALAMAN 1: REKAPITULASI LEMBUR BULANAN FIT 1 HALAMAN -->' +
+      '<div class="sheet-page">' +
       '<table class="header-table">' +
       '<tr>' +
-      '<td style="width: 25%;">' +
-      '  <svg viewBox="0 0 340 120" style="height: 40px; width: auto;">' +
-      '    <text x="5" y="92" font-family="sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>' +
-      '    <g transform="translate(260, 55) scale(0.85)">' +
-      '      <circle cx="0" cy="-42" r="11" fill="#F38F00" /><circle cx="40" cy="-13" r="11" fill="#F38F00" /><circle cx="25" cy="34" r="11" fill="#F38F00" /><circle cx="-25" cy="34" r="11" fill="#F38F00" /><circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
-      '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
-      '    </g>' +
-      '  </svg>' +
-      '</td>' +
+      '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
       '<td style="text-align: center; font-size: 15px; font-weight: bold; text-transform: uppercase;">REKAPITULASI LEMBUR (SHIFT)</td>' +
-      '<td style="width: 30%; text-align: right;">' +
-      '  <div style="border: 2px solid #102a43; padding: 3px 6px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
-      '    <span style="font-weight: 900; font-size: 13px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
-      '    <span style="font-size: 6.5px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
+      '<td style="width: 28%; text-align: right;">' +
+      '  <div style="border: 1.5px solid #102a43; padding: 3px 7px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
+      '    <span style="font-weight: 900; font-size: 12.5px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
+      '    <span style="font-size: 7px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
       '  </div>' +
       '</td>' +
       '</tr>' +
@@ -471,12 +536,12 @@
       '<table class="data-table">' +
       '<thead>' +
       '<tr>' +
-      '<th style="width: 45px;">TGL</th>' +
-      '<th style="width: 75px;">MULAI</th>' +
-      '<th style="width: 75px;">AKHIR</th>' +
-      '<th style="width: 90px;">TOTAL JAM<br>LEMBUR</th>' +
+      '<th style="width: 42px;">TGL</th>' +
+      '<th style="width: 72px;">MULAI</th>' +
+      '<th style="width: 72px;">AKHIR</th>' +
+      '<th style="width: 88px;">TOTAL JAM<br>LEMBUR</th>' +
       '<th>DESKRIPSI LEMBUR</th>' +
-      '<th style="width: 85px;">DISETUJUI</th>' +
+      '<th style="width: 82px;">DISETUJUI</th>' +
       '</tr>' +
       '</thead>' +
       '<tbody>' + rowsHtml + '</tbody>' +
@@ -484,12 +549,85 @@
 
       '<table class="signature-table">' +
       '<tr>' +
-      '<td>Menyetujui,<br><div class="signature-box">' + pmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>Project Manager</td>' +
-      '<td>Dibuat Oleh,<br><div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
+      '<td>Menyetujui,<br>' +
+      '  <div class="signature-box">' + pmSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>Project Manager</td>' +
+      '<td>Dibuat Oleh,<br>' +
+      '  <div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
       '</div>';
 
+    // HALAMAN 2: REKAPITULASI KELEBIHAN JAM KERJA (KJK)
+    combinedHtml += '<div class="page-break"></div>' +
+      '<div class="sheet-page">' +
+      '<!-- HEADER DUAL LOGO KJK RESMI -->' +
+      '<table class="header-table">' +
+      '<tr>' +
+      '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
+      '<td style="text-align: center;">' +
+      '  <div style="font-size: 13.5px; font-weight: bold; text-transform: uppercase;">KARYA SOLUSI PRIMA SEJAHTERA</div>' +
+      '  <div style="font-size: 14.5px; font-weight: bold; text-transform: uppercase; margin-top: 2px;">REKAPITULASI KELEBIHAN JAM KERJA (KJK)</div>' +
+      '</td>' +
+      '<td style="width: 28%; text-align: right;">' +
+      '  <div style="border: 1.5px solid #102a43; padding: 3px 7px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
+      '    <span style="font-weight: 900; font-size: 12.5px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
+      '    <span style="font-size: 6.5px; text-transform: uppercase; color: #627d98; font-family: sans-serif; display: block; line-height: 1;">DATA CENTERS</span>' +
+      '    <span style="font-size: 4.5px; text-transform: uppercase; color: #e11d48; font-family: sans-serif; display: block; line-height: 1; margin-top: 1px;">A JOINT VENTURE WITH PT INDOSAT TBK AND PT APLIKANUSA LINTASARTA</span>' +
+      '  </div>' +
+      '</td>' +
+      '</tr>' +
+      '</table>' +
+
+      '<!-- INFO METADATA KJK -->' +
+      '<table class="kjk-info-table">' +
+      '<tr><td style="width: 140px;">Nama</td><td style="width: 15px;">:</td><td>' + empName.toUpperCase() + '</td></tr>' +
+      '<tr><td>Jabatan</td><td>:</td><td>TEKNISI</td></tr>' +
+      '<tr><td>Divisi</td><td>:</td><td>' + empDept.toUpperCase() + '/' + empSite + '</td></tr>' +
+      '<tr><td>Lokasi</td><td>:</td><td>DC TBS/' + empSite + '</td></tr>' +
+      '<tr><td>Kel. Pekerjaan</td><td>:</td><td>DC TBS/' + empSite + '</td></tr>' +
+      '<tr><td>Periode</td><td>:</td><td>' + kjkPeriodText + '</td></tr>' +
+      '</table>' +
+
+      '<!-- TABEL UTAMA KJK -->' +
+      '<table class="kjk-table">' +
+      '<thead>' +
+      '<tr>' +
+      '<th style="width: 8%;">NO</th>' +
+      '<th style="width: 42%;">PERIODE</th>' +
+      '<th style="width: 25%;">TOTAL KELEBIHAN JAM KERJA</th>' +
+      '<th style="width: 25%;">TOTAL JAM LEMBUR</th>' +
+      '</tr>' +
+      '</thead>' +
+      '<tbody>' +
+      '<tr>' +
+      '<td>1</td>' +
+      '<td>' + kjkPeriodText + '</td>' +
+      '<td>' + targetKjkHours + '</td>' +
+      '<td style="font-weight: bold;">' + totalOvertimeSum + ' Jam</td>' +
+      '</tr>' +
+      '</tbody>' +
+      '</table>' +
+
+      '<!-- SIGNATURE SECTION KJK -->' +
+      '<table class="kjk-signature-table">' +
+      '<tr>' +
+      '<td>' +
+      '  Menyetujui,<br>' +
+      '  <div class="kjk-signature-box">' + pmSigHtml + '</div>' +
+      '  <span style="text-decoration: underline; font-weight: bold;">' + latestApproverName + '</span><br>' +
+      '  NIK: 7268900080' +
+      '</td>' +
+      '<td>' +
+      '  Dibuat Oleh,<br>' +
+      '  <div class="kjk-signature-box">' + employeeSigHtml + '</div>' +
+      '  <span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>' +
+      '  NIK: ' + empNik +
+      '</td>' +
+      '</tr>' +
+      '</table>' +
+      '</div>';
+
+    // HALAMAN 3 S.D. N: SURAT TUGAS LEMBUR (STL) PER ELEMEN SESUAI DATASET FILTER
     dataset.forEach(function(item) {
       var itemEmpName = item.nama_lengkap || empName;
       var itemEmpNik = item.nik || empNik;
@@ -499,33 +637,29 @@
       var jamText = item.jam_mulai + " – " + item.jam_selesai;
       var descText = item.deskripsi || "Standby Support kegiatan BMS dan IT CGK3A";
 
-      var singleEmpSigHtml = renderSignatureHtml(item.user_signature || userSig, '<svg viewBox="0 0 100 40" style="height: 36px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>');
+      var singleEmpSigHtml = renderSignatureHtml(item.user_signature || userSig, '<svg viewBox="0 0 100 40" style="height: 40px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>');
 
       var itemPmApproverName = item.approved_by || latestApproverName;
-      var itemPmSigHtml = (item.status_approval === 'Approved' && item.approver_signature) ?
-        renderSignatureHtml(item.approver_signature, '') :
-        '<span style="font-size: 9.5px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
+      var itemPmSig = (currentUser && (currentUser.role === 'Project Manager' || currentUser.role === 'Super Admin') && currentUser.signature)
+        ? currentUser.signature
+        : (item.approver_signature || latestApproverSig);
+
+      var itemPmSigHtml = (item.status_approval === 'Approved' || (currentUser && currentUser.role === 'Project Manager')) && itemPmSig ?
+        renderSignatureHtml(itemPmSig, '') :
+        '<span style="font-size: 10px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
 
       combinedHtml += '<div class="page-break"></div>' +
-        '<div>' +
+        '<div class="sheet-page">' +
         '<p style="font-size: 10px; color: #333; margin: 0 0 6px 0;">Form Lembur Karyawan Shift</p>' +
 
         '<table class="header-table">' +
         '<tr>' +
-        '<td style="width: 25%;">' +
-        '  <svg viewBox="0 0 340 120" style="height: 36px; width: auto;">' +
-        '    <text x="5" y="92" font-family="sans-serif" font-weight="900" font-size="78" fill="#1C1B8E" letter-spacing="-2">KSPS</text>' +
-        '    <g transform="translate(260, 55) scale(0.85)">' +
-        '      <circle cx="0" cy="-42" r="11" fill="#F38F00" /><circle cx="40" cy="-13" r="11" fill="#F38F00" /><circle cx="25" cy="34" r="11" fill="#F38F00" /><circle cx="-25" cy="34" r="11" fill="#F38F00" /><circle cx="-40" cy="-13" r="11" fill="#F38F00" />' +
-        '      <path d="M0,0 C10,-20 25,-35 0,-42 C-10,-25 -5,-10 0,0 Z" fill="#1C1B8E" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(72)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(144)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(216)" /><path d="M0,0 C22,-5 38,5 40,-13 C22,-15 10,-5 0,0 Z" fill="#1C1B8E" transform="rotate(288)" />' +
-        '    </g>' +
-        '  </svg>' +
-        '</td>' +
+        '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
         '<td style="text-align: center;"><div class="doc-title">SURAT TUGAS LEMBUR</div></td>' +
-        '<td style="width: 30%; text-align: right;">' +
-        '  <div style="border: 2px solid #102a43; padding: 2px 6px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
-        '    <span style="font-weight: 900; font-size: 12px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 9.5px;">INDONESIA</span></span><br>' +
-        '    <span style="font-size: 6.5px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
+        '<td style="width: 28%; text-align: right;">' +
+        '  <div style="border: 1.5px solid #102a43; padding: 3px 7px; border-radius: 4px; display: inline-block; text-align: left; background: #f8fafc;">' +
+        '    <span style="font-weight: 900; font-size: 12.5px; color: #102a43; font-family: sans-serif;">BDx <span style="font-weight: 300; font-size: 10px;">INDONESIA</span></span><br>' +
+        '    <span style="font-size: 7px; text-transform: uppercase; color: #627d98; font-family: sans-serif;">DATA CENTERS</span>' +
         '  </div>' +
         '</td>' +
         '</tr>' +
@@ -591,8 +725,12 @@
     var printWindow = window.open('', '_blank', 'width=900,height=850');
     if (printWindow) {
       printWindow.document.write(combinedHtml);
+      printWindow.document.title = "";
       printWindow.document.close();
-      setTimeout(function() { printWindow.print(); }, 500);
+      setTimeout(function() { 
+        printWindow.document.title = "";
+        printWindow.print(); 
+      }, 500);
     }
   }
 </script>
