@@ -1,7 +1,28 @@
 /**
- * Overtime / Form Lembur & KJK Backend Controller & Digital Signature Engine
+ * Overtime / Form Lembur & Dedicated KJK Sheet Backend Controller
  * System: e-LMS Data Center KSPS
  */
+
+/**
+ * Memastikan sheet database KJK tersedia dengan struktur kolom presisi
+ */
+function ensureKjkSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var kjkSheet = ss.getSheetByName("KJK");
+  if (!kjkSheet) {
+    kjkSheet = ss.insertSheet("KJK");
+    kjkSheet.appendRow([
+      "KJK ID", "User ID", "NIK", "Nama Lengkap", "Site", "Total Jam KJK", "Bulan", "Created At"
+    ]);
+    var headerRange = kjkSheet.getRange(1, 1, 1, 8);
+    headerRange.setFontWeight("bold");
+    headerRange.setBackground("#1b2559");
+    headerRange.setFontColor("#ffffff");
+    kjkSheet.setFrozenRows(1);
+    SpreadsheetApp.flush();
+  }
+  return kjkSheet;
+}
 
 /**
  * Memastikan kolom database OVERTIME, USERS, dan EMPLOYEES mendukung TTD & Revisi
@@ -43,6 +64,9 @@ function ensureDatabaseColumns() {
       empSheet.getRange(1, 12).setValue("signature_data");
     }
   }
+
+  // 4. Pastikan tab KJK sudah ada
+  ensureKjkSheet();
 }
 
 function getOvertimeData(userId, monthPeriod) {
@@ -52,10 +76,19 @@ function getOvertimeData(userId, monthPeriod) {
     var overtimeRows = getSheetDisplayValues("OVERTIME");
     var userRows = getSheetDisplayValues("USERS");
     var empRows = getSheetDisplayValues("EMPLOYEES");
+    var kjkRows = getSheetDisplayValues("KJK");
 
     var list = [];
     var totalHours = 0;
     var kjkMap = {};
+
+    // 1. Baca data dari sheet khusus KJK
+    for (var k = 1; k < kjkRows.length; k++) {
+      var kUid = kjkRows[k][1];
+      var kMonthKey = String(kjkRows[k][6] || "").trim().toLowerCase();
+      var kHours = parseFloat(kjkRows[k][5]) || 0;
+      kjkMap[kUid + "_" + kMonthKey] = kHours;
+    }
 
     // Cache user signatures
     var userSigMap = {};
@@ -63,17 +96,16 @@ function getOvertimeData(userId, monthPeriod) {
       userSigMap[userRows[u][0]] = userRows[u][11] || "";
     }
 
+    // 2. Baca data dari sheet OVERTIME (hanya lembur shift harian murni)
     for (var i = 1; i < overtimeRows.length; i++) {
       var r = overtimeRows[i];
       var uid = r[1];
-      var tgl = r[2]; // YYYY-MM-DD atau Nama Bulan untuk KJK
+      var tgl = r[2]; // YYYY-MM-DD
       var rPeriod = tgl ? tgl.substring(0, 7) : "";
 
-      // Deteksi entri khusus KJK pada sheet OVERTIME
+      // Abaikan jika masih ada entri lama bertanda KJK di sheet OVERTIME
       if (r[0].indexOf("KJK-") === 0 || r[6] === "REKAPITULASI KELEBIHAN JAM KERJA (KJK)") {
-        var kjkMonthKey = String(r[2] || "").trim().toLowerCase();
-        kjkMap[uid + "_" + kjkMonthKey] = parseFloat(r[5]) || 0;
-        continue; // Tidak dimasukkan ke daftar tabel lembur shift harian biasa
+        continue;
       }
 
       if ((userId === "ALL" || uid === userId) && (!period || rPeriod === period)) {
@@ -154,7 +186,6 @@ function saveOvertimeEntry(data) {
       ]);
     }
 
-    // Ambil TTD default user jika tidak dikirim spesifik
     var userSig = data.user_signature || "";
     if (!userSig) {
       var userRows = getSheetDisplayValues("USERS");
@@ -168,7 +199,6 @@ function saveOvertimeEntry(data) {
 
     var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
-    // LOGIKA UPDATE / EDIT LEMBUR (JIKA MEMILIKI overtime_id)
     if (data.overtime_id && String(data.overtime_id).trim() !== "") {
       var rows = sheet.getDataRange().getDisplayValues();
       var foundRowIdx = -1;
@@ -195,7 +225,6 @@ function saveOvertimeEntry(data) {
       }
     }
 
-    // JIKA PENGAJUAN BARU
     var nextId = generateSequentialId("OVERTIME", "OVT");
     var row = [
       nextId,
@@ -225,84 +254,130 @@ function saveOvertimeEntry(data) {
 }
 
 /**
- * Menyimpan data Rekapitulasi Kelebihan Jam Kerja (KJK) ke Sheet OVERTIME
- * Format: hanya menyimpan nama bulan (misal: "July" / "September") pada kolom Tanggal.
+ * Menyimpan data KJK langsung ke sheet khusus KJK
+ * Kolom: KJK ID, User ID, NIK, Nama Lengkap, Site, Total Jam KJK, Bulan, Created At
  */
 function saveKjkEntry(data) {
   try {
-    ensureDatabaseColumns();
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("OVERTIME");
-
-    if (!sheet) {
-      sheet = ss.insertSheet("OVERTIME");
-      sheet.appendRow([
-        "Overtime ID", "User ID", "Tanggal", "Jam Mulai", "Jam Selesai",
-        "Total Jam", "Deskripsi", "Catatan", "Evidence URL", "Status", "Created At",
-        "Catatan Revisi", "Approved By", "Approver Signature", "User Signature"
-      ]);
-    }
+    var kjkSheet = ensureKjkSheet();
+    var empRows = getSheetDisplayValues("EMPLOYEES");
+    var userRows = getSheetDisplayValues("USERS");
 
     var uid = data.user_id || "USR-0003";
     var monthName = String(data.bulan || "September").trim();
     var totalKjk = parseFloat(data.total_kjk) || 0;
-    var userSig = data.user_signature || "";
 
-    if (!userSig) {
-      var userRows = getSheetDisplayValues("USERS");
+    // Cari NIK, Nama Lengkap, dan Site karyawan dari sheet EMPLOYEES
+    var empNik = "-", empName = "-", empSite = "CGK1";
+    for (var e = 1; e < empRows.length; e++) {
+      if (empRows[e][1] === uid) {
+        empNik = empRows[e][2];
+        empName = empRows[e][3];
+        empSite = empRows[e][10] || "CGK1";
+        break;
+      }
+    }
+
+    if (empName === "-") {
       for (var u = 1; u < userRows.length; u++) {
         if (userRows[u][0] === uid) {
-          userSig = userRows[u][11] || "";
+          empName = userRows[u][1];
+          empSite = userRows[u][10] || "CGK1";
           break;
         }
       }
     }
 
-    var rows = sheet.getDataRange().getDisplayValues();
+    var rows = kjkSheet.getDataRange().getDisplayValues();
     var foundRowIdx = -1;
     var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
     for (var i = 1; i < rows.length; i++) {
-      if (rows[i][1] === uid && 
-         (rows[i][0].indexOf("KJK-") === 0 || rows[i][6] === "REKAPITULASI KELEBIHAN JAM KERJA (KJK)") && 
-          String(rows[i][2]).trim().toLowerCase() === monthName.toLowerCase()) {
+      if (rows[i][1] === uid && String(rows[i][6]).trim().toLowerCase() === monthName.toLowerCase()) {
         foundRowIdx = i + 1;
         break;
       }
     }
 
     if (foundRowIdx > -1) {
-      sheet.getRange(foundRowIdx, 3).setValue(monthName); // Simpan nama bulan saja
-      sheet.getRange(foundRowIdx, 6).setValue(totalKjk);
-      sheet.getRange(foundRowIdx, 11).setValue(dateStr);
-      if (userSig) sheet.getRange(foundRowIdx, 15).setValue(userSig);
+      kjkSheet.getRange(foundRowIdx, 3).setValue(empNik);
+      kjkSheet.getRange(foundRowIdx, 4).setValue(empName);
+      kjkSheet.getRange(foundRowIdx, 5).setValue(empSite);
+      kjkSheet.getRange(foundRowIdx, 6).setValue(totalKjk);
+      kjkSheet.getRange(foundRowIdx, 7).setValue(monthName);
+      kjkSheet.getRange(foundRowIdx, 8).setValue(dateStr);
 
       SpreadsheetApp.flush();
-      return { success: true, message: "Data KJK periode " + monthName + " berhasil diperbarui!" };
+      return { success: true, message: "Data KJK periode " + monthName + " berhasil diperbarui di sheet KJK!" };
     } else {
-      var nextId = generateSequentialId("OVERTIME", "KJK");
-      var row = [
+      var nextId = generateSequentialId("KJK", "KJK");
+      var newRow = [
         nextId,
         uid,
-        monthName, // Simpan nama bulan saja
-        "-",
-        "-",
+        empNik,
+        empName,
+        empSite,
         totalKjk,
-        "REKAPITULASI KELEBIHAN JAM KERJA (KJK)",
-        "KJK",
-        "-",
-        "Approved",
-        dateStr,
-        "",
-        "",
-        "",
-        userSig
+        monthName,
+        dateStr
       ];
 
-      sheet.appendRow(row);
+      kjkSheet.appendRow(newRow);
       SpreadsheetApp.flush();
-      return { success: true, message: "Data KJK periode " + monthName + " berhasil disimpan!" };
+      return { success: true, message: "Data KJK periode " + monthName + " berhasil disimpan ke sheet KJK!" };
     }
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * Mengambil data KJK per Site dan per Bulan untuk diekspor Excel oleh Project Manager
+ * Format output: NIK, Employee (Huruf KAPITAL SEMUA), Amount (Total KJK)
+ */
+function getKjkExportData(site, monthName) {
+  try {
+    ensureKjkSheet();
+    var empRows = getSheetDisplayValues("EMPLOYEES");
+    var kjkRows = getSheetDisplayValues("KJK");
+    var targetSite = (site || "ALL").trim();
+    var targetMonth = String(monthName || "").trim().toLowerCase();
+
+    // Petakan nilai KJK berdasarkan user_id untuk bulan yang dipilih
+    var kjkMapByUid = {};
+    for (var k = 1; k < kjkRows.length; k++) {
+      var rMonth = String(kjkRows[k][6] || "").trim().toLowerCase();
+      if (!targetMonth || rMonth === targetMonth) {
+        var rUid = kjkRows[k][1];
+        var rAmount = parseFloat(kjkRows[k][5]) || 0;
+        kjkMapByUid[rUid] = rAmount;
+      }
+    }
+
+    var exportList = [];
+    for (var e = 1; e < empRows.length; e++) {
+      var eUid = empRows[e][1];
+      var eNik = empRows[e][2] || "-";
+      var eName = String(empRows[e][3] || "").trim().toUpperCase(); // Format KAPITAL SEMUA
+      var eSite = empRows[e][10] || "CGK1";
+
+      if (targetSite === "ALL" || eSite === targetSite) {
+        var amount = (kjkMapByUid[eUid] !== undefined) ? kjkMapByUid[eUid] : 0;
+        exportList.push({
+          nik: eNik,
+          employee: eName,
+          amount: amount,
+          site: eSite
+        });
+      }
+    }
+
+    return { 
+      success: true, 
+      data: exportList, 
+      site: targetSite, 
+      month: monthName 
+    };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
