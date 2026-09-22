@@ -1,12 +1,88 @@
 <script>
   /**
-   * Sub-modul Overtime CRUD, Cascading PM Filters & Workflow Approval
+   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal & Workflow Approval
    * System: e-LMS Data Center KSPS
    */
 
   var currentOvertimeCache = [];
   var currentFilteredOvertimeCache = [];
   var overtimeMasterEmployees = [];
+  var currentKjkMap = {};
+
+  /* =========================================================
+   * 1. MANAJEMEN REKAPITULASI KELEBIHAN JAM KERJA (KJK)
+   * ========================================================= */
+
+  function openKjkModal() {
+    var modal = document.getElementById("kjkModal");
+    if (!modal) return;
+
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var parts = periodVal.split("-");
+    var monthNum = parseInt(parts[1], 10) || 9;
+
+    var monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var defaultMonth = monthNamesEn[monthNum - 1] || "September";
+
+    var monthSelect = document.getElementById("kjkMonthSelect");
+    if (monthSelect) monthSelect.value = defaultMonth;
+
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var existingKjk = 0;
+    if (currentKjkMap && currentKjkMap[uid + "_" + defaultMonth.toLowerCase()] !== undefined) {
+      existingKjk = currentKjkMap[uid + "_" + defaultMonth.toLowerCase()];
+    }
+
+    var totalKjkInput = document.getElementById("kjkTotalHoursInput");
+    if (totalKjkInput) totalKjkInput.value = existingKjk;
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeKjkModal() {
+    var modal = document.getElementById("kjkModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function handleSaveKjk(e) {
+    e.preventDefault();
+
+    var monthVal = document.getElementById("kjkMonthSelect").value;
+    var totalHoursVal = parseFloat(document.getElementById("kjkTotalHoursInput").value) || 0;
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var userSig = currentUser ? (currentUser.signature || "") : "";
+
+    var btn = document.getElementById("btnSubmitKjk");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+    }
+
+    var payload = {
+      user_id: uid,
+      bulan: monthVal,
+      total_kjk: totalHoursVal,
+      user_signature: userSig
+    };
+
+    callBackend('saveKjkEntry', [payload], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Data KJK</span>';
+      }
+
+      if (res && res.success) {
+        showToast(res.message || "Data KJK berhasil disimpan!");
+        if (!currentKjkMap) currentKjkMap = {};
+        currentKjkMap[uid + "_" + monthVal.toLowerCase()] = totalHoursVal;
+        closeKjkModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan data KJK");
+      }
+    });
+  }
 
   /* =========================================================
    * 2. PENGHITUNG JAM & MANAJEMEN LEMBUR (MULTI-FILTER PM)
@@ -45,6 +121,16 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
+    // Sembunyikan tombol Input KJK jika bukan role Karyawan
+    var btnInputKjk = document.getElementById("btnInputKjk");
+    if (btnInputKjk) {
+      if (isKaryawan) {
+        btnInputKjk.classList.remove("hidden");
+      } else {
+        btnInputKjk.classList.add("hidden");
+      }
+    }
+
     // Inisialisasi daftar karyawan untuk dropdown PM
     if (!isKaryawan && overtimeMasterEmployees.length === 0) {
       callBackend('getEmployeesList', [], function(empRes) {
@@ -58,6 +144,7 @@
     callBackend('getOvertimeData', [userId, period], function(res) {
       if (res && res.success) {
         currentOvertimeCache = res.data || [];
+        if (res.kjkMap) currentKjkMap = res.kjkMap;
 
         // Update opsi dropdown PM jika list karyawan master belum lengkap
         if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
@@ -103,7 +190,6 @@
       empSelect.appendChild(opt);
     });
 
-    // Pertahankan nilai yang terpilih jika masih tersedia di site tersebut
     var stillExists = Array.from(empSelect.options).some(function(o) { return o.value === currentVal; });
     empSelect.value = stillExists ? currentVal : "ALL";
   }
@@ -180,7 +266,6 @@
       var tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
 
-      // Badge Status & Catatan Revisi
       var statusBadge = '<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">Pending</span>';
       if (item.status_approval === 'Approved') {
         statusBadge = '<span class="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-200"><i class="fa-solid fa-check mr-1"></i>Approved</span>';
@@ -190,12 +275,10 @@
         statusBadge = '<span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-300">Rejected</span>';
       }
 
-      // Tombol Cetak Surat Tugas
       var printSingleBtn = '<button type="button" onclick="printSuratTugasPDF(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#1C1B8E] text-[11px] font-bold transition flex items-center justify-center space-x-1 mx-auto border border-indigo-100">' +
         '<i class="fa-solid fa-file-lines"></i><span>Surat Tugas</span>' +
         '</button>';
 
-      // Kolom Deskripsi & Nama Karyawan (jika PM sedang melihat semua)
       var empNameSub = (isPmOrAdmin && item.nama_lengkap) ?
         '<p class="text-[10px] text-indigo-700 font-bold mb-0.5"><i class="fa-solid fa-user mr-1"></i>' + item.nama_lengkap + ' (' + (item.site || 'Site') + ')</p>' : '';
 
@@ -211,7 +294,6 @@
       }
       descHtml += '</div>';
 
-      // Kolom AKSI: PM (Approve & Revisi) vs Karyawan (Koreksi)
       var actionsHtml = '<span class="text-slate-400 text-[11px]">-</span>';
 
       if (isPmOrAdmin) {
