@@ -2,8 +2,8 @@
   /**
    * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, KJK, STL & Gabungan)
    * System: e-LMS Data Center KSPS
-   * Update:
-   * 1. Menyisipkan Formulir KJK di Halaman 2 dokumen cetak gabungan (setelah Rekap dan sebelum STL).
+   * Integrasi:
+   * 1. Formulir KJK di Halaman 2 dokumen cetak gabungan membaca langsung data tersimpan di sheet KJK.
    * 2. Header margin browser dinonaktifkan permanen (@page margin 0).
    * 3. Dukungan logo resmi KSPS (PNG Drive / Direct Vektor SVG).
    */
@@ -435,7 +435,7 @@
 
     totalOvertimeSum = Math.round(totalOvertimeSum * 10) / 10;
 
-    // Ambil data KJK tersimpan karyawan untuk bulan ini
+    // Ambil data KJK tersimpan karyawan untuk bulan ini dari sheet KJK
     var targetKjkHours = 0;
     var kjkKey = targetItem.user_id + "_" + monthNameEn.toLowerCase();
     if (currentKjkMap && currentKjkMap[kjkKey] !== undefined) {
@@ -510,7 +510,6 @@
       'ul { margin: 4px 0 10px 22px; padding: 0; }' +
       '</style></head><body>' +
 
-      '<!-- HALAMAN 1: REKAPITULASI LEMBUR BULANAN FIT 1 HALAMAN -->' +
       '<div class="sheet-page">' +
       '<table class="header-table">' +
       '<tr>' +
@@ -557,10 +556,8 @@
       '</table>' +
       '</div>';
 
-    // HALAMAN 2: REKAPITULASI KELEBIHAN JAM KERJA (KJK)
     combinedHtml += '<div class="page-break"></div>' +
       '<div class="sheet-page">' +
-      '<!-- HEADER DUAL LOGO KJK RESMI -->' +
       '<table class="header-table">' +
       '<tr>' +
       '<td style="width: 28%;">' + getKspsLogoHtml() + '</td>' +
@@ -578,7 +575,6 @@
       '</tr>' +
       '</table>' +
 
-      '<!-- INFO METADATA KJK -->' +
       '<table class="kjk-info-table">' +
       '<tr><td style="width: 140px;">Nama</td><td style="width: 15px;">:</td><td>' + empName.toUpperCase() + '</td></tr>' +
       '<tr><td>Jabatan</td><td>:</td><td>TEKNISI</td></tr>' +
@@ -588,7 +584,6 @@
       '<tr><td>Periode</td><td>:</td><td>' + kjkPeriodText + '</td></tr>' +
       '</table>' +
 
-      '<!-- TABEL UTAMA KJK -->' +
       '<table class="kjk-table">' +
       '<thead>' +
       '<tr>' +
@@ -608,7 +603,6 @@
       '</tbody>' +
       '</table>' +
 
-      '<!-- SIGNATURE SECTION KJK -->' +
       '<table class="kjk-signature-table">' +
       '<tr>' +
       '<td>' +
@@ -627,7 +621,6 @@
       '</table>' +
       '</div>';
 
-    // HALAMAN 3 S.D. N: SURAT TUGAS LEMBUR (STL) PER ELEMEN SESUAI DATASET FILTER
     dataset.forEach(function(item) {
       var itemEmpName = item.nama_lengkap || empName;
       var itemEmpNik = item.nik || empNik;
