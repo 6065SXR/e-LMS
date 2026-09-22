@@ -1,6 +1,6 @@
 <script>
   /**
-   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal & Workflow Approval
+   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal, Workflow Approval & Excel Export Engine
    * System: e-LMS Data Center KSPS
    */
 
@@ -73,7 +73,7 @@
       }
 
       if (res && res.success) {
-        showToast(res.message || "Data KJK berhasil disimpan!");
+        showToast(res.message || "Data KJK berhasil disimpan ke sheet KJK!");
         if (!currentKjkMap) currentKjkMap = {};
         currentKjkMap[uid + "_" + monthVal.toLowerCase()] = totalHoursVal;
         closeKjkModal();
@@ -81,6 +81,445 @@
       } else {
         showToast(res ? res.error : "Gagal menyimpan data KJK");
       }
+    });
+  }
+
+  /* =========================================================
+   * 1B. EXPORT EXCEL REKAP KJK KHUSUS ROLE PROJECT MANAGER
+   * ========================================================= */
+
+  function ensureXlsxLibrary(callback) {
+    if (window.XLSX) {
+      callback(true);
+      return;
+    }
+    var script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    script.onload = function() { callback(true); };
+    script.onerror = function() { callback(false); };
+    document.head.appendChild(script);
+  }
+
+  function ensureZipLibrary(callback) {
+    if (window.JSZip) {
+      callback(true);
+      return;
+    }
+    var script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    script.onload = function() { callback(true); };
+    script.onerror = function() { callback(false); };
+    document.head.appendChild(script);
+  }
+
+  function handleDownloadKjkExcel() {
+    var siteSelect = document.getElementById("overtimeSiteFilter");
+    var selectedSite = siteSelect ? siteSelect.value : "ALL";
+
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var parts = periodVal.split("-");
+    var monthNum = parseInt(parts[1], 10) || 9;
+
+    var monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var monthName = monthNamesEn[monthNum - 1] || "September";
+
+    var btn = document.getElementById("btnDownloadKjkExcel");
+    var originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> <span>Menyiapkan Excel...</span>';
+    }
+
+    showToast("Mengambil data KJK Site " + selectedSite + " periode " + monthName + "...");
+
+    callBackend('getKjkExportData', [selectedSite, monthName], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal mengambil data KJK untuk diekspor!");
+        return;
+      }
+
+      var exportData = res.data || [];
+      if (exportData.length === 0) {
+        showToast("Tidak ada data karyawan ditemukan untuk Site " + selectedSite);
+        return;
+      }
+
+      var fileName = "hr.KJK " + (res.site || selectedSite) + " " + (res.month || monthName);
+
+      ensureXlsxLibrary(function(loaded) {
+        if (loaded && window.XLSX) {
+          var aoaData = [["NIK", "Employee", "Amount"]];
+          exportData.forEach(function(item) {
+            aoaData.push([
+              item.nik || "-",
+              String(item.employee || "").toUpperCase(),
+              (item.amount !== undefined) ? item.amount : 0
+            ]);
+          });
+
+          var ws = XLSX.utils.aoa_to_sheet(aoaData);
+          ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 14 }];
+          var wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "KJK");
+          XLSX.writeFile(wb, fileName + ".xlsx");
+          showToast("Berkas " + fileName + ".xlsx berhasil diunduh!");
+        } else {
+          var csvContent = "NIK,Employee,Amount\n";
+          exportData.forEach(function(item) {
+            var cleanName = String(item.employee || "").toUpperCase().replace(/"/g, '""');
+            csvContent += '"' + (item.nik || "-") + '","' + cleanName + '",' + (item.amount || 0) + "\n";
+          });
+          var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          var link = document.createElement("a");
+          var url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", fileName + ".csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showToast("Berkas " + fileName + ".csv berhasil diunduh!");
+        }
+      });
+    });
+  }
+
+  /* =========================================================
+   * 1C. MODAL & EXPORT HR.OVERTIME (EXCEL/ZIP PER KARYAWAN)
+   * ========================================================= */
+
+  function openDownloadOvertimeModal() {
+    var modal = document.getElementById("downloadOvertimeModal");
+    if (!modal) return;
+
+    // Reset pilihan site ke checked semua
+    var chkAllSites = document.getElementById("chkAllSites");
+    if (chkAllSites) chkAllSites.checked = true;
+
+    var siteCheckboxes = document.querySelectorAll(".site-chk");
+    siteCheckboxes.forEach(function(chk) { chk.checked = true; });
+
+    // Pastikan master employee tersedia
+    if (overtimeMasterEmployees.length === 0) {
+      var listContainer = document.getElementById("downloadOvertimeEmployeeList");
+      if (listContainer) {
+        listContainer.innerHTML = '<p class="text-slate-400 text-center py-4"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Memuat data master karyawan...</p>';
+      }
+      callBackend('getEmployeesList', [], function(empRes) {
+        if (empRes && empRes.success) {
+          overtimeMasterEmployees = empRes.data || [];
+          renderDownloadOvertimeEmployees();
+        } else {
+          if (listContainer) listContainer.innerHTML = '<p class="text-rose-500 text-center py-4">Gagal memuat karyawan.</p>';
+        }
+      });
+    } else {
+      renderDownloadOvertimeEmployees();
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeDownloadOvertimeModal() {
+    var modal = document.getElementById("downloadOvertimeModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function toggleAllSites(source) {
+    var isChecked = source.checked;
+    var siteCheckboxes = document.querySelectorAll(".site-chk");
+    siteCheckboxes.forEach(function(chk) {
+      chk.checked = isChecked;
+    });
+    renderDownloadOvertimeEmployees();
+  }
+
+  function handleSiteCheckboxChange() {
+    var siteCheckboxes = Array.from(document.querySelectorAll(".site-chk"));
+    var allChecked = siteCheckboxes.length > 0 && siteCheckboxes.every(function(chk) { return chk.checked; });
+    var chkAllSites = document.getElementById("chkAllSites");
+    if (chkAllSites) chkAllSites.checked = allChecked;
+
+    renderDownloadOvertimeEmployees();
+  }
+
+  function getSelectedSitesFromModal() {
+    var selected = [];
+    var siteCheckboxes = document.querySelectorAll(".site-chk:checked");
+    siteCheckboxes.forEach(function(chk) {
+      selected.push(chk.value);
+    });
+    return selected;
+  }
+
+  function renderDownloadOvertimeEmployees() {
+    var listContainer = document.getElementById("downloadOvertimeEmployeeList");
+    if (!listContainer) return;
+
+    var selectedSites = getSelectedSitesFromModal();
+    var filteredEmployees = overtimeMasterEmployees.filter(function(emp) {
+      return selectedSites.indexOf(emp.site) !== -1;
+    });
+
+    if (filteredEmployees.length === 0) {
+      listContainer.innerHTML = '<p class="text-slate-400 text-center py-4">Tidak ada karyawan pada site yang dipilih.</p>';
+      updateDownloadOvertimeSelectedCount();
+      return;
+    }
+
+    var html = '';
+    filteredEmployees.forEach(function(emp) {
+      html += '<label class="flex items-center justify-between p-2 rounded-lg hover:bg-white transition cursor-pointer border border-transparent hover:border-slate-200">' +
+        '<div class="flex items-center space-x-2">' +
+        '  <input type="checkbox" class="download-emp-chk rounded text-[#1C1B8E] focus:ring-0" value="' + emp.user_id + '" data-name="' + (emp.nama_lengkap || '') + '" data-nik="' + (emp.nik || '-') + '" data-site="' + (emp.site || '') + '" onchange="handleEmployeeCheckboxChange()" checked>' +
+        '  <span class="font-bold text-slate-800">' + emp.nama_lengkap + '</span>' +
+        '</div>' +
+        '<span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">' + emp.site + '</span>' +
+        '</label>';
+    });
+
+    listContainer.innerHTML = html;
+
+    var chkAllEmployees = document.getElementById("chkAllEmployees");
+    if (chkAllEmployees) chkAllEmployees.checked = true;
+
+    updateDownloadOvertimeSelectedCount();
+  }
+
+  function toggleAllEmployees(source) {
+    var isChecked = source.checked;
+    var empCheckboxes = document.querySelectorAll(".download-emp-chk");
+    empCheckboxes.forEach(function(chk) {
+      chk.checked = isChecked;
+    });
+    updateDownloadOvertimeSelectedCount();
+  }
+
+  function handleEmployeeCheckboxChange() {
+    var empCheckboxes = Array.from(document.querySelectorAll(".download-emp-chk"));
+    var allChecked = empCheckboxes.length > 0 && empCheckboxes.every(function(chk) { return chk.checked; });
+    var chkAllEmployees = document.getElementById("chkAllEmployees");
+    if (chkAllEmployees) chkAllEmployees.checked = allChecked;
+
+    updateDownloadOvertimeSelectedCount();
+  }
+
+  function updateDownloadOvertimeSelectedCount() {
+    var countEl = document.getElementById("downloadOvertimeSelectedCount");
+    var checkedBoxes = document.querySelectorAll(".download-emp-chk:checked");
+    if (countEl) {
+      countEl.innerText = checkedBoxes.length + " Karyawan terpilih";
+    }
+  }
+
+  function formatOvertimeDateTime(dateStr, timeStr) {
+    if (!dateStr) return "-";
+    var timeParts = String(timeStr || "00:00").split(":");
+    var hh = ("0" + (parseInt(timeParts[0], 10) || 0)).slice(-2);
+    var mm = ("0" + (parseInt(timeParts[1], 10) || 0)).slice(-2);
+    var ss = ("0" + (parseInt(timeParts[2], 10) || 0)).slice(-2);
+    return dateStr + " " + hh + "." + mm + "." + ss;
+  }
+
+  function getNextDateString(dateStr) {
+    if (!dateStr) return "";
+    var parts = dateStr.split("-");
+    if (parts.length === 3) {
+      var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      d.setDate(d.getDate() + 1);
+      var y = d.getFullYear();
+      var m = ("0" + (d.getMonth() + 1)).slice(-2);
+      var day = ("0" + d.getDate()).slice(-2);
+      return y + "-" + m + "-" + day;
+    }
+    return dateStr;
+  }
+
+  function executeDownloadHrOvertime() {
+    var checkedBoxes = Array.from(document.querySelectorAll(".download-emp-chk:checked"));
+    if (checkedBoxes.length === 0) {
+      showToast("Harap pilih minimal 1 karyawan untuk diunduh!");
+      return;
+    }
+
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    var btn = document.getElementById("btnExecuteDownloadOvertime");
+    var originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Memproses Excel...</span>';
+    }
+
+    showToast("Mengumpulkan data lembur Approved untuk periode " + periodVal + "...");
+
+    // Ambil data lembur lengkap seluruh karyawan untuk periode ini
+    callBackend('getOvertimeData', ['ALL', periodVal], function(res) {
+      if (!res || !res.success) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+        showToast(res ? res.error : "Gagal mengambil data lembur.");
+        return;
+      }
+
+      var rawOvertime = res.data || [];
+      // Saring hanya transaksi lembur yang berstatus Approved
+      var approvedOvertime = rawOvertime.filter(function(item) {
+        return item.status_approval === 'Approved';
+      });
+
+      // Kelompokkan data approved berdasarkan user_id
+      var approvedByUser = {};
+      approvedOvertime.forEach(function(item) {
+        if (!approvedByUser[item.user_id]) {
+          approvedByUser[item.user_id] = [];
+        }
+        approvedByUser[item.user_id].push(item);
+      });
+
+      // Siapkan paket data per karyawan yang dipilih
+      var employeesToExport = [];
+      checkedBoxes.forEach(function(chk) {
+        var uid = chk.value;
+        var empName = chk.getAttribute("data-name") || "KARYAWAN";
+        var empNik = chk.getAttribute("data-nik") || "-";
+        var userRecords = approvedByUser[uid] || [];
+
+        if (userRecords.length > 0) {
+          employeesToExport.push({
+            user_id: uid,
+            name: empName,
+            nik: empNik,
+            records: userRecords
+          });
+        }
+      });
+
+      if (employeesToExport.length === 0) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+        showToast("Tidak ada data lembur Approved untuk karyawan yang dipilih pada periode ini.");
+        return;
+      }
+
+      ensureXlsxLibrary(function(xlsxLoaded) {
+        if (!xlsxLoaded || !window.XLSX) {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+          }
+          showToast("Gagal memuat library Excel Spreadsheet.");
+          return;
+        }
+
+        // KASUS 1: HANYA 1 KARYAWAN -> DOWNLOAD LANGSUNG .XLSX TUNGGAL
+        if (employeesToExport.length === 1) {
+          var singleEmp = employeesToExport[0];
+          var singleFileName = "hr.Overtime " + String(singleEmp.name).toUpperCase().trim();
+
+          var aoa = [["NRP", "Employee", "Date from", "Date to"]];
+          singleEmp.records.forEach(function(rec) {
+            var dateFrom = formatOvertimeDateTime(rec.tanggal, rec.jam_mulai);
+            var toDateStr = rec.tanggal;
+            if (rec.jam_mulai && rec.jam_selesai && rec.jam_selesai < rec.jam_mulai) {
+              toDateStr = getNextDateString(rec.tanggal);
+            }
+            var dateTo = formatOvertimeDateTime(toDateStr, rec.jam_selesai);
+
+            aoa.push([
+              rec.nik || singleEmp.nik || "-",
+              String(singleEmp.name).toUpperCase().trim(),
+              dateFrom,
+              dateTo
+            ]);
+          });
+
+          var ws = XLSX.utils.aoa_to_sheet(aoa);
+          ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 24 }, { wch: 24 }];
+          var wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Overtime");
+
+          XLSX.writeFile(wb, singleFileName + ".xlsx");
+
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+          }
+          closeDownloadOvertimeModal();
+          showToast("Berkas " + singleFileName + ".xlsx berhasil diunduh!");
+        } 
+        // KASUS 2: BANYAK KARYAWAN -> PACKAGING MASING-MASING .XLSX KE DALAM SATU .ZIP
+        else {
+          ensureZipLibrary(function(zipLoaded) {
+            if (!zipLoaded || !window.JSZip) {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+              }
+              showToast("Gagal memuat library pengemasan ZIP.");
+              return;
+            }
+
+            var zip = new JSZip();
+
+            employeesToExport.forEach(function(empItem) {
+              var empFileName = "hr.Overtime " + String(empItem.name).toUpperCase().trim() + ".xlsx";
+
+              var aoa = [["NRP", "Employee", "Date from", "Date to"]];
+              empItem.records.forEach(function(rec) {
+                var dateFrom = formatOvertimeDateTime(rec.tanggal, rec.jam_mulai);
+                var toDateStr = rec.tanggal;
+                if (rec.jam_mulai && rec.jam_selesai && rec.jam_selesai < rec.jam_mulai) {
+                  toDateStr = getNextDateString(rec.tanggal);
+                }
+                var dateTo = formatOvertimeDateTime(toDateStr, rec.jam_selesai);
+
+                aoa.push([
+                  rec.nik || empItem.nik || "-",
+                  String(empItem.name).toUpperCase().trim(),
+                  dateFrom,
+                  dateTo
+                ]);
+              });
+
+              var ws = XLSX.utils.aoa_to_sheet(aoa);
+              ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 24 }, { wch: 24 }];
+              var wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Overtime");
+
+              var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+              zip.file(empFileName, wbout);
+            });
+
+            zip.generateAsync({ type: "blob" }).then(function(zipBlob) {
+              var zipFileName = "hr.Overtime (" + employeesToExport.length + " Karyawan) " + periodVal + ".zip";
+              var link = document.createElement("a");
+              link.href = URL.createObjectURL(zipBlob);
+              link.download = zipFileName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+              }
+              closeDownloadOvertimeModal();
+              showToast(employeesToExport.length + " berkas Excel berhasil dikemas & diunduh (.zip)!");
+            });
+          });
+        }
+      });
     });
   }
 
@@ -121,15 +560,24 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
-    // Sembunyikan tombol Input KJK jika bukan role Karyawan
-    var btnInputKjk = document.getElementById("btnInputKjk");
-    if (btnInputKjk) {
+    // Kontrol tombol aksi toolbar: Sembunyikan Input KJK, Cetak Rekap, dan Cetak Gabungan untuk PM
+    var karyawanButtons = document.querySelectorAll(".role-karyawan");
+    karyawanButtons.forEach(function(el) {
       if (isKaryawan) {
-        btnInputKjk.classList.remove("hidden");
+        el.classList.remove("hidden");
       } else {
-        btnInputKjk.classList.add("hidden");
+        el.classList.add("hidden");
       }
-    }
+    });
+
+    var pmButtons = document.querySelectorAll(".role-pm");
+    pmButtons.forEach(function(el) {
+      if (!isKaryawan) {
+        el.classList.remove("hidden");
+      } else {
+        el.classList.add("hidden");
+      }
+    });
 
     // Inisialisasi daftar karyawan untuk dropdown PM
     if (!isKaryawan && overtimeMasterEmployees.length === 0) {
@@ -146,7 +594,7 @@
         currentOvertimeCache = res.data || [];
         if (res.kjkMap) currentKjkMap = res.kjkMap;
 
-        // Update opsi dropdown PM jika list karyawan master belum lengkap
+        // Update opsi dropdown PM jika list master belum terisi
         if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
           var uniqueEmps = {};
           currentOvertimeCache.forEach(function(item) {
@@ -220,7 +668,6 @@
       });
     }
 
-    // Hitung akumulasi total jam dinamis sesuai filter yang sedang aktif
     var totalHrs = 0;
     currentFilteredOvertimeCache.forEach(function(item) {
       totalHrs += (parseFloat(item.total_jam) || 0);
@@ -249,6 +696,10 @@
     }
     return currentOvertimeCache[idx];
   }
+
+  /* =========================================================
+   * 3. RENDER TABEL LEMBUR & WORKFLOW APPROVAL
+   * ========================================================= */
 
   function renderOvertimeTable(list) {
     var tbody = document.getElementById("overtimeTableBody");
@@ -331,7 +782,7 @@
   }
 
   /* =========================================================
-   * 3. SIKLUS APPROVAL & REVISI PM
+   * 4. SIKLUS APPROVAL & REVISI PM
    * ========================================================= */
 
   function handlePmApprove(itemIndex) {
@@ -344,16 +795,12 @@
       return;
     }
 
-    if (!confirm("Setujui pengajuan lembur tanggal " + item.tanggal + " (" + item.nama_lengkap + ")? Tanda tangan Anda akan disematkan pada dokumen.")) {
-      return;
-    }
-
     var pmName = currentUser.name || "Budi PM Infrastructure";
     var pmSig = currentUser.signature;
 
     callBackend('approveOvertime', [item.overtime_id, currentUser.user_id, pmSig, pmName], function(res) {
       if (res && res.success) {
-        showToast("Pengajuan lembur berhasil disetujui & ditandatangani!");
+        showToast("Pengajuan lembur " + item.nama_lengkap + " (" + item.tanggal + ") disetujui & ditandatangani!");
         loadOvertimeData();
       } else {
         showToast(res ? res.error : "Gagal menyetujui lembur");
@@ -402,7 +849,7 @@
   }
 
   /* =========================================================
-   * 4. SIKLUS EDIT & KOREKSI OLEH KARYAWAN
+   * 5. SIKLUS EDIT & KOREKSI OLEH KARYAWAN
    * ========================================================= */
 
   function startEditOvertime(itemIndex) {
