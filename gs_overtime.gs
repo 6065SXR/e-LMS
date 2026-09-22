@@ -1,5 +1,5 @@
 /**
- * Overtime / Form Lembur Backend Controller & Digital Signature Engine
+ * Overtime / Form Lembur & KJK Backend Controller & Digital Signature Engine
  * System: e-LMS Data Center KSPS
  */
 
@@ -55,6 +55,7 @@ function getOvertimeData(userId, monthPeriod) {
 
     var list = [];
     var totalHours = 0;
+    var kjkMap = {};
 
     // Cache user signatures
     var userSigMap = {};
@@ -65,8 +66,15 @@ function getOvertimeData(userId, monthPeriod) {
     for (var i = 1; i < overtimeRows.length; i++) {
       var r = overtimeRows[i];
       var uid = r[1];
-      var tgl = r[2]; // YYYY-MM-DD
+      var tgl = r[2]; // YYYY-MM-DD atau Nama Bulan untuk KJK
       var rPeriod = tgl ? tgl.substring(0, 7) : "";
+
+      // Deteksi entri khusus KJK pada sheet OVERTIME
+      if (r[0].indexOf("KJK-") === 0 || r[6] === "REKAPITULASI KELEBIHAN JAM KERJA (KJK)") {
+        var kjkMonthKey = String(r[2] || "").trim().toLowerCase();
+        kjkMap[uid + "_" + kjkMonthKey] = parseFloat(r[5]) || 0;
+        continue; // Tidak dimasukkan ke daftar tabel lembur shift harian biasa
+      }
 
       if ((userId === "ALL" || uid === userId) && (!period || rPeriod === period)) {
         var hours = parseFloat(r[5]) || 0;
@@ -123,7 +131,8 @@ function getOvertimeData(userId, monthPeriod) {
       success: true,
       data: list,
       totalHours: Math.round(totalHours * 10) / 10,
-      period: period
+      period: period,
+      kjkMap: kjkMap
     };
   } catch (err) {
     return { success: false, error: err.toString() };
@@ -177,7 +186,7 @@ function saveOvertimeEntry(data) {
         sheet.getRange(foundRowIdx, 6).setValue(data.total_jam);
         sheet.getRange(foundRowIdx, 7).setValue(data.deskripsi);
         sheet.getRange(foundRowIdx, 8).setValue(data.catatan || "-");
-        sheet.getRange(foundRowIdx, 10).setValue("Pending"); // Kembali ke status Pending setelah revisi disimpan
+        sheet.getRange(foundRowIdx, 10).setValue("Pending");
         sheet.getRange(foundRowIdx, 11).setValue(dateStr);
         if (userSig) sheet.getRange(foundRowIdx, 15).setValue(userSig);
 
@@ -200,10 +209,10 @@ function saveOvertimeEntry(data) {
       "-",
       "Pending",
       dateStr,
-      "", // Catatan Revisi
-      "", // Approved By
-      "", // Approver Signature
-      userSig // User Signature
+      "",
+      "",
+      "",
+      userSig
     ];
 
     sheet.appendRow(row);
@@ -216,8 +225,89 @@ function saveOvertimeEntry(data) {
 }
 
 /**
- * Persetujuan Lembur oleh PM
+ * Menyimpan data Rekapitulasi Kelebihan Jam Kerja (KJK) ke Sheet OVERTIME
+ * Format: hanya menyimpan nama bulan (misal: "July" / "September") pada kolom Tanggal.
  */
+function saveKjkEntry(data) {
+  try {
+    ensureDatabaseColumns();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("OVERTIME");
+
+    if (!sheet) {
+      sheet = ss.insertSheet("OVERTIME");
+      sheet.appendRow([
+        "Overtime ID", "User ID", "Tanggal", "Jam Mulai", "Jam Selesai",
+        "Total Jam", "Deskripsi", "Catatan", "Evidence URL", "Status", "Created At",
+        "Catatan Revisi", "Approved By", "Approver Signature", "User Signature"
+      ]);
+    }
+
+    var uid = data.user_id || "USR-0003";
+    var monthName = String(data.bulan || "September").trim();
+    var totalKjk = parseFloat(data.total_kjk) || 0;
+    var userSig = data.user_signature || "";
+
+    if (!userSig) {
+      var userRows = getSheetDisplayValues("USERS");
+      for (var u = 1; u < userRows.length; u++) {
+        if (userRows[u][0] === uid) {
+          userSig = userRows[u][11] || "";
+          break;
+        }
+      }
+    }
+
+    var rows = sheet.getDataRange().getDisplayValues();
+    var foundRowIdx = -1;
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][1] === uid && 
+         (rows[i][0].indexOf("KJK-") === 0 || rows[i][6] === "REKAPITULASI KELEBIHAN JAM KERJA (KJK)") && 
+          String(rows[i][2]).trim().toLowerCase() === monthName.toLowerCase()) {
+        foundRowIdx = i + 1;
+        break;
+      }
+    }
+
+    if (foundRowIdx > -1) {
+      sheet.getRange(foundRowIdx, 3).setValue(monthName); // Simpan nama bulan saja
+      sheet.getRange(foundRowIdx, 6).setValue(totalKjk);
+      sheet.getRange(foundRowIdx, 11).setValue(dateStr);
+      if (userSig) sheet.getRange(foundRowIdx, 15).setValue(userSig);
+
+      SpreadsheetApp.flush();
+      return { success: true, message: "Data KJK periode " + monthName + " berhasil diperbarui!" };
+    } else {
+      var nextId = generateSequentialId("OVERTIME", "KJK");
+      var row = [
+        nextId,
+        uid,
+        monthName, // Simpan nama bulan saja
+        "-",
+        "-",
+        totalKjk,
+        "REKAPITULASI KELEBIHAN JAM KERJA (KJK)",
+        "KJK",
+        "-",
+        "Approved",
+        dateStr,
+        "",
+        "",
+        "",
+        userSig
+      ];
+
+      sheet.appendRow(row);
+      SpreadsheetApp.flush();
+      return { success: true, message: "Data KJK periode " + monthName + " berhasil disimpan!" };
+    }
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
 function approveOvertime(overtimeId, pmUserId, pmSignature, pmName) {
   try {
     ensureDatabaseColumns();
@@ -237,7 +327,6 @@ function approveOvertime(overtimeId, pmUserId, pmSignature, pmName) {
 
     if (targetIdx === -1) return { success: false, error: "Data lembur tidak ditemukan!" };
 
-    // Update Kolom: Status = Approved, Approved By = pmName, Approver Signature = pmSignature
     sheet.getRange(targetIdx, 10).setValue("Approved");
     sheet.getRange(targetIdx, 13).setValue(pmName || "Project Manager");
     sheet.getRange(targetIdx, 14).setValue(pmSignature || "");
@@ -249,9 +338,6 @@ function approveOvertime(overtimeId, pmUserId, pmSignature, pmName) {
   }
 }
 
-/**
- * Permintaan Revisi oleh PM ke Karyawan
- */
 function requestOvertimeRevision(overtimeId, revisionNote, pmUserId) {
   try {
     ensureDatabaseColumns();
@@ -281,9 +367,6 @@ function requestOvertimeRevision(overtimeId, revisionNote, pmUserId) {
   }
 }
 
-/**
- * Simpan Tanda Tangan Digital Akun (Canvas Base64 / Gambar)
- */
 function saveUserSignature(userId, signatureBase64) {
   try {
     ensureDatabaseColumns();
