@@ -1,6 +1,6 @@
 <script>
   /**
-   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal, Workflow Approval & Excel Export Engine
+   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal, Workflow Approval & Multi-Slot Attendance
    * System: e-LMS Data Center KSPS
    */
 
@@ -8,6 +8,7 @@
   var currentFilteredOvertimeCache = [];
   var overtimeMasterEmployees = [];
   var currentKjkMap = {};
+  var currentAttendanceMap = {};
 
   /* =========================================================
    * 1. MANAJEMEN REKAPITULASI KELEBIHAN JAM KERJA (KJK)
@@ -197,14 +198,12 @@
     var modal = document.getElementById("downloadOvertimeModal");
     if (!modal) return;
 
-    // Reset pilihan site ke checked semua
     var chkAllSites = document.getElementById("chkAllSites");
     if (chkAllSites) chkAllSites.checked = true;
 
     var siteCheckboxes = document.querySelectorAll(".site-chk");
     siteCheckboxes.forEach(function(chk) { chk.checked = true; });
 
-    // Pastikan master employee tersedia
     if (overtimeMasterEmployees.length === 0) {
       var listContainer = document.getElementById("downloadOvertimeEmployeeList");
       if (listContainer) {
@@ -359,7 +358,6 @@
 
     showToast("Mengumpulkan data lembur Approved untuk periode " + periodVal + "...");
 
-    // Ambil data lembur lengkap seluruh karyawan untuk periode ini
     callBackend('getOvertimeData', ['ALL', periodVal], function(res) {
       if (!res || !res.success) {
         if (btn) {
@@ -371,12 +369,10 @@
       }
 
       var rawOvertime = res.data || [];
-      // Saring hanya transaksi lembur yang berstatus Approved
       var approvedOvertime = rawOvertime.filter(function(item) {
         return item.status_approval === 'Approved';
       });
 
-      // Kelompokkan data approved berdasarkan user_id
       var approvedByUser = {};
       approvedOvertime.forEach(function(item) {
         if (!approvedByUser[item.user_id]) {
@@ -385,7 +381,6 @@
         approvedByUser[item.user_id].push(item);
       });
 
-      // Siapkan paket data per karyawan yang dipilih
       var employeesToExport = [];
       checkedBoxes.forEach(function(chk) {
         var uid = chk.value;
@@ -422,7 +417,6 @@
           return;
         }
 
-        // KASUS 1: HANYA 1 KARYAWAN -> DOWNLOAD LANGSUNG .XLSX TUNGGAL
         if (employeesToExport.length === 1) {
           var singleEmp = employeesToExport[0];
           var singleFileName = "hr.Overtime " + String(singleEmp.name).toUpperCase().trim();
@@ -457,9 +451,7 @@
           }
           closeDownloadOvertimeModal();
           showToast("Berkas " + singleFileName + ".xlsx berhasil diunduh!");
-        } 
-        // KASUS 2: BANYAK KARYAWAN -> PACKAGING MASING-MASING .XLSX KE DALAM SATU .ZIP
-        else {
+        } else {
           ensureZipLibrary(function(zipLoaded) {
             if (!zipLoaded || !window.JSZip) {
               if (btn) {
@@ -544,7 +536,7 @@
 
     var diffMs = finish - start;
     if (diffMs < 0) {
-      diffMs += 24 * 60 * 60 * 1000; // Shift melintasi tengah malam
+      diffMs += 24 * 60 * 60 * 1000;
     }
 
     var diffHours = diffMs / (1000 * 60 * 60);
@@ -560,7 +552,6 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
-    // Kontrol tombol aksi toolbar: Sembunyikan Input KJK, Cetak Rekap, dan Cetak Gabungan untuk PM
     var karyawanButtons = document.querySelectorAll(".role-karyawan");
     karyawanButtons.forEach(function(el) {
       if (isKaryawan) {
@@ -579,7 +570,6 @@
       }
     });
 
-    // Inisialisasi daftar karyawan untuk dropdown PM
     if (!isKaryawan && overtimeMasterEmployees.length === 0) {
       callBackend('getEmployeesList', [], function(empRes) {
         if (empRes && empRes.success) {
@@ -593,8 +583,11 @@
       if (res && res.success) {
         currentOvertimeCache = res.data || [];
         if (res.kjkMap) currentKjkMap = res.kjkMap;
+        if (res.attendanceMap) {
+          currentAttendanceMap = res.attendanceMap;
+          updateAttendanceBadgeUI(isKaryawan ? currentUser.user_id : "");
+        }
 
-        // Update opsi dropdown PM jika list master belum terisi
         if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
           var uniqueEmps = {};
           currentOvertimeCache.forEach(function(item) {
@@ -698,7 +691,7 @@
   }
 
   /* =========================================================
-   * 3. RENDER TABEL LEMBUR & WORKFLOW APPROVAL
+   * 3. RENDER TABEL LEMBUR & WORKFLOW APPROVAL & REVISI
    * ========================================================= */
 
   function renderOvertimeTable(list) {
@@ -748,15 +741,24 @@
       var actionsHtml = '<span class="text-slate-400 text-[11px]">-</span>';
 
       if (isPmOrAdmin) {
+        var btnDelete = '<button type="button" onclick="openDeleteOvertimeModal(' + idx + ')" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200 shadow-xs" title="Hapus Lembur Tanggal Ini">' +
+          '<i class="fa-solid fa-trash-can text-xs"></i></button>';
+
         if (item.status_approval === 'Pending' || item.status_approval === 'Perlu Revisi') {
           actionsHtml = '<div class="flex items-center justify-center space-x-1.5">' +
             '<button type="button" onclick="handlePmApprove(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition" title="Setujui Lembur">' +
             '<i class="fa-solid fa-check mr-1"></i>Approve</button>' +
             '<button type="button" onclick="openPmRevisionModal(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold border border-amber-200 transition" title="Minta Revisi">' +
             '<i class="fa-solid fa-rotate-left mr-1"></i>Revisi</button>' +
+            btnDelete +
             '</div>';
         } else if (item.status_approval === 'Approved') {
-          actionsHtml = '<span class="text-[11px] font-bold text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-circle-check mr-1"></i>' + (item.approved_by || 'Disetujui') + '</span>';
+          actionsHtml = '<div class="flex items-center justify-center space-x-2">' +
+            '<span class="text-[11px] font-bold text-emerald-600 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i>' + (item.approved_by || 'Disetujui') + '</span>' +
+            btnDelete +
+            '</div>';
+        } else {
+          actionsHtml = '<div class="flex items-center justify-center space-x-1.5">' + btnDelete + '</div>';
         }
       } else {
         if (item.status_approval === 'Perlu Revisi') {
@@ -844,6 +846,57 @@
         loadOvertimeData();
       } else {
         showToast(res ? res.error : "Gagal mengirim revisi");
+      }
+    });
+  }
+
+  /* =========================================================
+   * 4B. MODAL & EKSEKUSI HAPUS LEMBUR (KHUSUS PM)
+   * ========================================================= */
+
+  function openDeleteOvertimeModal(itemIndex) {
+    var item = getOvertimeItem(itemIndex);
+    if (!item) return;
+
+    document.getElementById("deleteOvertimeTargetId").value = item.overtime_id;
+    document.getElementById("deleteOvtEmpName").innerText = item.nama_lengkap || "-";
+    document.getElementById("deleteOvtDate").innerText = item.tanggal || "-";
+    document.getElementById("deleteOvtHours").innerText = (item.total_jam || "0") + " Jam (" + (item.jam_mulai || "") + " - " + (item.jam_selesai || "") + ")";
+    document.getElementById("deleteOvtDesc").innerText = item.deskripsi || "-";
+
+    var modal = document.getElementById("deleteOvertimeConfirmModal");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function closeDeleteOvertimeModal() {
+    var modal = document.getElementById("deleteOvertimeConfirmModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function executeDeleteOvertime() {
+    var targetId = document.getElementById("deleteOvertimeTargetId").value;
+    if (!targetId) return;
+
+    var btn = document.getElementById("btnExecuteDeleteOvertime");
+    var originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menghapus...';
+    }
+
+    var pmId = currentUser ? currentUser.user_id : 'USR-0002';
+    callBackend('deleteOvertimeEntry', [targetId, pmId], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast(res.message || "Data lembur berhasil dihapus!");
+        closeDeleteOvertimeModal();
+        loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal menghapus data lembur.");
       }
     });
   }
@@ -949,5 +1002,240 @@
         showToast(res ? res.error : "Gagal menyimpan lembur");
       }
     });
+  }
+
+  /* =========================================================
+   * 6. UPLOAD, LIHAT & HAPUS 3 SLOT DOKUMEN PENDUKUNG (PDF)
+   * ========================================================= */
+
+  function openUploadAttendanceModal() {
+    var modal = document.getElementById("uploadAttendanceModal");
+    if (!modal) return;
+
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var userSlots = (currentAttendanceMap && currentAttendanceMap[uid]) ? currentAttendanceMap[uid] : {};
+
+    // Inisialisasi Slot 1 (Form Absensi Fix Wajib)
+    var slot1Input = document.getElementById("attendancePdfInput_slot1");
+    if (slot1Input) slot1Input.value = "";
+    var slot1Box = document.getElementById("slot1FileInfoBox");
+    var slot1Name = document.getElementById("slot1FileName");
+    var slot1Link = document.getElementById("slot1ViewLink");
+
+    if (userSlots["slot1"] && userSlots["slot1"].fileUrl && userSlots["slot1"].fileUrl !== "#") {
+      if (slot1Name) slot1Name.innerText = userSlots["slot1"].fileName || "Form Absensi Terunggah";
+      if (slot1Link) slot1Link.href = userSlots["slot1"].fileUrl;
+      if (slot1Box) slot1Box.classList.remove("hidden");
+    } else {
+      if (slot1Box) slot1Box.classList.add("hidden");
+    }
+
+    // Inisialisasi Slot 2 (Dokumen Pendukung #1)
+    var slot2Input = document.getElementById("attendancePdfInput_slot2");
+    var slot2DocName = document.getElementById("attendanceDocName_slot2");
+    if (slot2Input) slot2Input.value = "";
+    var slot2Box = document.getElementById("slot2FileInfoBox");
+    var slot2Name = document.getElementById("slot2FileName");
+    var slot2Link = document.getElementById("slot2ViewLink");
+
+    if (userSlots["slot2"] && userSlots["slot2"].fileUrl && userSlots["slot2"].fileUrl !== "#") {
+      if (slot2DocName && !slot2DocName.value) slot2DocName.value = userSlots["slot2"].doc_name || "";
+      if (slot2Name) slot2Name.innerText = (userSlots["slot2"].doc_name ? userSlots["slot2"].doc_name + ": " : "") + (userSlots["slot2"].fileName || "Dokumen Pendukung 1");
+      if (slot2Link) slot2Link.href = userSlots["slot2"].fileUrl;
+      if (slot2Box) slot2Box.classList.remove("hidden");
+    } else {
+      if (slot2Box) slot2Box.classList.add("hidden");
+    }
+
+    // Inisialisasi Slot 3 (Dokumen Pendukung #2)
+    var slot3Input = document.getElementById("attendancePdfInput_slot3");
+    var slot3DocName = document.getElementById("attendanceDocName_slot3");
+    if (slot3Input) slot3Input.value = "";
+    var slot3Box = document.getElementById("slot3FileInfoBox");
+    var slot3Name = document.getElementById("slot3FileName");
+    var slot3Link = document.getElementById("slot3ViewLink");
+
+    if (userSlots["slot3"] && userSlots["slot3"].fileUrl && userSlots["slot3"].fileUrl !== "#") {
+      if (slot3DocName && !slot3DocName.value) slot3DocName.value = userSlots["slot3"].doc_name || "";
+      if (slot3Name) slot3Name.innerText = (userSlots["slot3"].doc_name ? userSlots["slot3"].doc_name + ": " : "") + (userSlots["slot3"].fileName || "Dokumen Pendukung 2");
+      if (slot3Link) slot3Link.href = userSlots["slot3"].fileUrl;
+      if (slot3Box) slot3Box.classList.remove("hidden");
+    } else {
+      if (slot3Box) slot3Box.classList.add("hidden");
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeUploadAttendanceModal() {
+    var modal = document.getElementById("uploadAttendanceModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function handleDeleteSlotFile(slotKey) {
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    var slotNames = {
+      slot1: "Form Absensi",
+      slot2: "Dokumen Pendukung #1",
+      slot3: "Dokumen Pendukung #2"
+    };
+
+    var label = slotNames[slotKey] || "Dokumen ini";
+    showToast("Menghapus " + label + "...");
+
+    callBackend('deleteAttendanceFile', [uid, period, slotKey], function(res) {
+      if (res && res.success) {
+        showToast(res.message || "Berkas berhasil dihapus!");
+
+        if (currentAttendanceMap && currentAttendanceMap[uid]) {
+          delete currentAttendanceMap[uid][slotKey];
+        }
+
+        var box = document.getElementById(slotKey + "FileInfoBox");
+        if (box) box.classList.add("hidden");
+
+        var fileInput = document.getElementById("attendancePdfInput_" + slotKey);
+        if (fileInput) fileInput.value = "";
+
+        if (slotKey === "slot2" || slotKey === "slot3") {
+          var nameInput = document.getElementById("attendanceDocName_" + slotKey);
+          if (nameInput) nameInput.value = "";
+        }
+
+        updateAttendanceBadgeUI(uid);
+      } else {
+        showToast(res ? res.error : "Gagal menghapus berkas!");
+      }
+    });
+  }
+
+  async function handleSaveMultiAttendance(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    var slot1File = document.getElementById("attendancePdfInput_slot1") ? document.getElementById("attendancePdfInput_slot1").files[0] : null;
+    var slot2File = document.getElementById("attendancePdfInput_slot2") ? document.getElementById("attendancePdfInput_slot2").files[0] : null;
+    var slot3File = document.getElementById("attendancePdfInput_slot3") ? document.getElementById("attendancePdfInput_slot3").files[0] : null;
+
+    var slot2DocName = document.getElementById("attendanceDocName_slot2") ? document.getElementById("attendanceDocName_slot2").value.trim() : "";
+    var slot3DocName = document.getElementById("attendanceDocName_slot3") ? document.getElementById("attendanceDocName_slot3").value.trim() : "";
+
+    var userExisting = (currentAttendanceMap && currentAttendanceMap[uid]) ? currentAttendanceMap[uid] : {};
+
+    if (!slot1File && !slot2File && !slot3File) {
+      if (Object.keys(userExisting).length > 0) {
+        showToast("Tidak ada berkas baru yang dipilih. Berkas sebelumnya tetap tersimpan.");
+        closeUploadAttendanceModal();
+        return;
+      }
+      showToast("Pilih minimal satu berkas PDF untuk diunggah!");
+      return;
+    }
+
+    var uploadQueue = [];
+
+    if (slot1File) {
+      if (slot1File.type !== "application/pdf" && !slot1File.name.toLowerCase().endsWith(".pdf")) {
+        showToast("Berkas Form Absensi harus berformat PDF (.pdf)!");
+        return;
+      }
+      uploadQueue.push({
+        slotKey: "slot1",
+        docName: "Form Absensi",
+        file: slot1File
+      });
+    }
+
+    if (slot2File) {
+      if (slot2File.type !== "application/pdf" && !slot2File.name.toLowerCase().endsWith(".pdf")) {
+        showToast("Berkas Dokumen Pendukung #1 harus berformat PDF (.pdf)!");
+        return;
+      }
+      uploadQueue.push({
+        slotKey: "slot2",
+        docName: slot2DocName || "Dokumen Pendukung #1",
+        file: slot2File
+      });
+    }
+
+    if (slot3File) {
+      if (slot3File.type !== "application/pdf" && !slot3File.name.toLowerCase().endsWith(".pdf")) {
+        showToast("Berkas Dokumen Pendukung #2 harus berformat PDF (.pdf)!");
+        return;
+      }
+      uploadQueue.push({
+        slotKey: "slot3",
+        docName: slot3DocName || "Dokumen Pendukung #2",
+        file: slot3File
+      });
+    }
+
+    var spinner = document.getElementById("attendanceUploadSpinner");
+    var spinnerText = document.getElementById("attendanceUploadSpinnerText");
+    var btn = document.getElementById("btnSubmitAttendance");
+
+    if (spinner) spinner.classList.remove("hidden");
+    if (btn) btn.disabled = true;
+
+    try {
+      if (!currentAttendanceMap) currentAttendanceMap = {};
+      if (!currentAttendanceMap[uid]) currentAttendanceMap[uid] = {};
+
+      for (var q = 0; q < uploadQueue.length; q++) {
+        var item = uploadQueue[q];
+        if (spinnerText) {
+          spinnerText.innerText = "Mengunggah " + item.docName + " (" + (q + 1) + "/" + uploadQueue.length + ")...";
+        }
+
+        var fileBase64Data = await readFileAsBase64(item.file);
+
+        await new Promise(function(resolve, reject) {
+          callBackend('saveAttendanceForm', [uid, period, item.slotKey, item.docName, fileBase64Data], function(res) {
+            if (res && res.success) {
+              currentAttendanceMap[uid][item.slotKey] = {
+                attendance_id: res.attendance_id || "",
+                slot_key: item.slotKey,
+                doc_name: item.docName,
+                fileName: res.fileName || item.file.name,
+                fileUrl: res.fileUrl || "#"
+              };
+              resolve(res);
+            } else {
+              reject(new Error(res ? res.error : "Gagal mengunggah berkas " + item.docName));
+            }
+          });
+        });
+      }
+
+      if (spinner) spinner.classList.add("hidden");
+      if (btn) btn.disabled = false;
+
+      showToast("Seluruh berkas berhasil diunggah & disimpan!");
+      updateAttendanceBadgeUI(uid);
+      closeUploadAttendanceModal();
+    } catch(err) {
+      if (spinner) spinner.classList.add("hidden");
+      if (btn) btn.disabled = false;
+      showToast("Kesalahan unggah: " + err.message);
+    }
+  }
+
+  function updateAttendanceBadgeUI(uid) {
+    var badge = document.getElementById("attendanceUploadedBadge");
+    if (!badge) return;
+    var targetUid = uid || (currentUser ? currentUser.user_id : "");
+    var userSlots = (currentAttendanceMap && currentAttendanceMap[targetUid]) ? currentAttendanceMap[targetUid] : {};
+
+    if (Object.keys(userSlots).length > 0) {
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
   }
 </script>
