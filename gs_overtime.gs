@@ -96,6 +96,17 @@ function getOvertimeData(userId, monthPeriod) {
       userSigMap[userRows[u][0]] = userRows[u][11] || "";
     }
 
+    // Pemetaan NIK berdasarkan Nama & User ID untuk mencari NIK Approver/PM
+    var empMapByName = {};
+    var empMapByUid = {};
+    for (var ep = 1; ep < empRows.length; ep++) {
+      var epUid = empRows[ep][1];
+      var epNik = empRows[ep][2];
+      var epName = String(empRows[ep][3] || "").trim();
+      if (epUid) empMapByUid[epUid] = epNik;
+      if (epName) empMapByName[epName.toLowerCase()] = epNik;
+    }
+
     // 2. Baca data dari sheet OVERTIME (hanya lembur shift harian murni)
     for (var i = 1; i < overtimeRows.length; i++) {
       var r = overtimeRows[i];
@@ -135,6 +146,19 @@ function getOvertimeData(userId, monthPeriod) {
         }
 
         var userSig = r[14] || userSigMap[uid] || "";
+        var approverName = r[12] || "";
+        var approverNik = "7268900080"; // Default NIK Project Manager
+
+        if (approverName) {
+          var cleanApp = approverName.trim().toLowerCase();
+          if (empMapByName[cleanApp]) {
+            approverNik = empMapByName[cleanApp];
+          } else if (cleanApp.indexOf("tommy") !== -1) {
+            approverNik = "7268900080";
+          } else if (cleanApp.indexOf("budi") !== -1) {
+            approverNik = "7268900081";
+          }
+        }
 
         list.push({
           overtime_id: r[0],
@@ -152,7 +176,8 @@ function getOvertimeData(userId, monthPeriod) {
           status_approval: r[9] || "Pending",
           created_at: r[10],
           catatan_revisi: r[11] || "",
-          approved_by: r[12] || "",
+          approved_by: approverName,
+          approver_nik: approverNik,
           approver_signature: r[13] || "",
           user_signature: userSig
         });
