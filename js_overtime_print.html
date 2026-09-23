@@ -2,10 +2,10 @@
   /**
    * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, KJK, STL & Gabungan)
    * System: e-LMS Data Center KSPS
-   * Update Revisi:
-   * 1. Format tanggal otomatis berformat Indonesia resmi (contoh: 24 September 2026).
-   * 2. Teks di bawah nama PM diganti menjadi "NIK: [NIK PM]" (bukan lagi "Project Manager").
-   * 3. Nomor Surat Tugas Lembur (OVT) pada lembar cetak laporan pelaksanaan dikosongkan.
+   * Pembaruan:
+   * 1. Eliminasi masalah "Pop-up blocked" menggunakan teknik Synchronous Window Pre-Opening.
+   * 2. Panel mini atur urutan dokumen mendukung dokumen dinamis (Slot 1 Form Absensi, Slot 2 & 3 Dokumen Tambahan).
+   * 3. Penguraian berkas PDF scan multi-slot menggunakan engine PDF.js Canvas secara tajam dan presisi.
    */
 
   var KSPS_LOGO_CUSTOM_URL = "";
@@ -56,9 +56,6 @@
     return defaultFallbackSvg;
   }
 
-  /**
-   * Helper Pengubah Tanggal YYYY-MM-DD menjadi format resmi Indonesia (contoh: 24 September 2026)
-   */
   function formatTanggalIndo(dateStr) {
     if (!dateStr || dateStr === "-") return "-";
     var parts = String(dateStr).trim().split("-");
@@ -251,6 +248,7 @@
       printWindow.document.close();
       setTimeout(function() { 
         printWindow.document.title = "";
+        printWindow.focus();
         printWindow.print(); 
       }, 500);
     }
@@ -387,12 +385,94 @@
       printWindow.document.close();
       setTimeout(function() { 
         printWindow.document.title = "";
+        printWindow.focus();
         printWindow.print(); 
       }, 500);
     }
   }
 
-  function printCombinedOvertimePDF() {
+  /* =========================================================
+   * 7. PANEL MINI ATUR URUTAN DOKUMEN CETAK GABUNGAN
+   * ========================================================= */
+
+  var docPrintOrder = [];
+  var docOrderMeta = {};
+
+  function buildDynamicReorderConfig() {
+    var uid = currentUser ? currentUser.user_id : 'USR-0003';
+    var userSlots = (currentAttendanceMap && currentAttendanceMap[uid]) ? currentAttendanceMap[uid] : {};
+
+    docOrderMeta = {};
+    docPrintOrder = [];
+
+    // 1. Masukkan berkas dari Slot 1 jika terunggah
+    if (userSlots["slot1"] && userSlots["slot1"].fileUrl && userSlots["slot1"].fileUrl !== "#") {
+      docOrderMeta["slot1"] = {
+        title: "Form Absensi (PDF Utama)",
+        desc: "Berkas scan absensi wajib karyawan (" + (userSlots["slot1"].fileName || "Absensi.pdf") + ")",
+        icon: "fa-solid fa-file-invoice text-violet-600"
+      };
+      docPrintOrder.push("slot1");
+    }
+
+    // 2. Masukkan berkas dari Slot 2 jika terunggah
+    if (userSlots["slot2"] && userSlots["slot2"].fileUrl && userSlots["slot2"].fileUrl !== "#") {
+      var s2Name = userSlots["slot2"].doc_name || "Dokumen Pendukung #1";
+      docOrderMeta["slot2"] = {
+        title: s2Name + " (PDF)",
+        desc: "Berkas lampiran tambahan (" + (userSlots["slot2"].fileName || "Lampiran.pdf") + ")",
+        icon: "fa-solid fa-file-medical text-indigo-600"
+      };
+      docPrintOrder.push("slot2");
+    }
+
+    // 3. Masukkan berkas dari Slot 3 jika terunggah
+    if (userSlots["slot3"] && userSlots["slot3"].fileUrl && userSlots["slot3"].fileUrl !== "#") {
+      var s3Name = userSlots["slot3"].doc_name || "Dokumen Pendukung #2";
+      docOrderMeta["slot3"] = {
+        title: s3Name + " (PDF)",
+        desc: "Berkas lampiran tambahan (" + (userSlots["slot3"].fileName || "Lampiran.pdf") + ")",
+        icon: "fa-solid fa-file-circle-check text-teal-600"
+      };
+      docPrintOrder.push("slot3");
+    }
+
+    // Default Fallback jika belum ada file absensi yang diunggah sama sekali
+    if (docPrintOrder.length === 0) {
+      docOrderMeta["slot1"] = {
+        title: "Form Absensi (Belum Diunggah)",
+        desc: "Scan absensi belum diunggah, lewati bagian ini jika tidak ada",
+        icon: "fa-solid fa-file-invoice text-slate-400"
+      };
+      docPrintOrder.push("slot1");
+    }
+
+    // 4. Masukkan lembar Rekapitulasi Lembur
+    docOrderMeta["rekap"] = {
+      title: "Lembar Rekapitulasi Lembur (Shift)",
+      desc: "Tabel rekapitulasi lembur resmi KSPS periode bulanan",
+      icon: "fa-solid fa-table-list text-[#1C1B8E]"
+    };
+    docPrintOrder.push("rekap");
+
+    // 5. Masukkan lembar KJK
+    docOrderMeta["kjk"] = {
+      title: "Lembar Rekapitulasi KJK",
+      desc: "Form perhitungan Kelebihan Jam Kerja karyawan shift",
+      icon: "fa-solid fa-clock-rotate-left text-amber-500"
+    };
+    docPrintOrder.push("kjk");
+
+    // 6. Masukkan lembar Surat Tugas Lembur (STL)
+    docOrderMeta["stl"] = {
+      title: "Surat Tugas Lembur (STL)",
+      desc: "Rincian surat tugas per-tanggal transaksi lembur",
+      icon: "fa-solid fa-file-signature text-emerald-600"
+    };
+    docPrintOrder.push("stl");
+  }
+
+  function openReorderDocumentsModal() {
     var dataset = (currentFilteredOvertimeCache && currentFilteredOvertimeCache.length > 0) ? 
       currentFilteredOvertimeCache : currentOvertimeCache;
 
@@ -401,28 +481,197 @@
       return;
     }
 
-    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
-    var empFilter = document.getElementById("overtimeEmployeeFilter");
-    var selectedEmpId = empFilter ? empFilter.value : "ALL";
+    buildDynamicReorderConfig();
+    renderDocReorderList();
+
+    var modal = document.getElementById("reorderDocumentsModal");
+    if (modal) modal.classList.remove("hidden");
+  }
+
+  function closeReorderDocumentsModal() {
+    var modal = document.getElementById("reorderDocumentsModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function resetDocOrderToDefault() {
+    buildDynamicReorderConfig();
+    renderDocReorderList();
+  }
+
+  function moveDocOrderItem(index, direction) {
+    var newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= docPrintOrder.length) return;
+    var temp = docPrintOrder[index];
+    docPrintOrder[index] = docPrintOrder[newIndex];
+    docPrintOrder[newIndex] = temp;
+    renderDocReorderList();
+  }
+
+  function renderDocReorderList() {
+    var container = document.getElementById("docReorderList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    docPrintOrder.forEach(function(key, idx) {
+      var item = docOrderMeta[key] || { title: key, desc: "", icon: "fa-solid fa-file" };
+      var isFirst = (idx === 0);
+      var isLast = (idx === docPrintOrder.length - 1);
+
+      var div = document.createElement("div");
+      div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 hover:border-indigo-200 transition";
+
+      div.innerHTML = '<div class="flex items-center space-x-3 min-w-0 pr-2">' +
+        '  <span class="w-6 h-6 rounded-full bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shadow-xs flex-shrink-0">' + (idx + 1) + '</span>' +
+        '  <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm shadow-xs flex-shrink-0"><i class="' + item.icon + '"></i></div>' +
+        '  <div class="min-w-0">' +
+        '    <p class="font-bold text-slate-800 text-xs truncate">' + item.title + '</p>' +
+        '    <p class="text-[10px] text-slate-500 truncate">' + item.desc + '</p>' +
+        '  </div>' +
+        '</div>' +
+        '<div class="flex items-center space-x-1 flex-shrink-0">' +
+        '  <button type="button" onclick="moveDocOrderItem(' + idx + ', -1)" ' + (isFirst ? 'disabled class="w-7 h-7 rounded-lg bg-slate-100 text-slate-300 cursor-not-allowed flex items-center justify-center text-xs"' : 'class="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 text-indigo-700 hover:border-indigo-300 flex items-center justify-center text-xs shadow-xs transition"') + ' title="Pindah ke Atas"><i class="fa-solid fa-arrow-up"></i></button>' +
+        '  <button type="button" onclick="moveDocOrderItem(' + idx + ', 1)" ' + (isLast ? 'disabled class="w-7 h-7 rounded-lg bg-slate-100 text-slate-300 cursor-not-allowed flex items-center justify-center text-xs"' : 'class="w-7 h-7 rounded-lg bg-white hover:bg-indigo-50 border border-slate-200 text-indigo-700 hover:border-indigo-300 flex items-center justify-center text-xs shadow-xs transition"') + ' title="Pindah ke Bawah"><i class="fa-solid fa-arrow-down"></i></button>' +
+        '</div>';
+
+      container.appendChild(div);
+    });
+  }
+
+  function renderPdfPageToImage(pdfDoc, pageNum) {
+    return new Promise(function(resolve) {
+      pdfDoc.getPage(pageNum).then(function(page) {
+        var viewport = page.getViewport({ scale: 2.0 });
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("2d");
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        var renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+
+        page.render(renderContext).promise.then(function() {
+          resolve(canvas.toDataURL("image/png"));
+        }).catch(function(err) {
+          console.warn("Render page " + pageNum + " failed: ", err);
+          resolve(null);
+        });
+      }).catch(function(err) {
+        console.warn("Get page " + pageNum + " failed: ", err);
+        resolve(null);
+      });
+    });
+  }
+
+  function executeCombinedPrintWithOrder() {
+    closeReorderDocumentsModal();
+
+    var dataset = (currentFilteredOvertimeCache && currentFilteredOvertimeCache.length > 0) ? 
+      currentFilteredOvertimeCache : currentOvertimeCache;
+
+    if (!dataset || dataset.length === 0) {
+      showToast("Tidak ada data lembur untuk dicetak pada periode ini!");
+      return;
+    }
 
     var targetItem = dataset[0];
+    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var targetUid = isKaryawan ? currentUser.user_id : targetItem.user_id;
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : "2026-09";
 
-    if (!isKaryawan && selectedEmpId === "ALL") {
-      var distinctUsers = {};
-      dataset.forEach(function(d) { distinctUsers[d.user_id] = true; });
-      if (Object.keys(distinctUsers).length > 1) {
-        showToast("Harap pilih nama salah satu Karyawan pada filter di atas sebelum mencetak Dokumen Gabungan!");
-        return;
+    // LANGKAH ANTI-POPUP-BLOCKED: Buka jendela baru seketika saat event klik pengguna berlangsung
+    var preOpenedWindow = window.open('', '_blank');
+    if (preOpenedWindow) {
+      try {
+        preOpenedWindow.document.write(
+          '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+          '<title>Menyiapkan Dokumen Cetak...</title>' +
+          '<style>' +
+          'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; text-align: center; padding: 20px; box-sizing: border-box; }' +
+          '.loader-box { background: #ffffff; padding: 28px 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(28,27,142,0.08); border: 1px solid #e2e8f0; max-width: 380px; width: 100%; }' +
+          '.spinner { width: 40px; height: 40px; border: 3.5px solid #e2e8f0; border-top-color: #1C1B8E; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px auto; }' +
+          '@keyframes spin { to { transform: rotate(360deg); } }' +
+          'h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px 0; color: #1C1B8E; }' +
+          'p { font-size: 12px; color: #64748b; margin: 0; line-height: 1.4; }' +
+          '</style></head><body>' +
+          '<div class="loader-box">' +
+          '  <div class="spinner"></div>' +
+          '  <h3>Menyiapkan Dokumen Cetak KSPS...</h3>' +
+          '  <p>Mohon tunggu sebentar, sistem sedang menguraikan berkas & menyusun lembaran cetak Anda.</p>' +
+          '</div>' +
+          '</body></html>'
+        );
+        preOpenedWindow.document.close();
+      } catch(e) {
+        console.warn("Write loading template failed: ", e);
       }
     }
 
-    var empName = targetItem.nama_lengkap || (currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN");
-    var empNik = targetItem.nik || (currentUser ? currentUser.nik : "7259500591");
-    var empDept = targetItem.departemen || "DC OPERATION TBS";
-    var empSite = targetItem.site || "CGK3";
-    
-    var periodFilter = document.getElementById("overtimePeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : "2026-09";
+    showGlobalSpinner();
+
+    var hasPdfSlot = docPrintOrder.some(function(k) { return k === 'slot1' || k === 'slot2' || k === 'slot3'; });
+
+    if (hasPdfSlot) {
+      callBackend('getAllAttendancePdfsBase64', [targetUid, periodVal], function(res) {
+        var filesList = (res && res.success && res.files) ? res.files : [];
+
+        if (filesList.length > 0 && window.pdfjsLib) {
+          var slotImagesMap = {};
+          var processFilePromises = filesList.map(function(fileItem) {
+            return new Promise(function(fileResolve) {
+              try {
+                var raw = window.atob(fileItem.base64);
+                var rawLength = raw.length;
+                var array = new Uint8Array(new ArrayBuffer(rawLength));
+                for (var i = 0; i < rawLength; i++) {
+                  array[i] = raw.charCodeAt(i);
+                }
+
+                pdfjsLib.getDocument({ data: array }).promise.then(function(pdfDoc) {
+                  var pagePromises = [];
+                  for (var p = 1; p <= pdfDoc.numPages; p++) {
+                    pagePromises.push(renderPdfPageToImage(pdfDoc, p));
+                  }
+
+                  Promise.all(pagePromises).then(function(imgUrls) {
+                    slotImagesMap[fileItem.slotKey] = imgUrls.filter(Boolean);
+                    fileResolve();
+                  }).catch(function() {
+                    slotImagesMap[fileItem.slotKey] = [];
+                    fileResolve();
+                  });
+                }).catch(function() {
+                  slotImagesMap[fileItem.slotKey] = [];
+                  fileResolve();
+                });
+              } catch(e) {
+                slotImagesMap[fileItem.slotKey] = [];
+                fileResolve();
+              }
+            });
+          });
+
+          Promise.all(processFilePromises).then(function() {
+            hideGlobalSpinner();
+            buildAndPrintCombinedHtml(slotImagesMap, dataset, targetItem, periodVal, preOpenedWindow);
+          }).catch(function() {
+            hideGlobalSpinner();
+            buildAndPrintCombinedHtml({}, dataset, targetItem, periodVal, preOpenedWindow);
+          });
+        } else {
+          hideGlobalSpinner();
+          buildAndPrintCombinedHtml({}, dataset, targetItem, periodVal, preOpenedWindow);
+        }
+      });
+    } else {
+      hideGlobalSpinner();
+      buildAndPrintCombinedHtml({}, dataset, targetItem, periodVal, preOpenedWindow);
+    }
+  }
+
+  function buildAndPrintCombinedHtml(slotImagesMap, dataset, targetItem, periodVal, preOpenedWindow) {
     var parts = periodVal.split("-");
     var yearNum = parseInt(parts[0], 10) || 2026;
     var monthNum = parseInt(parts[1], 10) || 9;
@@ -435,6 +684,11 @@
     var daysInMonth = new Date(yearNum, monthNum, 0).getDate();
     var periodText = "01-" + daysInMonth + " " + monthName + " " + yearNum;
     var kjkPeriodText = "1 - " + daysInMonth + " " + monthNameEn + " " + yearNum;
+
+    var empName = targetItem.nama_lengkap || (currentUser ? currentUser.name : "FIRMANSYAH SETIAWAN");
+    var empNik = targetItem.nik || (currentUser ? currentUser.nik : "7259500591");
+    var empDept = targetItem.departemen || "DC OPERATION TBS";
+    var empSite = targetItem.site || "CGK3";
 
     var entryByDay = {};
     var latestApproverName = "Tommy Hardiansyah";
@@ -462,7 +716,6 @@
 
     totalOvertimeSum = Math.round(totalOvertimeSum * 10) / 10;
 
-    // Ambil data KJK tersimpan karyawan untuk bulan ini dari sheet KJK
     var targetKjkHours = 0;
     var kjkKey = targetItem.user_id + "_" + monthNameEn.toLowerCase();
     if (currentKjkMap && currentKjkMap[kjkKey] !== undefined) {
@@ -501,43 +754,25 @@
       renderSignatureHtml(latestApproverSig, '') :
       '<span style="font-size: 10px; color: #777; font-style: italic;">(Belum Disetujui PM)</span>';
 
-    var combinedHtml = '<!DOCTYPE html><html><head><title></title>' +
-      '<style>' +
-      '@page { size: A4 portrait; margin: 0; }' +
-      '@media print { html, body { margin: 0; padding: 0; } }' +
-      'body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; }' +
-      '* { box-sizing: border-box; }' +
-      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
-      '.page-break { page-break-before: always; break-before: page; }' +
-      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
-      '.header-table td { vertical-align: middle; }' +
-      '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
-      '.info-table td { padding: 1.5px 0; }' +
-      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
-      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; }' +
-      '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
-      '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
-      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
-      '.signature-box img, .stl-signature-box img, .kjk-signature-box img { filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
-      '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
-      '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
-      '.info-block td { padding: 3px 0; vertical-align: top; }' +
-      '.stl-signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
-      '.stl-signature-table td { vertical-align: top; width: 50%; }' +
-      '.stl-signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
-      '.kjk-info-table { width: 100%; margin-top: 15px; margin-bottom: 18px; font-size: 12px; font-weight: bold; }' +
-      '.kjk-info-table td { padding: 3px 0; }' +
-      '.kjk-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 11.5px; }' +
-      '.kjk-table th { border: 1.5px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #fff; font-size: 11.5px; }' +
-      '.kjk-table td { border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-size: 11.5px; }' +
-      '.kjk-signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
-      '.kjk-signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
-      '.kjk-signature-box { height: 52px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }' +
-      '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
-      'p { margin: 5px 0; }' +
-      'ul { margin: 4px 0 10px 22px; padding: 0; }' +
-      '</style></head><body>' +
+    var sections = {};
 
+    ["slot1", "slot2", "slot3"].forEach(function(sKey) {
+      var images = (slotImagesMap && slotImagesMap[sKey]) ? slotImagesMap[sKey] : [];
+      var slotPages = [];
+      if (images && images.length > 0) {
+        images.forEach(function(imgDataUrl) {
+          slotPages.push(
+            '<div class="sheet-page" style="padding: 0; display: flex; align-items: center; justify-content: center; background: #fff;">' +
+            '  <img src="' + imgDataUrl + '" style="width: 100%; height: 100%; max-height: 297mm; object-fit: contain; display: block; margin: 0 auto;" alt="Dokumen Lampiran" />' +
+            '</div>'
+          );
+        });
+      }
+      sections[sKey] = slotPages;
+    });
+
+    // Lembar Rekapitulasi Lembur (Shift)
+    sections.rekap = [
       '<div class="sheet-page">' +
       '<table class="header-table">' +
       '<tr>' +
@@ -582,9 +817,10 @@
       '  <div class="signature-box">' + employeeSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + empName + '</span><br>NIK: ' + empNik + '</td>' +
       '</tr>' +
       '</table>' +
-      '</div>';
+      '</div>'
+    ];
 
-    combinedHtml += '<div class="page-break"></div>' +
+    sections.kjk = [
       '<div class="sheet-page">' +
       '<table class="header-table">' +
       '<tr>' +
@@ -647,8 +883,10 @@
       '</td>' +
       '</tr>' +
       '</table>' +
-      '</div>';
+      '</div>'
+    ];
 
+    var stlPagesHtml = [];
     dataset.forEach(function(item) {
       var itemEmpName = item.nama_lengkap || empName;
       var itemEmpNik = item.nik || empNik;
@@ -676,7 +914,7 @@
         renderSignatureHtml(itemPmSig, '') :
         '<span style="font-size: 10px; color: #777; font-style: italic;">(Menunggu Approval PM)</span>';
 
-      combinedHtml += '<div class="page-break"></div>' +
+      stlPagesHtml.push(
         '<div class="sheet-page">' +
         '<p style="font-size: 10px; color: #333; margin: 0 0 6px 0;">Form Lembur Karyawan Shift</p>' +
 
@@ -745,20 +983,92 @@
         '<td>Jakarta, ' + tglFormatted + '<br>Yang Diberi Tugas<br><div class="stl-signature-box">' + singleEmpSigHtml + '</div><span style="text-decoration: underline; font-weight: bold;">' + itemEmpName + '</span><br>NIK: ' + itemEmpNik + '</td>' +
         '</tr>' +
         '</table>' +
-        '</div>';
+        '</div>'
+      );
+    });
+    sections.stl = stlPagesHtml;
+
+    var assembledPages = [];
+    docPrintOrder.forEach(function(sectionKey) {
+      if (sections[sectionKey] && sections[sectionKey].length > 0) {
+        sections[sectionKey].forEach(function(pageHtml) {
+          assembledPages.push(pageHtml);
+        });
+      }
     });
 
-    combinedHtml += '</body></html>';
+    if (assembledPages.length === 0) {
+      if (preOpenedWindow && !preOpenedWindow.closed) {
+        preOpenedWindow.close();
+      }
+      showToast("Tidak ada dokumen yang siap dicetak.");
+      return;
+    }
 
-    var printWindow = window.open('', '_blank', 'width=900,height=850');
+    var fullCombinedHtml = '<!DOCTYPE html><html><head><title></title>' +
+      '<style>' +
+      '@page { size: A4 portrait; margin: 0; }' +
+      '@media print { html, body { margin: 0; padding: 0; } }' +
+      'body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; }' +
+      '* { box-sizing: border-box; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; page-break-after: always; break-after: page; }' +
+      '.sheet-page:last-child { page-break-after: auto; break-after: auto; }' +
+      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
+      '.header-table td { vertical-align: middle; }' +
+      '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
+      '.info-table td { padding: 1.5px 0; }' +
+      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
+      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; }' +
+      '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
+      '.signature-box img, .stl-signature-box img, .kjk-signature-box img { filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+      '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
+      '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
+      '.info-block td { padding: 3px 0; vertical-align: top; }' +
+      '.stl-signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.stl-signature-table td { vertical-align: top; width: 50%; }' +
+      '.stl-signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
+      '.kjk-info-table { width: 100%; margin-top: 15px; margin-bottom: 18px; font-size: 12px; font-weight: bold; }' +
+      '.kjk-info-table td { padding: 3px 0; }' +
+      '.kjk-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 11.5px; }' +
+      '.kjk-table th { border: 1.5px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #fff; font-size: 11.5px; }' +
+      '.kjk-table td { border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-size: 11.5px; }' +
+      '.kjk-signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.kjk-signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.kjk-signature-box { height: 52px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }' +
+      '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
+      'p { margin: 5px 0; }' +
+      'ul { margin: 4px 0 10px 22px; padding: 0; }' +
+      '</style></head><body>' +
+      assembledPages.join('') +
+      '</body></html>';
+
+    var printWindow = preOpenedWindow;
+    if (!printWindow || printWindow.closed) {
+      printWindow = window.open('', '_blank', 'width=900,height=850');
+    }
+
     if (printWindow) {
-      printWindow.document.write(combinedHtml);
+      printWindow.document.open();
+      printWindow.document.write(fullCombinedHtml);
       printWindow.document.title = "";
       printWindow.document.close();
       setTimeout(function() { 
-        printWindow.document.title = "";
-        printWindow.print(); 
-      }, 500);
+        try {
+          printWindow.document.title = "";
+          printWindow.focus();
+          printWindow.print(); 
+        } catch(e) {
+          console.warn("Print trigger error: ", e);
+        }
+      }, 600);
+    } else {
+      showToast("Jendela pop-up diblokir. Harap izinkan pop-up pada peramban Anda.");
     }
+  }
+
+  function printCombinedOvertimePDF() {
+    openReorderDocumentsModal();
   }
 </script>
