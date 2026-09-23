@@ -1,28 +1,298 @@
 <script>
   /**
-   * System User Management
-   * System: e-LMS Data Center Zettbos
+   * System User Management CRUD, Password Reset & Backup/Restore Controller
+   * System: e-LMS Data Center KSPS
    */
+
+  var usersMasterCache = [];
+
   function loadUsers() {
     callBackend('getUsersList', [], function(res) {
-      if (res.success) {
-        var tbody = document.getElementById("userTableBody");
-        if (!tbody) return;
-        tbody.innerHTML = "";
-        res.data.forEach(function(u) {
-          var verifiedBadge = u.is_verified === 'TRUE' ? 
-            '<span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-xs font-semibold">Verified</span>' : 
-            '<span class="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full text-xs font-semibold">Pending</span>';
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal memuat data pengguna.");
+        return;
+      }
 
-          var tr = document.createElement("tr");
-          tr.innerHTML = '<td class="py-2 px-2 font-bold">' + u.user_id + '</td>' +
-                         '<td class="py-2 px-2">' + u.nama_lengkap + '</td>' +
-                         '<td class="py-2 px-2 text-muted-grey">' + u.email + '</td>' +
-                         '<td class="py-2 px-2"><span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-xs font-semibold">' + u.role + '</span></td>' +
-                         '<td class="py-2 px-2 text-muted-grey">' + u.departemen + '</td>' +
-                         '<td class="py-2 px-2 text-center">' + verifiedBadge + '</td>';
-          tbody.appendChild(tr);
-        });
+      usersMasterCache = res.data || [];
+      var tbody = document.getElementById("userTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      if (usersMasterCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 py-6 text-xs">Belum ada akun pengguna terdaftar.</td></tr>';
+        return;
+      }
+
+      usersMasterCache.forEach(function(u, idx) {
+        var verifiedBadge = (u.is_verified === 'TRUE' || u.is_verified === true) ? 
+          '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">Verified</span>' : 
+          '<span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>';
+
+        var roleClass = "bg-indigo-50 text-[#1C1B8E] border border-indigo-100";
+        if (u.role === 'Super Admin') {
+          roleClass = "bg-purple-50 text-purple-700 border border-purple-200";
+        } else if (u.role === 'Project Manager') {
+          roleClass = "bg-amber-50 text-amber-700 border border-amber-200";
+        }
+
+        var actions = '<div class="flex items-center justify-center space-x-1.5">' +
+          '<button type="button" onclick="openEditUserModal(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#1C1B8E] text-[11px] font-bold border border-indigo-100 transition flex items-center space-x-1" title="Edit Akun & Password">' +
+          '<i class="fa-solid fa-user-pen"></i><span>Edit</span></button>';
+
+        // Akun Super Admin Utama (USR-0001) dilindungi dari tombol hapus
+        if (u.user_id !== 'USR-0001') {
+          actions += '<button type="button" onclick="openDeleteUserModal(' + idx + ')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold border border-rose-200 transition" title="Hapus Akun">' +
+            '<i class="fa-solid fa-trash-can"></i></button>';
+        }
+        actions += '</div>';
+
+        var tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+        tr.innerHTML = '<td class="py-3 px-3 font-bold text-slate-800">' + u.user_id + '</td>' +
+                       '<td class="py-3 px-3 font-semibold text-slate-900">' + (u.nama_lengkap || '-') + '</td>' +
+                       '<td class="py-3 px-3 text-slate-600">' + (u.email || '-') + '</td>' +
+                       '<td class="py-3 px-3 text-center"><span class="' + roleClass + ' px-2.5 py-0.5 rounded-full text-[10px] font-bold">' + u.role + '</span></td>' +
+                       '<td class="py-3 px-3 text-slate-600">' + (u.departemen || '-') + '</td>' +
+                       '<td class="py-3 px-3 text-center font-bold text-indigo-700">' + (u.site || 'CGK1') + '</td>' +
+                       '<td class="py-3 px-3 text-center">' + verifiedBadge + '</td>' +
+                       '<td class="py-3 px-3 text-center">' + actions + '</td>';
+
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  /* =========================================================
+   * MODAL EDIT USER & GANTI PASSWORD OLEH SUPER ADMIN
+   * ========================================================= */
+
+  function openEditUserModal(index) {
+    var u = usersMasterCache[index];
+    if (!u) return;
+
+    document.getElementById("editUserId").value = u.user_id;
+    document.getElementById("editUserIdDisplay").value = u.user_id;
+    document.getElementById("editUserNama").value = u.nama_lengkap || "";
+    document.getElementById("editUserEmail").value = u.email || "";
+    document.getElementById("editUserRole").value = u.role || "Karyawan";
+    document.getElementById("editUserDept").value = u.departemen || "Operations";
+    document.getElementById("editUserSite").value = u.site || "CGK1";
+    document.getElementById("editUserNewPass").value = "";
+
+    document.getElementById("editUserModal").classList.remove("hidden");
+  }
+
+  function closeEditUserModal() {
+    var modal = document.getElementById("editUserModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function handleEditUserSubmit(e) {
+    e.preventDefault();
+
+    var uid = document.getElementById("editUserId").value;
+    var nama = document.getElementById("editUserNama").value.trim();
+    var email = document.getElementById("editUserEmail").value.trim();
+    var role = document.getElementById("editUserRole").value;
+    var dept = document.getElementById("editUserDept").value;
+    var site = document.getElementById("editUserSite").value;
+    var newPass = document.getElementById("editUserNewPass").value.trim();
+
+    if (!uid || !nama || !email) {
+      showToast("Nama dan email pengguna wajib diisi!");
+      return;
+    }
+
+    var payload = {
+      user_id: uid,
+      nama_lengkap: nama,
+      email: email,
+      role: role,
+      departemen: dept,
+      site: site,
+      new_password: newPass
+    };
+
+    var btn = document.getElementById("btnSubmitEditUser");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+
+    callBackend('updateUserByAdmin', [payload], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Perubahan Akun</span>';
+
+      if (res && res.success) {
+        showToast(res.message || "Data akun berhasil diperbarui!");
+        closeEditUserModal();
+        loadUsers();
+        if (typeof loadEmployees === "function") loadEmployees();
+      } else {
+        showToast(res ? res.error : "Gagal memperbarui akun");
+      }
+    });
+  }
+
+  /* =========================================================
+   * MODAL HAPUS USER OLEH SUPER ADMIN
+   * ========================================================= */
+
+  function openDeleteUserModal(index) {
+    var u = usersMasterCache[index];
+    if (!u) return;
+
+    document.getElementById("deleteUserTargetId").value = u.user_id;
+    document.getElementById("deleteUserTargetName").innerText = u.nama_lengkap + " (" + u.role + ")";
+    document.getElementById("deleteUserTargetInfo").innerText = "ID: " + u.user_id + " | Email: " + u.email + " | Site: " + (u.site || "CGK1");
+
+    document.getElementById("deleteUserModal").classList.remove("hidden");
+  }
+
+  function closeDeleteUserModal() {
+    var modal = document.getElementById("deleteUserModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function executeDeleteUserSubmit() {
+    var uid = document.getElementById("deleteUserTargetId").value;
+    if (!uid) return;
+
+    var btn = document.getElementById("btnConfirmDeleteUser");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menghapus...';
+
+    callBackend('deleteUserByAdmin', [uid], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> <span>Hapus Pengguna</span>';
+
+      if (res && res.success) {
+        showToast(res.message || "Akun berhasil dihapus dari sistem.");
+        closeDeleteUserModal();
+        loadUsers();
+        if (typeof loadEmployees === "function") loadEmployees();
+      } else {
+        showToast(res ? res.error : "Gagal menghapus pengguna");
+      }
+    });
+  }
+
+  /* =========================================================
+   * BACKUP & RESTORE CONTROLLER
+   * ========================================================= */
+
+  function handleDownloadBackup() {
+    showToast("Menyiapkan snapshot cadangan seluruh database e-LMS...");
+
+    var btn = document.getElementById("btnDownloadBackupCard");
+    var orig = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> <span>Mengekspor Database...</span>';
+    }
+
+    callBackend('exportFullDatabaseBackup', [], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal mengunduh cadangan database.");
+        return;
+      }
+
+      var jsonStr = JSON.stringify(res, null, 2);
+      var blob = new Blob([jsonStr], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename || "eLMS_KSPS_Backup.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast("Cadangan database " + (res.filename || "") + " (" + res.sheetsCount + " Sheet) berhasil diunduh!");
+    });
+  }
+
+  function handleRestoreDatabaseSubmit() {
+    var fileInput = document.getElementById("restoreFileInput");
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      showToast("Harap pilih berkas cadangan .json terlebih dahulu!");
+      return;
+    }
+
+    var file = fileInput.files[0];
+    var confirmRestore = confirm("PERINGATAN: Apakah Anda yakin ingin memulihkan database dari berkas '" + file.name + "'? Seluruh sheet yang ada di dalam berkas cadangan akan ditimpa dengan data arsip ini.");
+    if (!confirmRestore) return;
+
+    var btn = document.getElementById("btnRestoreSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Membaca Berkas...';
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var content = e.target.result;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menulis ke Spreadsheet...';
+
+      callBackend('restoreDatabaseFromJson', [content], function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-upload"></i> <span>Pulihkan Database Sekarang</span>';
+
+        if (res && res.success) {
+          showToast(res.message || "Database e-LMS berhasil dipulihkan!");
+          fileInput.value = "";
+          loadDashboard();
+          loadCourses(1);
+          loadUsers();
+        } else {
+          showToast(res ? res.error : "Gagal memulihkan database.");
+        }
+      });
+    };
+    reader.onerror = function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-upload"></i> <span>Pulihkan Database Sekarang</span>';
+      showToast("Gagal membaca berkas JSON yang dipilih.");
+    };
+    reader.readAsText(file);
+  }
+
+  function handleSafeCleanSubmit() {
+    var cleanType = document.getElementById("cleanTargetType").value;
+    var secret = document.getElementById("cleanConfirmSecret").value.trim();
+
+    if (secret !== "HAPUS-DATA") {
+      showToast("Kata konfirmasi tidak cocok! Ketik HAPUS-DATA dengan huruf kapital.");
+      return;
+    }
+
+    var labelMapping = {
+      "OVERTIME_AND_KJK": "Hanya Transaksi Riwayat Lembur & KJK",
+      "PROGRESS_AND_MISSIONS": "Hanya Progress Belajar & Penugasan Misi",
+      "EMPLOYEES_ONLY": "Hanya Master Karyawan Non-Admin"
+    };
+
+    var confirmClean = confirm("KONFIRMASI AKHIR: Anda akan membersihkan: " + (labelMapping[cleanType] || cleanType) + ".\n\nMateri Pelatihan dan Bank Soal Kuis Anda DIJAMIN TETAP AMAN.\n\nLanjutkan pembersihan?");
+    if (!confirmClean) return;
+
+    var btn = document.getElementById("btnSafeCleanSubmit");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Membersihkan Data...';
+
+    callBackend('executeSafeCleanDatabase', [cleanType, secret], function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> <span>Eksekusi Pembersihan Selektif</span>';
+
+      if (res && res.success) {
+        showToast(res.message || "Pembersihan berhasil!");
+        document.getElementById("cleanConfirmSecret").value = "";
+        loadDashboard();
+        loadCourses(1);
+        loadUsers();
+        if (typeof loadOvertimeData === "function") loadOvertimeData();
+      } else {
+        showToast(res ? res.error : "Gagal mengeksekusi pembersihan.");
       }
     });
   }
