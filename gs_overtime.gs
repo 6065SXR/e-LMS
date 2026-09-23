@@ -1,7 +1,14 @@
 /**
- * Overtime / Form Lembur & Dedicated KJK Sheet Backend Controller
+ * Overtime / Form Lembur, Multi-Slot Attendance Form & Dedicated KJK Sheet Backend Controller
  * System: e-LMS Data Center KSPS
+ * Update:
+ * 1. Mendukung 3 slot berkas upload (Slot 1: Form Absensi Fix, Slot 2 & 3: Custom Dokumen misal Surat Sakit / Surat Cuti)
+ * 2. Fungsi hapus berkas per-slot jika karyawan salah upload file
+ * 3. Helper penarikan seluruh berkas PDF Base64 untuk Cetak Gabungan
  */
+
+// ID Folder Google Drive target untuk menyimpan berkas upload karyawan
+var ATTENDANCE_FOLDER_ID = "1n289pzwIJ93e-3cTc-w2EazTGc6w_BcY";
 
 /**
  * Memastikan sheet database KJK tersedia dengan struktur kolom presisi
@@ -25,7 +32,41 @@ function ensureKjkSheet() {
 }
 
 /**
- * Memastikan kolom database OVERTIME, USERS, dan EMPLOYEES mendukung TTD & Revisi
+ * Memastikan sheet database ATTENDANCE siap mendukung 3 slot dokumen upload
+ */
+function ensureAttendanceSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("ATTENDANCE");
+  if (!sheet) {
+    sheet = ss.insertSheet("ATTENDANCE");
+    sheet.appendRow([
+      "Attendance ID", "User ID", "Periode", "Slot Key", "Doc Name", "File Name", "File URL", "Created At"
+    ]);
+    var headerRange = sheet.getRange(1, 1, 1, 8);
+    headerRange.setFontWeight("bold");
+    headerRange.setBackground("#1b2559");
+    headerRange.setFontColor("#ffffff");
+    sheet.setFrozenRows(1);
+    SpreadsheetApp.flush();
+  } else {
+    // Memastikan jika ada sheet ATTENDANCE versi lama (6 kolom), dinaikkan menjadi 8 kolom
+    var lastCol = sheet.getLastColumn();
+    if (lastCol < 8 && sheet.getLastRow() > 0) {
+      var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      if (headers.indexOf("Slot Key") === -1) {
+        sheet.getRange(1, 4).setValue("Slot Key");
+        sheet.getRange(1, 5).setValue("Doc Name");
+        sheet.getRange(1, 6).setValue("File Name");
+        sheet.getRange(1, 7).setValue("File URL");
+        sheet.getRange(1, 8).setValue("Created At");
+      }
+    }
+  }
+  return sheet;
+}
+
+/**
+ * Memastikan kolom database OVERTIME, USERS, EMPLOYEES, KJK & ATTENDANCE siap digunakan
  */
 function ensureDatabaseColumns() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -65,8 +106,9 @@ function ensureDatabaseColumns() {
     }
   }
 
-  // 4. Pastikan tab KJK sudah ada
+  // 4. Pastikan tab KJK dan ATTENDANCE sudah ada
   ensureKjkSheet();
+  ensureAttendanceSheet();
 }
 
 function getOvertimeData(userId, monthPeriod) {
@@ -77,10 +119,12 @@ function getOvertimeData(userId, monthPeriod) {
     var userRows = getSheetDisplayValues("USERS");
     var empRows = getSheetDisplayValues("EMPLOYEES");
     var kjkRows = getSheetDisplayValues("KJK");
+    var attendanceRows = getSheetDisplayValues("ATTENDANCE");
 
     var list = [];
     var totalHours = 0;
     var kjkMap = {};
+    var attendanceMap = {};
 
     // 1. Baca data dari sheet khusus KJK
     for (var k = 1; k < kjkRows.length; k++) {
@@ -88,6 +132,39 @@ function getOvertimeData(userId, monthPeriod) {
       var kMonthKey = String(kjkRows[k][6] || "").trim().toLowerCase();
       var kHours = parseFloat(kjkRows[k][5]) || 0;
       kjkMap[kUid + "_" + kMonthKey] = kHours;
+    }
+
+    // 2. Baca data Form Absensi & Dokumen Pendukung (3 Slot) dari sheet ATTENDANCE
+    for (var a = 1; a < attendanceRows.length; a++) {
+      var aUid = attendanceRows[a][1];
+      var aPer = attendanceRows[a][2];
+      if (!period || aPer === period) {
+        if (!attendanceMap[aUid]) {
+          attendanceMap[aUid] = {};
+        }
+
+        // Cek struktur kolom versi baru (8 kolom) vs versi lama (6 kolom)
+        var slotKey = attendanceRows[a][3] || "slot1";
+        var docName = attendanceRows[a][4] || "Form Absensi";
+        var fileName = attendanceRows[a][5] || attendanceRows[a][3] || "Dokumen.pdf";
+        var fileUrl = attendanceRows[a][6] || attendanceRows[a][4] || "#";
+
+        // Jika terdeteksi baris lama di mana kolom 3 adalah nama file
+        if (slotKey.indexOf(".pdf") !== -1 || slotKey.indexOf("Form_") === 0) {
+          fileName = attendanceRows[a][3];
+          fileUrl = attendanceRows[a][4];
+          slotKey = "slot1";
+          docName = "Form Absensi";
+        }
+
+        attendanceMap[aUid][slotKey] = {
+          attendance_id: attendanceRows[a][0],
+          slot_key: slotKey,
+          doc_name: docName,
+          fileName: fileName,
+          fileUrl: fileUrl
+        };
+      }
     }
 
     // Cache user signatures
@@ -107,7 +184,7 @@ function getOvertimeData(userId, monthPeriod) {
       if (epName) empMapByName[epName.toLowerCase()] = epNik;
     }
 
-    // 2. Baca data dari sheet OVERTIME (hanya lembur shift harian murni)
+    // 3. Baca data dari sheet OVERTIME (hanya lembur shift harian murni)
     for (var i = 1; i < overtimeRows.length; i++) {
       var r = overtimeRows[i];
       var uid = r[1];
@@ -189,7 +266,8 @@ function getOvertimeData(userId, monthPeriod) {
       data: list,
       totalHours: Math.round(totalHours * 10) / 10,
       period: period,
-      kjkMap: kjkMap
+      kjkMap: kjkMap,
+      attendanceMap: attendanceMap
     };
   } catch (err) {
     return { success: false, error: err.toString() };
@@ -278,9 +356,206 @@ function saveOvertimeEntry(data) {
   }
 }
 
+function deleteOvertimeEntry(overtimeId, pmUserId) {
+  try {
+    ensureDatabaseColumns();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("OVERTIME");
+    if (!sheet) return { success: false, error: "Sheet OVERTIME tidak ditemukan!" };
+
+    var rows = sheet.getDataRange().getDisplayValues();
+    var targetIdx = -1;
+
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === overtimeId) {
+        targetIdx = i + 1;
+        break;
+      }
+    }
+
+    if (targetIdx === -1) {
+      return { success: false, error: "Data lembur tidak ditemukan atau sudah dihapus!" };
+    }
+
+    sheet.deleteRow(targetIdx);
+    SpreadsheetApp.flush();
+
+    return { 
+      success: true, 
+      message: "Data lembur (" + overtimeId + ") berhasil dihapus!" 
+    };
+  } catch (err) {
+    return { success: false, error: "Gagal menghapus lembur: " + err.toString() };
+  }
+}
+
+/**
+ * Menyimpan Form Absensi & Dokumen Pendukung (3 Slot) ke Google Drive & Database ATTENDANCE
+ */
+function saveAttendanceForm(userId, period, slotKey, docName, fileData) {
+  try {
+    var sheet = ensureAttendanceSheet();
+    var uid = userId || "USR-0003";
+    var per = period || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var sKey = slotKey || "slot1";
+    var dName = docName || (sKey === "slot1" ? "Form Absensi" : "Dokumen Pendukung");
+    
+    if (!fileData || !fileData.base64) {
+      return { success: false, error: "Berkas PDF tidak ditemukan atau kosong!" };
+    }
+
+    var cleanDocName = dName.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
+    var fileName = fileData.name || (cleanDocName + "_" + uid + "_" + per + ".pdf");
+    
+    // Menyimpan file langsung ke folder target spesifik Google Drive
+    var fileUrl = uploadFileToDrive(fileData.base64, fileName, "application/pdf", ATTENDANCE_FOLDER_ID);
+    
+    if (!fileUrl || fileUrl === "#" || fileUrl.indexOf("http") === -1) {
+      return { success: false, error: "Gagal menyimpan berkas ke folder Google Drive target!" };
+    }
+
+    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+
+    var rows = sheet.getDataRange().getDisplayValues();
+    var foundIdx = -1;
+    for (var i = 1; i < rows.length; i++) {
+      var rSlot = rows[i][3] || "slot1";
+      if (rows[i][1] === uid && rows[i][2] === per && rSlot === sKey) {
+        foundIdx = i + 1;
+        break;
+      }
+    }
+
+    if (foundIdx > -1) {
+      sheet.getRange(foundIdx, 4).setValue(sKey);
+      sheet.getRange(foundIdx, 5).setValue(dName);
+      sheet.getRange(foundIdx, 6).setValue(fileName);
+      sheet.getRange(foundIdx, 7).setValue(fileUrl);
+      sheet.getRange(foundIdx, 8).setValue(dateStr);
+    } else {
+      var nextId = generateSequentialId("ATTENDANCE", "ATT");
+      sheet.appendRow([nextId, uid, per, sKey, dName, fileName, fileUrl, dateStr]);
+    }
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      message: dName + " berhasil disimpan ke sistem dan Google Drive!",
+      slotKey: sKey,
+      docName: dName,
+      fileUrl: fileUrl,
+      fileName: fileName
+    };
+  } catch (err) {
+    return { success: false, error: "Gagal mengunggah berkas: " + err.toString() };
+  }
+}
+
+/**
+ * Menghapus berkas upload form absensi atau dokumen pendukung per-slot
+ */
+function deleteAttendanceFile(userId, period, slotKey) {
+  try {
+    var sheet = ensureAttendanceSheet();
+    var uid = userId || "USR-0003";
+    var per = period || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var sKey = slotKey || "slot1";
+
+    var rows = sheet.getDataRange().getDisplayValues();
+    var targetIdx = -1;
+    var fileUrl = "";
+    var docName = "";
+
+    for (var i = 1; i < rows.length; i++) {
+      var rSlot = rows[i][3] || "slot1";
+      if (rows[i][1] === uid && rows[i][2] === per && rSlot === sKey) {
+        targetIdx = i + 1;
+        docName = rows[i][4] || "Dokumen";
+        fileUrl = rows[i][6] || rows[i][4] || "";
+        break;
+      }
+    }
+
+    if (targetIdx === -1) {
+      return { success: false, error: "Berkas tidak ditemukan atau sudah dihapus sebelumnya." };
+    }
+
+    // Coba hapus file dari Google Drive jika ada fileId valid
+    if (fileUrl && fileUrl.indexOf("drive.google.com") !== -1) {
+      try {
+        var matchId = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          DriveApp.getFileById(matchId[1]).setTrashed(true);
+        }
+      } catch (driveErr) {
+        Logger.log("Info penghapusan file Drive: " + driveErr.toString());
+      }
+    }
+
+    sheet.deleteRow(targetIdx);
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      message: (docName || "Berkas") + " berhasil dihapus dari sistem!",
+      slotKey: sKey
+    };
+  } catch (err) {
+    return { success: false, error: "Gagal menghapus berkas: " + err.toString() };
+  }
+}
+
+/**
+ * Helper mengambil seluruh stream Base64 dokumen terupload (3 Slot) untuk Cetak Gabungan
+ */
+function getAllAttendancePdfsBase64(userId, period) {
+  try {
+    ensureAttendanceSheet();
+    var attendanceRows = getSheetDisplayValues("ATTENDANCE");
+    var resultFiles = [];
+
+    for (var a = 1; a < attendanceRows.length; a++) {
+      var aUid = attendanceRows[a][1];
+      var aPer = attendanceRows[a][2];
+
+      if (aUid === userId && aPer === period) {
+        var slotKey = attendanceRows[a][3] || "slot1";
+        var docName = attendanceRows[a][4] || "Form Absensi";
+        var fileUrl = attendanceRows[a][6] || attendanceRows[a][4] || "";
+
+        // Backward compatibility jika baris lama
+        if (slotKey.indexOf(".pdf") !== -1 || slotKey.indexOf("Form_") === 0) {
+          fileUrl = attendanceRows[a][4];
+          slotKey = "slot1";
+          docName = "Form Absensi";
+        }
+
+        if (fileUrl && fileUrl !== "#" && fileUrl.indexOf("http") !== -1) {
+          var pdfRes = getPdfBase64(fileUrl);
+          if (pdfRes && pdfRes.success && pdfRes.base64) {
+            resultFiles.push({
+              slotKey: slotKey,
+              docName: docName,
+              fileName: attendanceRows[a][5] || "Dokumen.pdf",
+              fileUrl: fileUrl,
+              base64: pdfRes.base64
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      files: resultFiles
+    };
+  } catch (err) {
+    return { success: false, error: err.toString(), files: [] };
+  }
+}
+
 /**
  * Menyimpan data KJK langsung ke sheet khusus KJK
- * Kolom: KJK ID, User ID, NIK, Nama Lengkap, Site, Total Jam KJK, Bulan, Created At
  */
 function saveKjkEntry(data) {
   try {
@@ -292,7 +567,6 @@ function saveKjkEntry(data) {
     var monthName = String(data.bulan || "September").trim();
     var totalKjk = parseFloat(data.total_kjk) || 0;
 
-    // Cari NIK, Nama Lengkap, dan Site karyawan dari sheet EMPLOYEES
     var empNik = "-", empName = "-", empSite = "CGK1";
     for (var e = 1; e < empRows.length; e++) {
       if (empRows[e][1] === uid) {
@@ -356,10 +630,6 @@ function saveKjkEntry(data) {
   }
 }
 
-/**
- * Mengambil data KJK per Site dan per Bulan untuk diekspor Excel oleh Project Manager
- * Format output: NIK, Employee (Huruf KAPITAL SEMUA), Amount (Total KJK)
- */
 function getKjkExportData(site, monthName) {
   try {
     ensureKjkSheet();
@@ -368,7 +638,6 @@ function getKjkExportData(site, monthName) {
     var targetSite = (site || "ALL").trim();
     var targetMonth = String(monthName || "").trim().toLowerCase();
 
-    // Petakan nilai KJK berdasarkan user_id untuk bulan yang dipilih
     var kjkMapByUid = {};
     for (var k = 1; k < kjkRows.length; k++) {
       var rMonth = String(kjkRows[k][6] || "").trim().toLowerCase();
@@ -383,7 +652,7 @@ function getKjkExportData(site, monthName) {
     for (var e = 1; e < empRows.length; e++) {
       var eUid = empRows[e][1];
       var eNik = empRows[e][2] || "-";
-      var eName = String(empRows[e][3] || "").trim().toUpperCase(); // Format KAPITAL SEMUA
+      var eName = String(empRows[e][3] || "").trim().toUpperCase();
       var eSite = empRows[e][10] || "CGK1";
 
       if (targetSite === "ALL" || eSite === targetSite) {
