@@ -2,11 +2,76 @@
   /**
    * Authentication & Role Session Management & Profile Dropdown Controller (Production Ready)
    * System: e-LMS Data Center KSPS
-   * Catatan: Seluruh simulasi bypass dan registrasi mandiri telah dibersihkan untuk peluncuran resmi.
+   * Pembaruan:
+   * 1. Auto-logout jika inaktif selama 2 jam berturut-turut. Tetap aktif jika ada interaksi.
+   * 2. Toggle lihat / sembunyikan password pada form login.
    */
+
+  var INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000; // Tepat 2 Jam (7.200.000 ms)
+  var inactivityCheckTimer = null;
+  var lastActivityRecorded = 0;
+
+  /**
+   * Memperbarui timestamp aktivitas terakhir di localStorage
+   */
+  function recordUserActivity() {
+    var now = Date.now();
+    // Throttle penulisan agar maksimal 1 kali per 10 detik guna menghemat resource
+    if (now - lastActivityRecorded > 10000) {
+      lastActivityRecorded = now;
+      localStorage.setItem("elms_last_activity", String(now));
+    }
+  }
+
+  function handleUserInteractionEvent() {
+    if (currentUser) {
+      recordUserActivity();
+    }
+  }
+
+  /**
+   * Mengaktifkan pelacak aktivitas (Mouse, Keyboard, Touch, Scroll)
+   */
+  function startInactivityTracker() {
+    stopInactivityTracker();
+    recordUserActivity();
+
+    var activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(function(evt) {
+      window.addEventListener(evt, handleUserInteractionEvent, { passive: true });
+    });
+
+    // Pengecekan rutin setiap 30 detik
+    inactivityCheckTimer = setInterval(function() {
+      if (!currentUser) {
+        stopInactivityTracker();
+        return;
+      }
+      var last = parseInt(localStorage.getItem("elms_last_activity"), 10) || Date.now();
+      if (Date.now() - last >= INACTIVITY_TIMEOUT_MS) {
+        logoutUser(true); // Auto-logout karena inaktif 2 jam
+      }
+    }, 30000);
+  }
+
+  /**
+   * Menghentikan pelacak aktivitas saat pengguna logout
+   */
+  function stopInactivityTracker() {
+    if (inactivityCheckTimer) {
+      clearInterval(inactivityCheckTimer);
+      inactivityCheckTimer = null;
+    }
+    var activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(function(evt) {
+      window.removeEventListener(evt, handleUserInteractionEvent);
+    });
+  }
 
   function checkUserSession() {
     var savedUser = localStorage.getItem("elms_session");
+    var lastActivity = parseInt(localStorage.getItem("elms_last_activity"), 10);
+
     if (savedUser) {
       try {
         currentUser = JSON.parse(savedUser);
@@ -16,10 +81,17 @@
     }
     
     if (currentUser) {
+      // Cek apakah jeda inaktivitas melebihi 2 jam saat aplikasi dibuka kembali
+      if (lastActivity && (Date.now() - lastActivity >= INACTIVITY_TIMEOUT_MS)) {
+        logoutUser(true);
+        return;
+      }
+
       document.getElementById("authOverlay").classList.add("hidden");
       updateUIForUser();
       loadDashboard();
       loadCourses(1);
+      startInactivityTracker();
     } else {
       document.getElementById("authOverlay").classList.remove("hidden");
     }
@@ -41,6 +113,8 @@
       if (res.success) {
         currentUser = res.user;
         localStorage.setItem("elms_session", JSON.stringify(currentUser));
+        startInactivityTracker();
+
         document.getElementById("authOverlay").classList.add("hidden");
         showToast("Selamat datang kembali di Portal KSPS, " + currentUser.name);
         updateUIForUser();
@@ -52,11 +126,50 @@
     });
   }
 
-  function logoutUser() {
+  /**
+   * Toggle Lihat / Sembunyikan Password pada form login
+   */
+  function toggleLoginPasswordEye() {
+    var passInput = document.getElementById("loginPassword");
+    var eyeIcon = document.getElementById("loginEyeIcon");
+    if (!passInput) return;
+
+    if (passInput.type === "password") {
+      passInput.type = "text";
+      if (eyeIcon) {
+        eyeIcon.classList.remove("fa-eye");
+        eyeIcon.classList.add("fa-eye-slash");
+      }
+    } else {
+      passInput.type = "password";
+      if (eyeIcon) {
+        eyeIcon.classList.remove("fa-eye-slash");
+        eyeIcon.classList.add("fa-eye");
+      }
+    }
+  }
+
+  function logoutUser(isAutoLogout) {
+    stopInactivityTracker();
     closeProfileDropdown();
     localStorage.removeItem("elms_session");
+    localStorage.removeItem("elms_last_activity");
     currentUser = null;
+
+    // Reset visibilitas password ke mode hidden
+    var passInput = document.getElementById("loginPassword");
+    var eyeIcon = document.getElementById("loginEyeIcon");
+    if (passInput) passInput.type = "password";
+    if (eyeIcon) {
+      eyeIcon.classList.remove("fa-eye-slash");
+      eyeIcon.classList.add("fa-eye");
+    }
+
     document.getElementById("authOverlay").classList.remove("hidden");
+
+    if (isAutoLogout === true) {
+      showToast("Sesi Anda telah berakhir karena tidak ada aktivitas selama 2 jam. Silakan login kembali.");
+    }
   }
 
   function getUserInitials(name) {
@@ -94,10 +207,6 @@
       adminElems.forEach(function(el) { el.classList.remove('hidden'); });
     }
   }
-
-  /* =========================================================
-   * REVISI POIN 2: PROFILE DROPDOWN MENU & CHANGE PASSWORD
-   * ========================================================= */
 
   function toggleProfileDropdown(e) {
     if (e) e.stopPropagation();
