@@ -33,7 +33,10 @@
 
       <div class="relative">
         <input type="password" id="loginPassword" required placeholder="Password" class="glass-input w-full px-4 py-3 rounded-xl text-sm pr-10">
-        <i class="fa-solid fa-lock absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60"></i>
+        <!-- TOMBOL LIHAT / SEMBUNYIKAN PASSWORD -->
+        <button type="button" onclick="toggleLoginPasswordEye()" class="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white transition focus:outline-none p-1 cursor-pointer" title="Lihat / Sembunyikan Password">
+          <i class="fa-solid fa-eye text-sm" id="loginEyeIcon"></i>
+        </button>
       </div>
 
       <div class="flex items-center justify-between text-xs text-white/80 pt-1">
@@ -100,7 +103,7 @@
         <i class="fa-solid fa-users-gear w-5"></i>
         <span>Manajemen User</span>
       </button>
-      <!-- MENU BARU SUPER ADMIN: BACKUP & RESTORE -->
+      <!-- MENU SUPER ADMIN: BACKUP & RESTORE -->
       <button type="button" onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
         <i class="fa-solid fa-database w-5 text-indigo-600"></i>
         <span>Backup &amp; Restore</span>
