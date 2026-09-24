@@ -51,7 +51,6 @@
     </div>
   </header>
 
-  <!-- KONTEN UTAMA APLIKASI -->
   <div class="p-6 space-y-6 flex-1 overflow-y-auto">
 
     <!-- VIEW 1: DASHBOARD -->
@@ -617,18 +616,30 @@
         <!-- TABEL DOKUMEN & RIWAYAT LEMBUR -->
         <div id="ovtTableContainer" class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4 border border-slate-100 flex flex-col justify-between">
           <div class="space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h3 class="font-bold text-[#1C1B8E] text-base">Riwayat &amp; Akumulasi Lembur Bulanan</h3>
-                <p class="text-xs text-slate-500">Daftar rincian lembur, status persetujuan, dan tindakan revisi</p>
+                <h3 class="font-bold text-[#1C1B8E] text-base" id="ovtTableCardTitle">Riwayat &amp; Akumulasi Lembur Bulanan</h3>
+                <p class="text-xs text-slate-500" id="ovtTableCardSubtitle">Daftar rincian lembur, status persetujuan, dan tindakan revisi</p>
               </div>
-              <div class="bg-indigo-50 text-[#1C1B8E] px-4 py-2 rounded-xl text-right border border-indigo-100">
-                <p class="text-[10px] font-semibold uppercase text-slate-500">Total Akumulasi</p>
-                <p class="text-base font-extrabold" id="ovtTotalMonthHours">0 Jam</p>
+
+              <!-- SUB-MENU / TABS: TOTAL KJK & TOTAL AKUMULASI (INTERAKTIF UNTUK ROLE PM) -->
+              <div class="flex items-center space-x-2 self-start sm:self-auto flex-shrink-0">
+                <!-- Tab TOTAL KJK (Area Hijau: Klik untuk melihat rekapitulasi KJK Karyawan) -->
+                <button type="button" id="subtabKjkBtn" onclick="switchOvertimeSubTab('kjk')" class="hidden role-pm role-admin p-2 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 text-right transition cursor-pointer group shadow-xs" title="Klik untuk menampilkan Tabel Rekapitulasi KJK Karyawan">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-700" id="subtabKjkLabel">Total KJK</p>
+                  <p class="text-base font-extrabold text-slate-700 group-hover:text-amber-800" id="ovtCardKjkHours">0 Jam</p>
+                </button>
+
+                <!-- Tab TOTAL AKUMULASI LEMBUR (Area Merah: Default Aktif, Klik untuk tabel lembur) -->
+                <button type="button" id="subtabOvtBtn" onclick="switchOvertimeSubTab('overtime')" class="p-2 px-3.5 rounded-xl border-2 border-[#1C1B8E] bg-indigo-50 text-right transition cursor-pointer group shadow-xs" title="Klik untuk menampilkan Tabel Riwayat Lembur">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-[#1C1B8E]" id="subtabOvtLabel">Total Akumulasi</p>
+                  <p class="text-base font-extrabold text-[#1C1B8E]" id="ovtTotalMonthHours">0 Jam</p>
+                </button>
               </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- TABEL 1: DAFTAR RINCIAN LEMBUR (OVERTIME TRANSAKSI HARIAN) -->
+            <div id="ovtTableWrapper" class="overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -646,12 +657,31 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- TABEL 2: DAFTAR KARYAWAN & TOTAL JAM KJK (SUB-MENU KJK) -->
+            <div id="kjkTableWrapper" class="overflow-x-auto hidden">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-amber-50/70 border-b border-amber-200 text-xs font-bold text-amber-900 uppercase tracking-wider">
+                    <th class="py-3 px-3 w-10 text-center">NO.</th>
+                    <th class="py-3 px-3">NIK</th>
+                    <th class="py-3 px-3">NAMA KARYAWAN</th>
+                    <th class="py-3 px-3 text-center">SITE</th>
+                    <th class="py-3 px-3 text-center">PERIODE BULAN</th>
+                    <th class="py-3 px-3 text-center">TOTAL JAM KJK</th>
+                    <th class="py-3 px-3 text-center">STATUS KJK</th>
+                  </tr>
+                </thead>
+                <tbody id="kjkTableBody" class="text-xs text-slate-900 divide-y divide-slate-100">
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- FOOTER: CATATAN VALIDASI & KONTROL PAGINASI DINAMIS (1-10) -->
           <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <div>
-              <p><i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i> Rekap dan Surat Tugas otomatis memuat TTD Digital Karyawan &amp; PM setelah di-approve.</p>
+              <p id="ovtFooterNote"><i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i> Rekap dan Surat Tugas otomatis memuat TTD Digital Karyawan &amp; PM setelah di-approve.</p>
               <p id="ovtPaginationInfo" class="text-[11px] text-slate-500 mt-1 font-medium"></p>
             </div>
             <div class="flex items-center space-x-1.5" id="ovtPaginationControls">
