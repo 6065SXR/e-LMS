@@ -8,6 +8,20 @@
     --muted-grey: #64748B;
   }
 
+  html {
+    background-color: #f8fafc;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #f8fafc;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
   .bg-ksps-blue { background-color: #1C1B8E; }
   .text-ksps-blue { color: #1C1B8E; }
   .border-ksps-blue { border-color: #1C1B8E; }
@@ -112,22 +126,25 @@
     border-left: 4px solid #1C1B8E;
   }
 
+  /* MOBILE FLOATING NAVIGATION BAR */
   .floating-bottom-nav {
     position: fixed;
-    bottom: 1rem;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    border: 1px solid rgba(226, 232, 240, 0.85);
     border-radius: 2rem;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.9rem;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
-    box-shadow: 0 10px 30px rgba(28, 27, 142, 0.15);
+    gap: 1rem;
+    box-shadow: 0 10px 28px rgba(28, 27, 142, 0.16);
     z-index: 40;
+    width: max-content;
+    max-width: calc(100vw - 1.5rem);
   }
 
   .floating-nav-item {
@@ -159,6 +176,18 @@
   .active-mobile-nav {
     color: #1C1B8E !important;
     font-weight: 700;
+  }
+
+  /* Padding buffer mobile agar konten paling bawah tidak tertutup floating bottom nav */
+  @media (max-width: 767px) {
+    #view-dashboard, 
+    #view-katalog, 
+    #view-karyawan, 
+    #view-misi, 
+    #view-overtime, 
+    #view-users {
+      padding-bottom: 5.5rem;
+    }
   }
 
   .btn-primary {
