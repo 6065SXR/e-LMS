@@ -1,0 +1,347 @@
+<script>
+  /**
+   * =========================================================
+   * SUB-MODUL 1: OVERTIME CORE, STATE, FILTERS & TAB ENGINE
+   * System: e-LMS Data Center KSPS
+   * Responsibility: Global Variables, Data Loader, PM Cascading Filters,
+   * Sub-Menu Tab Switcher, and Overtime Hour Calculators.
+   * =========================================================
+   */
+
+  var currentOvertimeCache = [];
+  var currentFilteredOvertimeCache = [];
+  var overtimeMasterEmployees = [];
+  var currentKjkMap = {};
+  var currentAttendanceMap = {};
+  
+  // State Navigasi Paginasi & Sub-Tab
+  var currentOvertimeSubTab = 'overtime'; // Nilai: 'overtime' atau 'kjk'
+  var currentOvtPage = 1;
+  var ovtItemsPerPage = 10;
+  var currentKjkPage = 1;
+  var kjkItemsPerPage = 10;
+
+  function UtilitiesFormatDateMonth() {
+    var d = new Date();
+    var month = '' + (d.getMonth() + 1);
+    var year = d.getFullYear();
+    if (month.length < 2) month = '0' + month;
+    return year + '-' + month;
+  }
+
+  function getOvertimeItem(idx) {
+    if (currentFilteredOvertimeCache && currentFilteredOvertimeCache[idx]) {
+      return currentFilteredOvertimeCache[idx];
+    }
+    return currentOvertimeCache[idx];
+  }
+
+  function calculateOvertimeHours() {
+    var startVal = document.getElementById("ovtStart").value;
+    var finishVal = document.getElementById("ovtFinish").value;
+    var displayEl = document.getElementById("ovtTotalHoursDisplay");
+    var hiddenInput = document.getElementById("ovtTotalHoursInput");
+
+    if (!startVal || !finishVal) {
+      if (displayEl) displayEl.innerText = "0 Jam";
+      if (hiddenInput) hiddenInput.value = "0";
+      return;
+    }
+
+    var start = new Date("1970-01-01T" + startVal + ":00");
+    var finish = new Date("1970-01-01T" + finishVal + ":00");
+
+    var diffMs = finish - start;
+    if (diffMs < 0) {
+      diffMs += 24 * 60 * 60 * 1000;
+    }
+
+    var diffHours = diffMs / (1000 * 60 * 60);
+    diffHours = Math.round(diffHours * 10) / 10;
+
+    if (displayEl) displayEl.innerText = diffHours + " Jam";
+    if (hiddenInput) hiddenInput.value = diffHours;
+  }
+
+  function loadOvertimeData() {
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    var userId = isKaryawan ? currentUser.user_id : 'ALL';
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    // Kontrol visibilitas tombol aksi berdasarkan role
+    var karyawanButtons = document.querySelectorAll(".role-karyawan");
+    karyawanButtons.forEach(function(el) {
+      if (isKaryawan) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+    });
+
+    var pmButtons = document.querySelectorAll(".role-pm");
+    pmButtons.forEach(function(el) {
+      if (!isKaryawan) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+    });
+
+    // Kontrol Subtab KJK di pojok kanan kartu (khusus PM / Super Admin)
+    var subtabKjkBtn = document.getElementById("subtabKjkBtn");
+    if (subtabKjkBtn) {
+      if (!isKaryawan) subtabKjkBtn.classList.remove("hidden");
+      else subtabKjkBtn.classList.add("hidden");
+    }
+
+    // Penyesuaian grid layout agar tabel riwayat full-width untuk PM
+    var formCol = document.getElementById("ovtFormContainer");
+    var tableCol = document.getElementById("ovtTableContainer");
+
+    if (isKaryawan) {
+      if (formCol) formCol.classList.remove("hidden");
+      if (tableCol) {
+        tableCol.classList.remove("lg:col-span-3", "col-span-full");
+        tableCol.classList.add("lg:col-span-2");
+      }
+    } else {
+      if (formCol) formCol.classList.add("hidden");
+      if (tableCol) {
+        tableCol.classList.remove("lg:col-span-2");
+        tableCol.classList.add("lg:col-span-3", "col-span-full");
+      }
+    }
+
+    if (!isKaryawan && overtimeMasterEmployees.length === 0) {
+      callBackend('getEmployeesList', [], function(empRes) {
+        if (empRes && empRes.success) {
+          overtimeMasterEmployees = empRes.data || [];
+          populatePmEmployeeDropdown("ALL");
+        }
+      });
+    }
+
+    callBackend('getOvertimeData', [userId, period], function(res) {
+      if (res && res.success) {
+        currentOvertimeCache = res.data || [];
+        if (res.kjkMap) currentKjkMap = res.kjkMap;
+        if (res.attendanceMap) {
+          currentAttendanceMap = res.attendanceMap;
+          if (typeof updateAttendanceBadgeUI === 'function') {
+            updateAttendanceBadgeUI(isKaryawan ? currentUser.user_id : "");
+          }
+        }
+
+        if (!isKaryawan && overtimeMasterEmployees.length === 0 && currentOvertimeCache.length > 0) {
+          var uniqueEmps = {};
+          currentOvertimeCache.forEach(function(item) {
+            if (item.user_id && !uniqueEmps[item.user_id]) {
+              uniqueEmps[item.user_id] = {
+                user_id: item.user_id,
+                nama_lengkap: item.nama_lengkap,
+                site: item.site || "CGK1",
+                nik: item.nik || "-",
+                departemen: item.departemen || "Operations"
+              };
+            }
+          });
+          overtimeMasterEmployees = Object.values(uniqueEmps);
+          populatePmEmployeeDropdown(document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL");
+        }
+
+        applyOvertimeFilters();
+      }
+    });
+  }
+
+  function populatePmEmployeeDropdown(selectedSite) {
+    var empSelect = document.getElementById("overtimeEmployeeFilter");
+    if (!empSelect) return;
+
+    var currentVal = empSelect.value || "ALL";
+    empSelect.innerHTML = '<option value="ALL">Semua Karyawan</option>';
+
+    var filtered = overtimeMasterEmployees;
+    if (selectedSite && selectedSite !== "ALL") {
+      filtered = overtimeMasterEmployees.filter(function(emp) {
+        return (emp.site === selectedSite);
+      });
+    }
+
+    filtered.forEach(function(emp) {
+      var opt = document.createElement("option");
+      opt.value = emp.user_id;
+      opt.innerText = emp.nama_lengkap + " (" + (emp.site || 'Site') + ")";
+      empSelect.appendChild(opt);
+    });
+
+    var stillExists = Array.from(empSelect.options).some(function(o) { return o.value === currentVal; });
+    empSelect.value = stillExists ? currentVal : "ALL";
+  }
+
+  function handleOvertimeSiteChange() {
+    var siteVal = document.getElementById("overtimeSiteFilter").value;
+    populatePmEmployeeDropdown(siteVal);
+    applyOvertimeFilters();
+  }
+
+  function handleOvertimeEmployeeChange() {
+    applyOvertimeFilters();
+  }
+
+  function applyOvertimeFilters() {
+    var isKaryawan = (currentUser && currentUser.role === 'Karyawan');
+    
+    if (isKaryawan) {
+      currentFilteredOvertimeCache = currentOvertimeCache.slice();
+    } else {
+      var siteVal = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+      var empVal = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+      currentFilteredOvertimeCache = currentOvertimeCache.filter(function(item) {
+        var matchSite = (siteVal === "ALL" || item.site === siteVal);
+        var matchEmp = (empVal === "ALL" || item.user_id === empVal);
+        return matchSite && matchEmp;
+      });
+    }
+
+    // 1. Hitung Total Akumulasi Jam Lembur
+    var totalHrs = 0;
+    currentFilteredOvertimeCache.forEach(function(item) {
+      totalHrs += (parseFloat(item.total_jam) || 0);
+    });
+    totalHrs = Math.round(totalHrs * 10) / 10;
+
+    // 2. Hitung Total Jam KJK tersinkronisasi dinamis dengan filter Periode, Site & Karyawan
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var parts = periodVal.split("-");
+    var monthNum = parseInt(parts[1], 10) || 9;
+    var monthNamesEn = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    var monthKey = monthNamesEn[monthNum - 1] || "september";
+
+    var totalKjkSum = 0;
+    var targetUsersForKjk = [];
+
+    if (isKaryawan) {
+      targetUsersForKjk = [currentUser ? currentUser.user_id : 'USR-0003'];
+    } else {
+      var siteVal2 = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+      var empVal2 = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+      if (overtimeMasterEmployees && overtimeMasterEmployees.length > 0) {
+        overtimeMasterEmployees.forEach(function(emp) {
+          var matchSite = (siteVal2 === "ALL" || emp.site === siteVal2);
+          var matchEmp = (empVal2 === "ALL" || emp.user_id === empVal2);
+          if (matchSite && matchEmp) {
+            targetUsersForKjk.push(emp.user_id);
+          }
+        });
+      } else {
+        var seen = {};
+        currentOvertimeCache.forEach(function(item) {
+          var matchSite = (siteVal2 === "ALL" || item.site === siteVal2);
+          var matchEmp = (empVal2 === "ALL" || item.user_id === empVal2);
+          if (matchSite && matchEmp && item.user_id && !seen[item.user_id]) {
+            seen[item.user_id] = true;
+            targetUsersForKjk.push(item.user_id);
+          }
+        });
+      }
+    }
+
+    targetUsersForKjk.forEach(function(uid) {
+      var mapKey = uid + "_" + monthKey;
+      if (currentKjkMap && currentKjkMap[mapKey] !== undefined) {
+        totalKjkSum += (parseFloat(currentKjkMap[mapKey]) || 0);
+      }
+    });
+    totalKjkSum = Math.round(totalKjkSum * 10) / 10;
+
+    // Perbarui badge angka jam di Toolbar dan Card Header
+    var totalKjkEl = document.getElementById("ovtTotalKjkToolbar");
+    if (totalKjkEl) totalKjkEl.innerText = totalKjkSum + " Jam";
+
+    var cardKjkEl = document.getElementById("ovtCardKjkHours");
+    if (cardKjkEl) cardKjkEl.innerText = totalKjkSum + " Jam";
+
+    var totalHoursEl = document.getElementById("ovtTotalMonthHours");
+    if (totalHoursEl) totalHoursEl.innerText = totalHrs + " Jam";
+
+    var toolbarHoursEl = document.getElementById("ovtTotalMonthHoursToolbar");
+    if (toolbarHoursEl) toolbarHoursEl.innerText = totalHrs + " Jam";
+
+    // Reset paginasi ke halaman 1 saat filter berubah
+    currentOvtPage = 1;
+    currentKjkPage = 1;
+
+    // Render tabel aktif sesuai sub-tab terpilih
+    if (currentOvertimeSubTab === 'kjk') {
+      if (typeof renderKjkTable === 'function') renderKjkTable();
+    } else {
+      if (typeof renderOvertimeTable === 'function') renderOvertimeTable(currentFilteredOvertimeCache);
+    }
+  }
+
+  function switchOvertimeSubTab(targetTab) {
+    currentOvertimeSubTab = targetTab;
+
+    var subtabKjkBtn = document.getElementById("subtabKjkBtn");
+    var subtabOvtBtn = document.getElementById("subtabOvtBtn");
+    var subtabKjkLabel = document.getElementById("subtabKjkLabel");
+    var subtabOvtLabel = document.getElementById("subtabOvtLabel");
+    var cardKjkVal = document.getElementById("ovtCardKjkHours");
+    var cardOvtVal = document.getElementById("ovtTotalMonthHours");
+
+    var ovtWrapper = document.getElementById("ovtTableWrapper");
+    var kjkWrapper = document.getElementById("kjkTableWrapper");
+    var cardTitle = document.getElementById("ovtTableCardTitle");
+    var cardSubtitle = document.getElementById("ovtTableCardSubtitle");
+
+    if (targetTab === 'kjk') {
+      // 1. Ubah Gaya Tab KJK menjadi Aktif (Highlight Amber)
+      if (subtabKjkBtn) {
+        subtabKjkBtn.className = "p-2 px-3.5 rounded-xl border-2 border-amber-500 bg-amber-50 text-right transition cursor-pointer shadow-xs";
+      }
+      if (subtabKjkLabel) subtabKjkLabel.className = "text-[10px] font-bold uppercase tracking-wider text-amber-800";
+      if (cardKjkVal) cardKjkVal.className = "text-base font-extrabold text-amber-900";
+
+      // 2. Ubah Gaya Tab Lembur menjadi Tidak Aktif
+      if (subtabOvtBtn) {
+        subtabOvtBtn.className = "p-2 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-right transition cursor-pointer group shadow-xs";
+      }
+      if (subtabOvtLabel) subtabOvtLabel.className = "text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#1C1B8E]";
+      if (cardOvtVal) cardOvtVal.className = "text-base font-extrabold text-slate-700 group-hover:text-[#1C1B8E]";
+
+      // 3. Tampilkan Tabel KJK & Sembunyikan Tabel Lembur
+      if (ovtWrapper) ovtWrapper.classList.add("hidden");
+      if (kjkWrapper) kjkWrapper.classList.remove("hidden");
+
+      if (cardTitle) cardTitle.innerText = "Rekapitulasi Kelebihan Jam Kerja (KJK) Karyawan";
+      if (cardSubtitle) cardSubtitle.innerText = "Daftar karyawan dan total jam KJK yang tercatat pada periode terpilih";
+
+      currentKjkPage = 1;
+      if (typeof renderKjkTable === 'function') renderKjkTable();
+
+    } else {
+      // 1. Ubah Gaya Tab Lembur menjadi Aktif (Highlight Biru KSPS)
+      if (subtabOvtBtn) {
+        subtabOvtBtn.className = "p-2 px-3.5 rounded-xl border-2 border-[#1C1B8E] bg-indigo-50 text-right transition cursor-pointer shadow-xs";
+      }
+      if (subtabOvtLabel) subtabOvtLabel.className = "text-[10px] font-bold uppercase tracking-wider text-[#1C1B8E]";
+      if (cardOvtVal) cardOvtVal.className = "text-base font-extrabold text-[#1C1B8E]";
+
+      // 2. Ubah Gaya Tab KJK menjadi Tidak Aktif
+      if (subtabKjkBtn) {
+        subtabKjkBtn.className = "p-2 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 text-right transition cursor-pointer group shadow-xs";
+      }
+      if (subtabKjkLabel) subtabKjkLabel.className = "text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-700";
+      if (cardKjkVal) cardKjkVal.className = "text-base font-extrabold text-slate-700 group-hover:text-amber-800";
+
+      // 3. Tampilkan Tabel Lembur & Sembunyikan Tabel KJK
+      if (kjkWrapper) kjkWrapper.classList.add("hidden");
+      if (ovtWrapper) ovtWrapper.classList.remove("hidden");
+
+      if (cardTitle) cardTitle.innerText = "Riwayat & Akumulasi Lembur Bulanan";
+      if (cardSubtitle) cardSubtitle.innerText = "Daftar rincian lembur, status persetujuan, dan tindakan revisi";
+
+      currentOvtPage = 1;
+      if (typeof renderOvertimeTable === 'function') renderOvertimeTable(currentFilteredOvertimeCache);
+    }
+  }
+</script>
