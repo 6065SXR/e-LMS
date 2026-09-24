@@ -1,30 +1,42 @@
-<main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-  <header class="bg-white border-b border-slate-200/80 p-4 px-6 flex items-center justify-between flex-shrink-0">
-    <div class="flex items-center space-x-4 flex-1 max-w-md">
-      <div class="relative w-full">
+<main class="flex-1 flex flex-col min-w-0 min-h-screen bg-slate-50">
+  <!-- HEADER APLIKASI (RESPONSIF MOBILE & DESKTOP) -->
+  <header class="bg-white border-b border-slate-200/80 p-3 sm:p-4 px-4 sm:px-6 flex items-center justify-between flex-shrink-0 relative z-30">
+    
+    <!-- SISI KIRI: BRANDING MOBILE & PENCARIAN DESKTOP -->
+    <div class="flex items-center space-x-3 flex-1 max-w-md">
+      <!-- Logo / Nama Brand Khusus Mobile (Agar sisi kiri atas tidak kosong) -->
+      <div class="flex items-center space-x-2 md:hidden">
+        <div class="w-8 h-8 rounded-lg bg-[#1C1B8E] text-white flex items-center justify-center font-extrabold text-xs shadow-xs">
+          K
+        </div>
+        <span class="font-extrabold text-sm text-[#1C1B8E] tracking-tight">e-LMS KSPS</span>
+      </div>
+
+      <!-- Input Pencarian (Tampil di Desktop & Tablet) -->
+      <div class="relative w-full hidden md:block">
         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
         <input type="text" id="globalSearchInput" onkeyup="handleSearch()" placeholder="Cari materi Data Center KSPS..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#1C1B8E] transition">
       </div>
     </div>
 
-    <div class="flex items-center space-x-3">
-      <!-- PROFILE CARD DENGAN DROPDOWN MENU INTERAKTIF -->
+    <!-- SISI KANAN: PROFILE CARD TERKUNCI DI POJOK KANAN ATAS (ML-AUTO) -->
+    <div class="flex items-center space-x-3 ml-auto flex-shrink-0">
       <div class="relative" id="profileDropdownContainer">
-        <button type="button" onclick="toggleProfileDropdown(event)" class="flex items-center space-x-3 p-1.5 pr-2.5 rounded-2xl hover:bg-slate-100 transition focus:outline-none cursor-pointer border border-transparent hover:border-slate-200">
+        <button type="button" onclick="toggleProfileDropdown(event)" class="flex items-center space-x-2 sm:space-x-3 p-1.5 sm:pr-2.5 rounded-2xl hover:bg-slate-100 transition focus:outline-none cursor-pointer border border-transparent hover:border-slate-200">
           <div class="text-right hidden sm:block">
             <p class="font-bold text-sm text-[#1C1B8E]" id="userNameDisplay">Eko Tech Operator</p>
             <span class="text-[10px] bg-indigo-50 text-[#1C1B8E] px-2.5 py-0.5 rounded-full font-bold border border-indigo-100" id="userRoleBadge">Karyawan</span>
           </div>
 
-          <div class="w-10 h-10 rounded-xl bg-[#1C1B8E] text-white font-bold flex items-center justify-center text-sm shadow-md" id="userAvatarBadge">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1C1B8E] text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-md" id="userAvatarBadge">
             EO
           </div>
 
           <i class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200" id="profileChevron"></i>
         </button>
 
-        <!-- DROPDOWN MENU POPOVER -->
-        <div id="profileDropdownMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs divide-y divide-slate-100">
+        <!-- DROPDOWN MENU POPOVER (TERBUKA KE SISI KANAN LAYAR DENGAN AMAN) -->
+        <div id="profileDropdownMenu" class="hidden absolute right-0 mt-2 w-52 sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs divide-y divide-slate-100 max-w-[calc(100vw-2rem)]">
           <div class="px-4 py-2 sm:hidden">
             <p class="font-bold text-slate-900" id="mobileUserNameDisplay">Eko Tech Operator</p>
             <p class="text-[11px] text-slate-500" id="mobileUserRoleBadge">Karyawan</p>
@@ -50,7 +62,8 @@
     </div>
   </header>
 
-  <div class="p-6 space-y-6 flex-1 overflow-y-auto">
+  <!-- KONTEN UTAMA APLIKASI -->
+  <div class="p-4 sm:p-6 space-y-6 flex-1 overflow-y-auto">
 
     <!-- VIEW 1: DASHBOARD -->
     <section id="view-dashboard" class="space-y-6">
@@ -443,14 +456,14 @@
     <!-- VIEW 5: FORM LEMBUR (OVERTIME) -->
     <section id="view-overtime" class="space-y-6 hidden max-w-full">
       
-      <!-- 1. BARIS JUDUL & TOMBOL AKSI UTAMA (DESAIN BERSIH, LEGA & SEJAJAR) -->
+      <!-- 1. BARIS JUDUL & TOMBOL AKSI UTAMA -->
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-3">
         <div class="space-y-0.5">
           <h2 class="text-xl font-extrabold text-[#1C1B8E] tracking-tight">Pengajuan &amp; Form Rekap Lembur (Overtime)</h2>
           <p class="text-xs text-slate-500">Isi jam kerja lembur operasional, sortir per site &amp; karyawan (PM), serta cetak dokumen resmi.</p>
         </div>
 
-        <!-- TOMBOL AKSI KHUSUS ROLE PM & SUPER ADMIN (SEJAJAR HORIZONTAL, RAPI, MODERN) -->
+        <!-- TOMBOL AKSI KHUSUS ROLE PM & SUPER ADMIN -->
         <div class="hidden role-pm role-admin flex flex-wrap items-center gap-2.5">
           <button type="button" id="btnDownloadKjkExcel" onclick="handleDownloadKjkExcel()" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition flex items-center space-x-2 shadow-sm hover:shadow-md cursor-pointer whitespace-nowrap" title="Download Rekap KJK Per-Site format Excel">
             <i class="fa-solid fa-file-excel text-sm text-teal-100"></i>
@@ -488,10 +501,9 @@
         </div>
       </div>
 
-      <!-- 2. TOOLBAR FILTER KONTROL LEMBUR (DEDICATED TOOLBAR CARD, LEGA & BERSIH) -->
+      <!-- 2. TOOLBAR FILTER KONTROL LEMBUR -->
       <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100 flex flex-wrap items-center justify-between gap-4">
         <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-          <!-- Filter Periode Bulan -->
           <div class="flex items-center space-x-2">
             <label class="text-xs font-bold text-slate-700 flex items-center whitespace-nowrap">
               <i class="fa-regular fa-calendar text-[#1C1B8E] mr-1.5"></i>Periode:
@@ -503,7 +515,6 @@
             </select>
           </div>
 
-          <!-- Filter Site Khusus PM & Super Admin -->
           <div id="ovtSiteFilterWrapper" class="hidden role-pm role-admin flex items-center space-x-2">
             <label class="text-xs font-bold text-slate-700 flex items-center whitespace-nowrap">
               <i class="fa-solid fa-location-dot text-[#1C1B8E] mr-1.5"></i>Site:
@@ -518,7 +529,6 @@
             </select>
           </div>
 
-          <!-- Filter Karyawan Bertingkat Khusus PM & Super Admin -->
           <div id="ovtEmpFilterWrapper" class="hidden role-pm role-admin flex items-center space-x-2">
             <label class="text-xs font-bold text-slate-700 flex items-center whitespace-nowrap">
               <i class="fa-solid fa-user text-[#1C1B8E] mr-1.5"></i>Karyawan:
@@ -529,16 +539,14 @@
           </div>
         </div>
 
-        <!-- Akumulasi Total Jam Badge di Toolbar -->
         <div class="flex items-center space-x-2 bg-indigo-50/80 border border-indigo-100 py-1.5 px-3.5 rounded-xl">
           <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Total Akumulasi:</span>
           <span class="text-sm font-extrabold text-[#1C1B8E]" id="ovtTotalMonthHoursToolbar">0 Jam</span>
         </div>
       </div>
 
-      <!-- 3. KONTEN FORM & TABEL LEMBUR (RESPONSIF PENUH) -->
+      <!-- 3. KONTEN FORM & TABEL LEMBUR -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- FORM INPUT LEMBUR (KHUSUS KARYAWAN - DISEMBUNYIKAN UNTUK ROLE PM/ADMIN) -->
         <div id="ovtFormContainer" class="role-karyawan bg-white p-6 rounded-2xl card-shadow space-y-4 border border-slate-100">
           <div class="flex items-center justify-between border-b border-slate-100 pb-3">
             <div class="flex items-center space-x-3">
@@ -552,7 +560,6 @@
             </div>
           </div>
 
-          <!-- BANNER NOTIFIKASI MODE EDIT / KOREKSI REVISI -->
           <div id="ovtEditBanner" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
             <div class="flex items-center justify-between font-bold">
               <span class="flex items-center"><i class="fa-solid fa-pen-to-square mr-1.5 text-amber-600"></i> Mode Koreksi Revisi Lembur</span>
@@ -562,7 +569,6 @@
           </div>
 
           <form id="ovtForm" onsubmit="handleSaveOvertime(event)" class="space-y-3 text-xs">
-            <!-- ID Lembur saat mode edit -->
             <input type="hidden" id="ovtEditId" value="">
 
             <div>
@@ -604,7 +610,6 @@
           </form>
         </div>
 
-        <!-- TABEL DOKUMEN & RIWAYAT LEMBUR (OTOMATIS FULL WIDTH JIKA DI ROLE PM: lg:col-span-3) -->
         <div id="ovtTableContainer" class="lg:col-span-2 bg-white p-6 rounded-2xl card-shadow space-y-4 border border-slate-100 flex flex-col justify-between">
           <div class="space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
