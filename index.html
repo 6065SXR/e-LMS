@@ -32,9 +32,23 @@
   <?!= include('js_courses'); ?>
   <?!= include('js_employees'); ?>
   <?!= include('js_missions'); ?>
-  <?!= include('js_overtime_signature'); ?>
+
+  <!-- 1. CORE: Global State, Filters & Tab Switcher (Wajib Pertama) -->
+  <?!= include('js_overtime_core'); ?>
+
+  <!-- 2. CRUD: Form Input/Koreksi, PM Approval & Tabel Lembur -->
   <?!= include('js_overtime_crud'); ?>
+
+  <!-- 3. KJK & DOKUMEN: Input KJK, Tabel KJK & Upload 3 Slot PDF Absensi -->
+  <?!= include('js_overtime_kjk_docs'); ?>
+
+  <!-- 4. EKSPOR: Excel KJK & Generator XLSX/ZIP hr.Overtime -->
+  <?!= include('js_overtime_export'); ?>
+
+  <!-- 5. TTD & CETAK: Tanda Tangan Digital & Cetak Dokumen PDF -->
+  <?!= include('js_overtime_signature'); ?>
   <?!= include('js_overtime_print'); ?>
+
   <?!= include('js_quiz_media'); ?>
   <?!= include('js_users'); ?>
 </body>
