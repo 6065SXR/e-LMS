@@ -552,8 +552,9 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
-    var karyawanButtons = document.querySelectorAll(".role-karyawan");
-    karyawanButtons.forEach(function(el) {
+    // Atur visibilitas elemen/tombol khusus karyawan
+    var karyawanElements = document.querySelectorAll(".role-karyawan");
+    karyawanElements.forEach(function(el) {
       if (isKaryawan) {
         el.classList.remove("hidden");
       } else {
@@ -561,14 +562,32 @@
       }
     });
 
-    var pmButtons = document.querySelectorAll(".role-pm");
-    pmButtons.forEach(function(el) {
+    // Atur visibilitas elemen/tombol khusus PM / Super Admin
+    var pmElements = document.querySelectorAll(".role-pm");
+    pmElements.forEach(function(el) {
       if (!isKaryawan) {
         el.classList.remove("hidden");
       } else {
         el.classList.add("hidden");
       }
     });
+
+    // Sembunyikan form input lembur untuk PM/Admin dan lebarkan tabel riwayat secara penuh (col-span-3)
+    var formContainer = document.getElementById("ovtFormContainer");
+    var tableContainer = document.getElementById("ovtTableContainer");
+    if (isKaryawan) {
+      if (formContainer) formContainer.classList.remove("hidden");
+      if (tableContainer) {
+        tableContainer.classList.remove("lg:col-span-3");
+        tableContainer.classList.add("lg:col-span-2");
+      }
+    } else {
+      if (formContainer) formContainer.classList.add("hidden");
+      if (tableContainer) {
+        tableContainer.classList.remove("lg:col-span-2");
+        tableContainer.classList.add("lg:col-span-3");
+      }
+    }
 
     if (!isKaryawan && overtimeMasterEmployees.length === 0) {
       callBackend('getEmployeesList', [], function(empRes) {
@@ -670,6 +689,11 @@
     var totalHoursEl = document.getElementById("ovtTotalMonthHours");
     if (totalHoursEl) {
       totalHoursEl.innerText = totalHrs + " Jam";
+    }
+
+    var toolbarHoursEl = document.getElementById("ovtTotalMonthHoursToolbar");
+    if (toolbarHoursEl) {
+      toolbarHoursEl.innerText = totalHrs + " Jam";
     }
 
     renderOvertimeTable(currentFilteredOvertimeCache);
@@ -1069,7 +1093,8 @@
 
   function closeUploadAttendanceModal() {
     var modal = document.getElementById("uploadAttendanceModal");
-    if (modal) modal.classList.add("hidden");
+    if (!modal) return;
+    modal.classList.add("hidden");
   }
 
   function handleDeleteSlotFile(slotKey) {
