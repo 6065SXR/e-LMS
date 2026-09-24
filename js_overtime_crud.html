@@ -1,6 +1,6 @@
 <script>
   /**
-   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal, Workflow Approval & Multi-Slot Attendance
+   * Sub-modul Overtime CRUD, Cascading PM Filters, KJK Modal, Workflow Approval, Multi-Slot Attendance & Paginasi Table
    * System: e-LMS Data Center KSPS
    */
 
@@ -9,6 +9,8 @@
   var overtimeMasterEmployees = [];
   var currentKjkMap = {};
   var currentAttendanceMap = {};
+  var currentOvtPage = 1;
+  var ovtItemsPerPage = 10;
 
   /* =========================================================
    * 1. MANAJEMEN REKAPITULASI KELEBIHAN JAM KERJA (KJK)
@@ -552,9 +554,9 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var period = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
-    // Atur visibilitas elemen/tombol khusus karyawan
-    var karyawanElements = document.querySelectorAll(".role-karyawan");
-    karyawanElements.forEach(function(el) {
+    // Kontrol visibilitas tombol berdasarkan role
+    var karyawanButtons = document.querySelectorAll(".role-karyawan");
+    karyawanButtons.forEach(function(el) {
       if (isKaryawan) {
         el.classList.remove("hidden");
       } else {
@@ -562,9 +564,8 @@
       }
     });
 
-    // Atur visibilitas elemen/tombol khusus PM / Super Admin
-    var pmElements = document.querySelectorAll(".role-pm");
-    pmElements.forEach(function(el) {
+    var pmButtons = document.querySelectorAll(".role-pm");
+    pmButtons.forEach(function(el) {
       if (!isKaryawan) {
         el.classList.remove("hidden");
       } else {
@@ -572,20 +573,21 @@
       }
     });
 
-    // Sembunyikan form input lembur untuk PM/Admin dan lebarkan tabel riwayat secara penuh (col-span-3)
-    var formContainer = document.getElementById("ovtFormContainer");
-    var tableContainer = document.getElementById("ovtTableContainer");
+    // PENGATURAN LEBAR LAYOUT AGAR TABEL FULL-WIDTH UNTUK PM
+    var formCol = document.getElementById("ovtFormContainer");
+    var tableCol = document.getElementById("ovtTableContainer");
+
     if (isKaryawan) {
-      if (formContainer) formContainer.classList.remove("hidden");
-      if (tableContainer) {
-        tableContainer.classList.remove("lg:col-span-3");
-        tableContainer.classList.add("lg:col-span-2");
+      if (formCol) formCol.classList.remove("hidden");
+      if (tableCol) {
+        tableCol.classList.remove("lg:col-span-3", "col-span-full");
+        tableCol.classList.add("lg:col-span-2");
       }
     } else {
-      if (formContainer) formContainer.classList.add("hidden");
-      if (tableContainer) {
-        tableContainer.classList.remove("lg:col-span-2");
-        tableContainer.classList.add("lg:col-span-3");
+      if (formCol) formCol.classList.add("hidden");
+      if (tableCol) {
+        tableCol.classList.remove("lg:col-span-2");
+        tableCol.classList.add("lg:col-span-3", "col-span-full");
       }
     }
 
@@ -680,22 +682,69 @@
       });
     }
 
+    // Kalkulasi Total Akumulasi Lembur
     var totalHrs = 0;
     currentFilteredOvertimeCache.forEach(function(item) {
       totalHrs += (parseFloat(item.total_jam) || 0);
     });
     totalHrs = Math.round(totalHrs * 10) / 10;
 
-    var totalHoursEl = document.getElementById("ovtTotalMonthHours");
-    if (totalHoursEl) {
-      totalHoursEl.innerText = totalHrs + " Jam";
+    // Kalkulasi Total KJK tersinkronisasi otomatis dengan filter Periode, Site & Karyawan
+    var periodFilter = document.getElementById("overtimePeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var parts = periodVal.split("-");
+    var monthNum = parseInt(parts[1], 10) || 9;
+    var monthNamesEn = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    var monthKey = monthNamesEn[monthNum - 1] || "september";
+
+    var totalKjkSum = 0;
+    var targetUsersForKjk = [];
+
+    if (isKaryawan) {
+      targetUsersForKjk = [currentUser ? currentUser.user_id : 'USR-0003'];
+    } else {
+      var siteVal2 = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+      var empVal2 = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+      if (overtimeMasterEmployees && overtimeMasterEmployees.length > 0) {
+        overtimeMasterEmployees.forEach(function(emp) {
+          var matchSite = (siteVal2 === "ALL" || emp.site === siteVal2);
+          var matchEmp = (empVal2 === "ALL" || emp.user_id === empVal2);
+          if (matchSite && matchEmp) {
+            targetUsersForKjk.push(emp.user_id);
+          }
+        });
+      } else {
+        var seen = {};
+        currentOvertimeCache.forEach(function(item) {
+          var matchSite = (siteVal2 === "ALL" || item.site === siteVal2);
+          var matchEmp = (empVal2 === "ALL" || item.user_id === empVal2);
+          if (matchSite && matchEmp && item.user_id && !seen[item.user_id]) {
+            seen[item.user_id] = true;
+            targetUsersForKjk.push(item.user_id);
+          }
+        });
+      }
     }
+
+    targetUsersForKjk.forEach(function(uid) {
+      var mapKey = uid + "_" + monthKey;
+      if (currentKjkMap && currentKjkMap[mapKey] !== undefined) {
+        totalKjkSum += (parseFloat(currentKjkMap[mapKey]) || 0);
+      }
+    });
+    totalKjkSum = Math.round(totalKjkSum * 10) / 10;
+
+    var totalKjkEl = document.getElementById("ovtTotalKjkToolbar");
+    if (totalKjkEl) totalKjkEl.innerText = totalKjkSum + " Jam";
+
+    var totalHoursEl = document.getElementById("ovtTotalMonthHours");
+    if (totalHoursEl) totalHoursEl.innerText = totalHrs + " Jam";
 
     var toolbarHoursEl = document.getElementById("ovtTotalMonthHoursToolbar");
-    if (toolbarHoursEl) {
-      toolbarHoursEl.innerText = totalHrs + " Jam";
-    }
+    if (toolbarHoursEl) toolbarHoursEl.innerText = totalHrs + " Jam";
 
+    currentOvtPage = 1; // Reset ke halaman 1 saat filter berubah
     renderOvertimeTable(currentFilteredOvertimeCache);
   }
 
@@ -715,7 +764,7 @@
   }
 
   /* =========================================================
-   * 3. RENDER TABEL LEMBUR & WORKFLOW APPROVAL & REVISI
+   * 3. RENDER TABEL LEMBUR DENGAN PAGINASI (10 ITEM PER HALAMAN)
    * ========================================================= */
 
   function renderOvertimeTable(list) {
@@ -727,10 +776,21 @@
 
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500 text-sm py-8">Belum ada data lembur untuk kriteria filter periode ini.</td></tr>';
+      renderOvtPaginationControls(0, 1);
       return;
     }
 
-    list.forEach(function(item, idx) {
+    var totalItems = list.length;
+    var totalPages = Math.ceil(totalItems / ovtItemsPerPage) || 1;
+    if (currentOvtPage > totalPages) currentOvtPage = totalPages;
+    if (currentOvtPage < 1) currentOvtPage = 1;
+
+    var startIndex = (currentOvtPage - 1) * ovtItemsPerPage;
+    var endIndex = Math.min(startIndex + ovtItemsPerPage, totalItems);
+    var pageList = list.slice(startIndex, endIndex);
+
+    pageList.forEach(function(item, pageIdx) {
+      var idx = startIndex + pageIdx; // Indeks riil pada currentFilteredOvertimeCache
       var tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
 
@@ -805,6 +865,74 @@
 
       tbody.appendChild(tr);
     });
+
+    renderOvtPaginationControls(totalItems, totalPages);
+  }
+
+  function renderOvtPaginationControls(totalItems, totalPages) {
+    var ctrl = document.getElementById("ovtPaginationControls");
+    var info = document.getElementById("ovtPaginationInfo");
+    if (!ctrl) return;
+    ctrl.innerHTML = "";
+
+    var startItem = totalItems === 0 ? 0 : (currentOvtPage - 1) * ovtItemsPerPage + 1;
+    var endItem = Math.min(currentOvtPage * ovtItemsPerPage, totalItems);
+
+    if (info) {
+      if (totalItems === 0) {
+        info.innerHTML = '<span class="text-slate-400">Tidak ada data lembur</span>';
+      } else {
+        info.innerHTML = '<span class="font-medium text-slate-600">Menampilkan <strong>' + startItem + ' - ' + endItem + '</strong> dari <strong>' + totalItems + '</strong> data lembur</span>';
+      }
+    }
+
+    if (totalPages <= 1) return;
+
+    // Tombol Previous
+    var prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left text-[10px]"></i>';
+    prevBtn.className = "w-7 h-7 rounded-lg text-xs font-bold transition flex items-center justify-center " + 
+      (currentOvtPage === 1 ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-[#1C1B8E]");
+    prevBtn.disabled = (currentOvtPage === 1);
+    prevBtn.onclick = function() {
+      if (currentOvtPage > 1) {
+        currentOvtPage--;
+        renderOvertimeTable(currentFilteredOvertimeCache);
+      }
+    };
+    ctrl.appendChild(prevBtn);
+
+    // Tombol Angka Halaman
+    for (var p = 1; p <= totalPages; p++) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerText = p;
+      btn.className = "w-7 h-7 rounded-lg text-xs font-bold transition flex items-center justify-center " + 
+        (p === currentOvtPage ? "bg-[#1C1B8E] text-white shadow-xs" : "bg-white hover:bg-slate-100 border border-slate-200 text-slate-700");
+      (function(pageNumber) {
+        btn.onclick = function() {
+          currentOvtPage = pageNumber;
+          renderOvertimeTable(currentFilteredOvertimeCache);
+        };
+      })(p);
+      ctrl.appendChild(btn);
+    }
+
+    // Tombol Next
+    var nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right text-[10px]"></i>';
+    nextBtn.className = "w-7 h-7 rounded-lg text-xs font-bold transition flex items-center justify-center " + 
+      (currentOvtPage === totalPages ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-[#1C1B8E]");
+    nextBtn.disabled = (currentOvtPage === totalPages);
+    nextBtn.onclick = function() {
+      if (currentOvtPage < totalPages) {
+        currentOvtPage++;
+        renderOvertimeTable(currentFilteredOvertimeCache);
+      }
+    };
+    ctrl.appendChild(nextBtn);
   }
 
   /* =========================================================
@@ -1093,8 +1221,7 @@
 
   function closeUploadAttendanceModal() {
     var modal = document.getElementById("uploadAttendanceModal");
-    if (!modal) return;
-    modal.classList.add("hidden");
+    if (modal) modal.classList.add("hidden");
   }
 
   function handleDeleteSlotFile(slotKey) {
