@@ -1,38 +1,36 @@
-<script>
+<selection-tag><script>
   /**
    * ============================================================================
-   * MODUL: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021)
+   * MODUL: KALKULASI & REKAP UPAH LEMBUR (PP 35/2021) & REKAP KJK (FLAT 2X)
    * System: e-LMS Data Center KSPS
    * Responsibility:
-   * 1. Mengelola state kalkulasi upah lembur per baris karyawan.
-   * 2. Otomatisasi Murni Tipe Hari (Workday vs Day Off) Berdasarkan Tanggal Actual.
-   * 3. Menampilkan status Tipe Hari sebagai BADGE STATIS / FIXED (TIDAK BISA DIUBAH MANUAL).
-   * 4. Akumulasi Card Total Nominal Menghitung SELURUH Nilai (Workday + Day Off).
-   * 5. Otomatisasi Simpan Realtime ke Spreadsheet (Tanpa Tombol Manual).
-   * 6. PAGINASI TABEL: Pembatasan tampilan maksimal 10 data per halaman.
-   * 7. Presisi Matematika PP35 Identik 100% dengan Acuan Excel.
+   * 1. Sub-Tab Switcher antara Rekap Lembur (PP35) & Rekap KJK (Flat 2x).
+   * 2. Presisi matematika identik 100% dengan acuan Excel.
+   * 3. Otomatisasi Simpan Realtime ke Spreadsheet (Sheet REKAP_LEMBUR & REKAP_KJK).
+   * 4. PAGINASI TABEL: Pembatasan maksimal 10 data per halaman.
    * ============================================================================
    */
 
+  var currentCalcSubTab = 'pp35'; // 'pp35' atau 'kjk'
+
+  // STATE REKAP LEMBUR PP35
   var currentCalcRawList = [];
   var currentProcessedCalcList = [];
-  
-  // STATE PAGINASI KALKULASI REKAP LEMBUR
   var calcCurrentPage = 1;
   var calcPageSize = 10;
 
-  /**
-   * Helper format tanggal YYYY-MM
-   */
+  // STATE REKAP KJK FLAT 2X
+  var currentKjkRawList = [];
+  var currentProcessedKjkList = [];
+  var kjkCurrentPage = 1;
+  var kjkPageSize = 10;
+
   function UtilitiesFormatDateMonth() {
     var d = new Date();
     var month = ('0' + (d.getMonth() + 1)).slice(-2);
     return d.getFullYear() + '-' + month;
   }
 
-  /**
-   * Helper pemastian library Excel SpreadsheetJS tersedia
-   */
   function ensureXlsxLibrary(callback) {
     if (window.XLSX) {
       callback(true);
@@ -45,9 +43,62 @@
     document.head.appendChild(script);
   }
 
-  /**
-   * Cek Tanggal Merah Hari Libur Nasional Indonesia
-   */
+  function switchCalcSubTab(targetTab) {
+    currentCalcSubTab = targetTab || 'pp35';
+
+    var btnPp35 = document.getElementById("btnSubTabPp35");
+    var btnKjk = document.getElementById("btnSubTabKjk");
+    var labelHoursCard = document.getElementById("calcSumHoursCardLabel");
+    var tableHeaderEl = document.getElementById("calcTableHeaderRow");
+
+    var periodFilter = document.getElementById("calcPeriodFilter");
+    if (periodFilter && (!periodFilter.value || periodFilter.value.trim() === "")) {
+      periodFilter.value = UtilitiesFormatDateMonth();
+    }
+
+    if (currentCalcSubTab === 'kjk') {
+      if (btnPp35) btnPp35.className = "px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer";
+      if (btnKjk) btnKjk.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-amber-600 text-white shadow-xs cursor-pointer";
+      if (labelHoursCard) labelHoursCard.innerText = "JAM KJK (INDEKS 2X)";
+
+      if (tableHeaderEl) {
+        tableHeaderEl.innerHTML = '<th class="py-3 px-3 text-center">NO</th>' +
+          '<th class="py-3 px-3">NAMA KARYAWAN & NIK</th>' +
+          '<th class="py-3 px-3 text-center">SITE</th>' +
+          '<th class="py-3 px-3 text-center">PERIODE BULAN</th>' +
+          '<th class="py-3 px-3 text-center">JAM KJK (RAW)</th>' +
+          '<th class="py-3 px-3 text-center">JAM INDEKS (2X)</th>' +
+          '<th class="py-3 px-3 text-right">BASIC SALARY</th>' +
+          '<th class="py-3 px-3 text-right">UPAH/JAM</th>' +
+          '<th class="py-3 px-3 text-right">TOTAL NOMINAL KJK</th>' +
+          '<th class="py-3 px-3 text-center">STATUS SYNC</th>';
+      }
+
+      loadKjkCalculationData();
+    } else {
+      if (btnPp35) btnPp35.className = "px-4 py-2 rounded-xl text-xs font-bold transition bg-[#1C1B8E] text-white shadow-xs cursor-pointer";
+      if (btnKjk) btnKjk.className = "px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer";
+      if (labelHoursCard) labelHoursCard.innerText = "JAM EFEKTIF";
+
+      if (tableHeaderEl) {
+        tableHeaderEl.innerHTML = '<th class="py-3 px-3 text-center">NO</th>' +
+          '<th class="py-3 px-3">NAMA KARYAWAN & NIK</th>' +
+          '<th class="py-3 px-3 text-center">SITE</th>' +
+          '<th class="py-3 px-3 text-center">TANGGAL</th>' +
+          '<th class="py-3 px-3 text-center">TIPE HARI</th>' +
+          '<th class="py-3 px-3 text-center">JAM KOTOR</th>' +
+          '<th class="py-3 px-3 text-center">POT. ISTIRAHAT</th>' +
+          '<th class="py-3 px-3 text-center">JAM EFEKTIF</th>' +
+          '<th class="py-3 px-3 text-center">BOBOT RATE</th>' +
+          '<th class="py-3 px-3 text-right">UPAH/JAM</th>' +
+          '<th class="py-3 px-3 text-right">TOTAL NOMINAL</th>' +
+          '<th class="py-3 px-3 text-center">STATUS SYNC</th>';
+      }
+
+      loadOvertimeCalculationData();
+    }
+  }
+
   function isIndonesianHolidayFrontend(dateStr) {
     if (!dateStr) return false;
     var holidays = [
@@ -64,23 +115,16 @@
     return holidays.indexOf(datePart) !== -1 || holidays.indexOf(monthDay) !== -1;
   }
 
-  /**
-   * Deteksi Otomatis Murni Tipe Hari Berdasarkan Tanggal Actual
-   */
   function determineAutoDayTypeFrontend(dateStr) {
     if (!dateStr) return "Workday";
     var d = new Date(dateStr + "T00:00:00");
-    var dayOfWeek = d.getDay(); // 0 = Minggu, 6 = Sabtu
+    var dayOfWeek = d.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6 || isIndonesianHolidayFrontend(dateStr)) {
       return "Day Off";
     }
     return "Workday";
   }
 
-  /**
-   * Memuat data lembur berstatus Approved untuk dikalkulasi.
-   * Backend secara otomatis menyinkronkan data terbaru ke sheet REKAP_LEMBUR.
-   */
   function loadOvertimeCalculationData() {
     var periodFilter = document.getElementById("calcPeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
@@ -88,7 +132,7 @@
     var siteFilter = document.getElementById("calcSiteFilter");
     var siteVal = siteFilter ? siteFilter.value : "ALL";
 
-    showToast("Mengambil data lembur disetujui...");
+    showToast("Mengambil data lembur PP35...");
 
     callBackend('getApprovedOvertimeForCalculation', [periodVal, siteVal], function(res) {
       if (!res || !res.success) {
@@ -97,20 +141,37 @@
       }
 
       currentCalcRawList = res.data || [];
-      calcCurrentPage = 1; // Reset ke halaman pertama setiap kali data baru dimuat
+      calcCurrentPage = 1;
 
-      // Isikan dropdown filter karyawan
-      populateCalcEmployeeDropdown();
-
-      // Render tabel dan hitung akumulasi
+      populateCalcEmployeeDropdown(currentCalcRawList);
       renderOvertimeCalculationTable();
     });
   }
 
-  /**
-   * Mengisi dropdown karyawan dinamis berdasarkan data yang ada
-   */
-  function populateCalcEmployeeDropdown() {
+  function loadKjkCalculationData() {
+    var periodFilter = document.getElementById("calcPeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    var siteFilter = document.getElementById("calcSiteFilter");
+    var siteVal = siteFilter ? siteFilter.value : "ALL";
+
+    showToast("Mengambil data KJK...");
+
+    callBackend('getApprovedKjkForCalculation', [periodVal, siteVal], function(res) {
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal memuat data KJK.");
+        return;
+      }
+
+      currentKjkRawList = res.data || [];
+      kjkCurrentPage = 1;
+
+      populateCalcEmployeeDropdown(currentKjkRawList);
+      renderKjkCalculationTable();
+    });
+  }
+
+  function populateCalcEmployeeDropdown(dataList) {
     var empSelect = document.getElementById("calcEmployeeFilter");
     if (!empSelect) return;
 
@@ -118,7 +179,7 @@
     empSelect.innerHTML = '<option value="ALL">Semua Karyawan</option>';
 
     var seenUsers = {};
-    currentCalcRawList.forEach(function(item) {
+    (dataList || []).forEach(function(item) {
       if (!seenUsers[item.user_id]) {
         seenUsers[item.user_id] = true;
         var opt = document.createElement("option");
@@ -132,24 +193,29 @@
     empSelect.value = exists ? currentVal : "ALL";
   }
 
-  /**
-   * Handler perubahan filter karyawan
-   */
-  function handleCalcEmployeeFilterChange() {
-    calcCurrentPage = 1; // Reset ke halaman pertama saat filter karyawan berubah
-    renderOvertimeCalculationTable();
+  function handleCalcFilterChange() {
+    if (currentCalcSubTab === 'kjk') {
+      kjkCurrentPage = 1;
+      loadKjkCalculationData();
+    } else {
+      calcCurrentPage = 1;
+      loadOvertimeCalculationData();
+    }
   }
 
-  /**
-   * FORMULA UTAMA PP NO. 35 TAHUN 2021 (PRESISI EXCEL 100%)
-   * 1. Exact Hourly Wage = wageBase / 173 (Rasio desimal murni)
-   * 2. Jam Efektif = rawHours (Identik 100% dengan acuan Excel)
-   * 3. Rate Hours berdasarkan Tipe Hari (Workday vs Day Off)
-   * 4. Total Nominal = Math.round(Rate Hours * Exact Hourly Wage)
-   */
+  function handleCalcEmployeeFilterChange() {
+    if (currentCalcSubTab === 'kjk') {
+      kjkCurrentPage = 1;
+      loadKjkCalculationData();
+    } else {
+      calcCurrentPage = 1;
+      loadOvertimeCalculationData();
+    }
+  }
+
   function calculatePP35Single(rawHours, overtimeType, wageBase) {
-    var exactHourlyWage = wageBase / 173; // Desimal murni
-    var displayHourlyWage = Math.round(exactHourlyWage); // Tampilan UI (33.121 / 33.432)
+    var exactHourlyWage = wageBase / 173;
+    var displayHourlyWage = Math.round(exactHourlyWage);
 
     var restDeduction = 0;
     var effectiveHours = Math.round(rawHours * 10) / 10;
@@ -161,7 +227,7 @@
       } else {
         rateHours = 1.5 + ((effectiveHours - 1) * 2.0);
       }
-    } else { // Day Off / Libur (Sabtu, Minggu, Libur Nasional)
+    } else {
       if (effectiveHours <= 8) {
         rateHours = effectiveHours * 2.0;
       } else if (effectiveHours <= 9) {
@@ -172,7 +238,6 @@
     }
 
     rateHours = Math.round(rateHours * 10) / 10;
-    // Perkalian presisi rasio murni persis hasil Excel
     var overtimeAmount = Math.round(rateHours * exactHourlyWage);
 
     return {
@@ -184,11 +249,20 @@
     };
   }
 
-  /**
-   * Render Tabel Kalkulasi Upah Lembur Responsif dengan PAGINASI (10 BARIS PER HALAMAN)
-   * 1. CARD KESELURUHAN METRIK tetap menghitung 100% data terfilter.
-   * 2. TABEL HANYA MENAMPILKAN 10 DATA sesuai Halaman Aktif.
-   */
+  function calculateKjkSingle(hours, wageBase) {
+    var exactHourlyWage = wageBase / 173;
+    var displayHourlyWage = Math.round(exactHourlyWage);
+
+    var hoursIndex = Math.round(hours * 2 * 10) / 10;
+    var kjkAmount = Math.round(hoursIndex * exactHourlyWage);
+
+    return {
+      hours_index: hoursIndex,
+      hourly_wage: displayHourlyWage,
+      kjk_amount: kjkAmount
+    };
+  }
+
   function renderOvertimeCalculationTable() {
     var tbody = document.getElementById("rekapLemburTableBody");
     if (!tbody) return;
@@ -211,9 +285,8 @@
     currentProcessedCalcList = [];
     var totalEmpCount = new Set();
     var totalEffectiveHours = 0;
-    var totalNominalAmountCombined = 0; // Memuat penjumlahan utuh Workday + Day Off
+    var totalNominalAmountCombined = 0;
 
-    // Process SEMUA data terlebih dahulu untuk menghitung Total Card & Ekspor Excel
     filteredList.forEach(function(item) {
       var autoType = determineAutoDayTypeFrontend(item.tanggal);
       var calcRes = calculatePP35Single(item.raw_hours, autoType, item.wage_base);
@@ -234,10 +307,8 @@
       totalNominalAmountCombined += calcRes.overtime_amount;
     });
 
-    // Update Card Atas dengan Penjumlahan Utuh Keseluruhan Data
     updateCalcSummaryBadges(totalEmpCount.size, Math.round(totalEffectiveHours * 10) / 10, totalNominalAmountCombined);
 
-    // LOGIKA PAGINASI (SLICING 10 BARIS PER HALAMAN)
     var totalItems = currentProcessedCalcList.length;
     var totalPages = Math.ceil(totalItems / calcPageSize) || 1;
 
@@ -248,20 +319,16 @@
     var endIdx = Math.min(startIdx + calcPageSize, totalItems);
     var pagedList = currentProcessedCalcList.slice(startIdx, endIdx);
 
-    // Render baris untuk halaman aktif saja
     pagedList.forEach(function(item, idx) {
       var rowNumber = startIdx + idx + 1;
       var tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50 transition border-b border-slate-100 text-xs";
 
-      var typeBadgeHtml = '';
-      if (item.overtime_type === 'Day Off') {
-        typeBadgeHtml = '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 inline-flex items-center shadow-2xs" title="Hari Libur (Sabtu, Minggu / Tanggal Merah)"><i class="fa-solid fa-calendar-day mr-1 text-amber-700"></i> Day Off (Libur)</span>';
-      } else {
-        typeBadgeHtml = '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center" title="Hari Kerja Reguler (Senin - Jumat)"><i class="fa-solid fa-briefcase mr-1 text-slate-500"></i> Workday (Kerja)</span>';
-      }
+      var typeBadgeHtml = item.overtime_type === 'Day Off' ?
+        '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 inline-flex items-center shadow-2xs"><i class="fa-solid fa-calendar-day mr-1 text-amber-700"></i> Day Off (Libur)</span>' :
+        '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center"><i class="fa-solid fa-briefcase mr-1 text-slate-500"></i> Workday (Kerja)</span>';
 
-      var statusSyncBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center" title="Tersimpan otomatis ke database spreadsheet"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>';
+      var statusSyncBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>';
 
       tr.innerHTML = '<td class="py-3 px-3 text-center font-bold text-slate-500">' + rowNumber + '</td>' +
         '<td class="py-3 px-3"><div class="font-bold text-slate-900">' + item.nama_lengkap + '</div><div class="text-[10px] font-mono text-slate-500">' + item.nik + '</div></td>' +
@@ -279,13 +346,85 @@
       tbody.appendChild(tr);
     });
 
-    // Render Elemen Navigasi Paginasi
     renderCalcPaginationControls(totalItems, totalPages);
   }
 
-  /**
-   * Render Tombol Paginasi & Teks Informasi
-   */
+  function renderKjkCalculationTable() {
+    var tbody = document.getElementById("rekapLemburTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    var empFilterVal = document.getElementById("calcEmployeeFilter") ? document.getElementById("calcEmployeeFilter").value : "ALL";
+
+    var filteredList = currentKjkRawList.filter(function(item) {
+      return (empFilterVal === "ALL" || item.user_id === empFilterVal);
+    });
+
+    if (filteredList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-slate-500 text-sm py-8">Tidak ada data KJK yang ditemukan.</td></tr>';
+      updateCalcSummaryBadges(0, 0, 0);
+      renderCalcPaginationControls(0, 0);
+      currentProcessedKjkList = [];
+      return;
+    }
+
+    currentProcessedKjkList = [];
+    var totalEmpCount = new Set();
+    var totalHoursIndex = 0;
+    var totalKjkAmount = 0;
+
+    filteredList.forEach(function(item) {
+      var calcRes = calculateKjkSingle(item.hours, item.wage_base);
+
+      var processedItem = Object.assign({}, item, {
+        hours_index: calcRes.hours_index,
+        hourly_wage: calcRes.hourly_wage,
+        kjk_amount: calcRes.kjk_amount
+      });
+
+      currentProcessedKjkList.push(processedItem);
+
+      totalEmpCount.add(item.user_id);
+      totalHoursIndex += calcRes.hours_index;
+      totalKjkAmount += calcRes.kjk_amount;
+    });
+
+    updateCalcSummaryBadges(totalEmpCount.size, Math.round(totalHoursIndex * 10) / 10, totalKjkAmount);
+
+    var totalItems = currentProcessedKjkList.length;
+    var totalPages = Math.ceil(totalItems / kjkPageSize) || 1;
+
+    if (kjkCurrentPage > totalPages) kjkCurrentPage = totalPages;
+    if (kjkCurrentPage < 1) kjkCurrentPage = 1;
+
+    var startIdx = (kjkCurrentPage - 1) * kjkPageSize;
+    var endIdx = Math.min(startIdx + kjkPageSize, totalItems);
+    var pagedList = currentProcessedKjkList.slice(startIdx, endIdx);
+
+    pagedList.forEach(function(item, idx) {
+      var rowNumber = startIdx + idx + 1;
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition border-b border-slate-100 text-xs";
+
+      var statusSyncBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>';
+
+      tr.innerHTML = '<td class="py-3 px-3 text-center font-bold text-slate-500">' + rowNumber + '</td>' +
+        '<td class="py-3 px-3"><div class="font-bold text-slate-900">' + item.nama_lengkap + '</div><div class="text-[10px] font-mono text-slate-500">' + item.nik + '</div></td>' +
+        '<td class="py-3 px-3 text-center"><span class="bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full text-[11px] font-bold border border-amber-200">' + item.site + '</span></td>' +
+        '<td class="py-3 px-3 text-center font-bold text-slate-800 whitespace-nowrap">' + (item.bulan || item.periode) + '</td>' +
+        '<td class="py-3 px-3 text-center font-bold text-slate-700">' + item.hours + ' Jam</td>' +
+        '<td class="py-3 px-3 text-center font-extrabold text-amber-700 bg-amber-50/40">' + item.hours_index + ' Jam (2x)</td>' +
+        '<td class="py-3 px-3 text-right font-mono text-slate-600">Rp ' + item.wage_base.toLocaleString('id-ID') + '</td>' +
+        '<td class="py-3 px-3 text-right font-mono font-medium text-slate-600">Rp ' + item.hourly_wage.toLocaleString('id-ID') + '</td>' +
+        '<td class="py-3 px-3 text-right font-mono font-extrabold text-emerald-700 bg-emerald-50/40">Rp ' + item.kjk_amount.toLocaleString('id-ID') + '</td>' +
+        '<td class="py-3 px-3 text-center">' + statusSyncBadge + '</td>';
+
+      tbody.appendChild(tr);
+    });
+
+    renderCalcPaginationControls(totalItems, totalPages);
+  }
+
   function renderCalcPaginationControls(totalItems, totalPages) {
     var infoEl = document.getElementById("calcPaginationInfo");
     var controlsEl = document.getElementById("calcPaginationControls");
@@ -298,35 +437,34 @@
       return;
     }
 
-    var startNum = (calcCurrentPage - 1) * calcPageSize + 1;
-    var endNum = Math.min(calcCurrentPage * calcPageSize, totalItems);
+    var currentPage = currentCalcSubTab === 'kjk' ? kjkCurrentPage : calcCurrentPage;
+
+    var startNum = (currentPage - 1) * calcPageSize + 1;
+    var endNum = Math.min(currentPage * calcPageSize, totalItems);
     infoEl.innerText = "Menampilkan " + startNum + " - " + endNum + " dari " + totalItems + " data";
 
     var controlsHtml = "";
 
-    // Tombol Previous
-    if (calcCurrentPage > 1) {
-      controlsHtml += '<button type="button" onclick="changeCalcPage(' + (calcCurrentPage - 1) + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer"><i class="fa-solid fa-chevron-left mr-1"></i>Prev</button>';
+    if (currentPage > 1) {
+      controlsHtml += '<button type="button" onclick="changeCalcPage(' + (currentPage - 1) + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer"><i class="fa-solid fa-chevron-left mr-1"></i>Prev</button>';
     } else {
       controlsHtml += '<button type="button" disabled class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"><i class="fa-solid fa-chevron-left mr-1"></i>Prev</button>';
     }
 
-    // Tombol Angka Halaman
     for (var p = 1; p <= totalPages; p++) {
-      if (p === calcCurrentPage) {
+      if (p === currentPage) {
         controlsHtml += '<button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1C1B8E] text-white shadow-xs cursor-default">' + p + '</button>';
       } else {
-        if (p === 1 || p === totalPages || (p >= calcCurrentPage - 1 && p <= calcCurrentPage + 1)) {
+        if (p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)) {
           controlsHtml += '<button type="button" onclick="changeCalcPage(' + p + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer">' + p + '</button>';
-        } else if (p === calcCurrentPage - 2 || p === calcCurrentPage + 2) {
+        } else if (p === currentPage - 2 || p === currentPage + 2) {
           controlsHtml += '<span class="px-1 text-slate-400 font-bold">...</span>';
         }
       }
     }
 
-    // Tombol Next
-    if (calcCurrentPage < totalPages) {
-      controlsHtml += '<button type="button" onclick="changeCalcPage(' + (calcCurrentPage + 1) + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer">Next<i class="fa-solid fa-chevron-right ml-1"></i></button>';
+    if (currentPage < totalPages) {
+      controlsHtml += '<button type="button" onclick="changeCalcPage(' + (currentPage + 1) + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer">Next<i class="fa-solid fa-chevron-right ml-1"></i></button>';
     } else {
       controlsHtml += '<button type="button" disabled class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed">Next<i class="fa-solid fa-chevron-right ml-1"></i></button>';
     }
@@ -334,17 +472,16 @@
     controlsEl.innerHTML = controlsHtml;
   }
 
-  /**
-   * Pindah Halaman Tabel
-   */
   function changeCalcPage(newPage) {
-    calcCurrentPage = newPage;
-    renderOvertimeCalculationTable();
+    if (currentCalcSubTab === 'kjk') {
+      kjkCurrentPage = newPage;
+      renderKjkCalculationTable();
+    } else {
+      calcCurrentPage = newPage;
+      renderOvertimeCalculationTable();
+    }
   }
 
-  /**
-   * Perbarui Card Indikator Ringkasan
-   */
   function updateCalcSummaryBadges(empCount, effectiveHours, totalAmountCombined) {
     var empEl = document.getElementById("calcSumTotalEmployees");
     var hrsEl = document.getElementById("calcSumTotalHours");
@@ -355,11 +492,11 @@
     if (amtEl) amtEl.innerText = "Rp " + totalAmountCombined.toLocaleString('id-ID');
   }
 
-  /**
-   * Ekspor Rekapitulasi Upah Lembur ke Format Excel (.xlsx)
-   */
   function handleExportRekapExcel() {
-    if (!currentProcessedCalcList || currentProcessedCalcList.length === 0) {
+    var isKjk = (currentCalcSubTab === 'kjk');
+    var activeList = isKjk ? currentProcessedKjkList : currentProcessedCalcList;
+
+    if (!activeList || activeList.length === 0) {
       showToast("Tidak ada data untuk diekspor!");
       return;
     }
@@ -373,44 +510,67 @@
         return;
       }
 
-      var aoaData = [
-        ["REKAPITULASI UPAH LEMBUR KARYAWAN (PP NO. 35 TAHUN 2021)"],
-        ["Periode: " + periodVal],
-        ["Tanggal Ekspor: " + new Date().toLocaleString('id-ID')],
-        [""],
-        ["NO", "NIK", "NAMA LENGKAP", "SITE", "TANGGAL", "TIPE HARI", "JAM KOTOR", "POT. ISTIRAHAT", "JAM EFEKTIF", "BOBOT RATE", "UPAH/JAM (RP)", "TOTAL LEMBUR (RP)"]
-      ];
+      var aoaData = [];
+      var fileName = "";
 
-      currentProcessedCalcList.forEach(function(item, idx) {
-        aoaData.push([
-          (idx + 1),
-          item.nik || "-",
-          String(item.nama_lengkap || "").toUpperCase(),
-          item.site || "CGK1",
-          item.tanggal || "-",
-          item.overtime_type,
-          item.raw_hours,
-          item.rest_deduction,
-          item.effective_hours,
-          item.rate_hours,
-          item.hourly_wage,
-          item.overtime_amount
-        ]);
-      });
+      if (isKjk) {
+        fileName = "Rekap_KJK_Flat2x_" + periodVal + ".xlsx";
+        aoaData = [
+          ["REKAPITULASI KELEBIHAN JAM KERJA (KJK - FLAT MULTIPLIER 2X)"],
+          ["Periode: " + periodVal],
+          ["Tanggal Ekspor: " + new Date().toLocaleString('id-ID')],
+          [""],
+          ["NO", "NIK", "NAMA LENGKAP", "SITE", "PERIODE BULAN", "JAM KJK", "JAM INDEKS (2X)", "BASIC SALARY (RP)", "UPAH/JAM (RP)", "TOTAL NOMINAL KJK (RP)"]
+        ];
+
+        activeList.forEach(function(item, idx) {
+          aoaData.push([
+            (idx + 1),
+            item.nik || "-",
+            String(item.nama_lengkap || "").toUpperCase(),
+            item.site || "CGK1",
+            item.bulan || item.periode || "-",
+            item.hours,
+            item.hours_index,
+            item.wage_base,
+            item.hourly_wage,
+            item.kjk_amount
+          ]);
+        });
+      } else {
+        fileName = "Rekap_Upah_Lembur_PP35_" + periodVal + ".xlsx";
+        aoaData = [
+          ["REKAPITULASI UPAH LEMBUR KARYAWAN (PP NO. 35 TAHUN 2021)"],
+          ["Periode: " + periodVal],
+          ["Tanggal Ekspor: " + new Date().toLocaleString('id-ID')],
+          [""],
+          ["NO", "NIK", "NAMA LENGKAP", "SITE", "TANGGAL", "TIPE HARI", "JAM KOTOR", "POT. ISTIRAHAT", "JAM EFEKTIF", "BOBOT RATE", "UPAH/JAM (RP)", "TOTAL LEMBUR (RP)"]
+        ];
+
+        activeList.forEach(function(item, idx) {
+          aoaData.push([
+            (idx + 1),
+            item.nik || "-",
+            String(item.nama_lengkap || "").toUpperCase(),
+            item.site || "CGK1",
+            item.tanggal || "-",
+            item.overtime_type,
+            item.raw_hours,
+            item.rest_deduction,
+            item.effective_hours,
+            item.rate_hours,
+            item.hourly_wage,
+            item.overtime_amount
+          ]);
+        });
+      }
 
       var ws = XLSX.utils.aoa_to_sheet(aoaData);
-      ws['!cols'] = [
-        { wch: 6 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 14 },
-        { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
-        { wch: 16 }, { wch: 20 }
-      ];
-
       var wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Rekap Lembur PP35");
+      XLSX.utils.book_append_sheet(wb, ws, isKjk ? "Rekap KJK" : "Rekap Lembur PP35");
 
-      var fileName = "Rekap_Upah_Lembur_PP35_" + periodVal + ".xlsx";
       XLSX.writeFile(wb, fileName);
       showToast("Berkas " + fileName + " berhasil diunduh!");
     });
   }
-</script>
+</script></selection-tag>
