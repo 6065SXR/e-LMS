@@ -7,8 +7,8 @@
    * 1. Mengelola state kalkulasi upah lembur per baris karyawan.
    * 2. Otomatisasi Murni Tipe Hari (Workday vs Day Off) Berdasarkan Tanggal Actual.
    * 3. Menampilkan status Tipe Hari sebagai BADGE STATIS / FIXED (TIDAK BISA DIUBAH MANUAL).
-   * 4. Kalkulasi otomatis: Potongan Istirahat, Jam Efektif, Bobot Rate, Nominal Upah.
-   * 5. Interaksi UI, Filter Multi-kriteria, Sync & Export.
+   * 4. Akumulasi Card Total Nominal Menghitung SELURUH Nilai (Workday + Day Off).
+   * 5. Otomatisasi Simpan Realtime ke Spreadsheet (Tanpa Tombol Manual).
    * ============================================================================
    */
 
@@ -72,7 +72,8 @@
   }
 
   /**
-   * Memuat data lembur berstatus Approved untuk dikalkulasi
+   * Memuat data lembur berstatus Approved untuk dikalkulasi.
+   * Backend secara otomatis menyinkronkan data terbaru ke sheet REKAP_LEMBUR.
    */
   function loadOvertimeCalculationData() {
     var periodFilter = document.getElementById("calcPeriodFilter");
@@ -94,7 +95,7 @@
       // Isikan dropdown filter karyawan
       populateCalcEmployeeDropdown();
 
-      // Render tabel dan hitung ulang
+      // Render tabel dan hitung akumulasi
       renderOvertimeCalculationTable();
     });
   }
@@ -173,7 +174,8 @@
 
   /**
    * Render Tabel Kalkulasi Upah Lembur Responsif
-   * KOLOM TIPE HARI DITERAPKAN DALAM BENTUK BADGE TERKUNCI (FIXED READ-ONLY)
+   * 1. AKUMULASI TOTAL NOMINAL CARD MENGHITUNG KESELURUHAN (WORKDAY + DAY OFF).
+   * 2. BADGE TIPE HARI FIX TERKUNCI READ-ONLY BERSANDARKAN KALENDER INDONESIA.
    */
   function renderOvertimeCalculationTable() {
     var tbody = document.getElementById("rekapLemburTableBody");
@@ -196,7 +198,7 @@
     currentProcessedCalcList = [];
     var totalEmpCount = new Set();
     var totalEffectiveHours = 0;
-    var totalNominalAmount = 0;
+    var totalNominalAmountCombined = 0; // Memuat penjumlahan utuh Workday + Day Off
 
     filteredList.forEach(function(item, idx) {
       // 100% TERKUNCI DARI KALENDER ACTUAL
@@ -216,7 +218,7 @@
 
       totalEmpCount.add(item.user_id);
       totalEffectiveHours += calcRes.effective_hours;
-      totalNominalAmount += calcRes.overtime_amount;
+      totalNominalAmountCombined += calcRes.overtime_amount; // Akumulasi gabungan utuh
 
       var tr = document.createElement("tr");
       tr.className = "hover:bg-slate-50 transition border-b border-slate-100 text-xs";
@@ -229,9 +231,7 @@
         typeBadgeHtml = '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center" title="Hari Kerja Reguler (Senin - Jumat)"><i class="fa-solid fa-briefcase mr-1 text-slate-500"></i> Workday (Kerja)</span>';
       }
 
-      var statusSyncBadge = item.is_synced ?
-        '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>' :
-        '<span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-bold">Draft</span>';
+      var statusSyncBadge = '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center" title="Tersimpan otomatis ke database spreadsheet"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>';
 
       tr.innerHTML = '<td class="py-3 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
         '<td class="py-3 px-3"><div class="font-bold text-slate-900">' + item.nama_lengkap + '</div><div class="text-[10px] font-mono text-slate-500">' + item.nik + '</div></td>' +
@@ -249,53 +249,21 @@
       tbody.appendChild(tr);
     });
 
-    updateCalcSummaryBadges(totalEmpCount.size, Math.round(totalEffectiveHours * 10) / 10, totalNominalAmount);
+    // Update Card Atas dengan Penjumlahan Utuh
+    updateCalcSummaryBadges(totalEmpCount.size, Math.round(totalEffectiveHours * 10) / 10, totalNominalAmountCombined);
   }
 
   /**
    * Perbarui Card Indikator Ringkasan
    */
-  function updateCalcSummaryBadges(empCount, effectiveHours, totalAmount) {
+  function updateCalcSummaryBadges(empCount, effectiveHours, totalAmountCombined) {
     var empEl = document.getElementById("calcSumTotalEmployees");
     var hrsEl = document.getElementById("calcSumTotalHours");
     var amtEl = document.getElementById("calcSumTotalAmount");
 
     if (empEl) empEl.innerText = empCount + " Orang";
     if (hrsEl) hrsEl.innerText = effectiveHours + " Jam";
-    if (amtEl) amtEl.innerText = "Rp " + totalAmount.toLocaleString('id-ID');
-  }
-
-  /**
-   * Sinkronkan & Simpan Pembukuan Hasil Kalkulasi ke Sheet REKAP_LEMBUR
-   */
-  function handleSyncRekapLembur() {
-    if (!currentProcessedCalcList || currentProcessedCalcList.length === 0) {
-      showToast("Tidak ada data kalkulasi untuk disinkronkan.");
-      return;
-    }
-
-    var btn = document.getElementById("btnSyncRekapLembur");
-    var originalHtml = btn ? btn.innerHTML : "";
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Menyimpan ke Spreadsheet...</span>';
-    }
-
-    showToast("Menyimpan rekapitulasi ke tab REKAP_LEMBUR...");
-
-    callBackend('saveCalculatedOvertimeToSheet', [currentProcessedCalcList], function(res) {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
-      }
-
-      if (res && res.success) {
-        showToast(res.message || "Data rekapitulasi lembur berhasil disinkronkan!");
-        loadOvertimeCalculationData();
-      } else {
-        showToast(res ? res.error : "Gagal menyimpan rekapitulasi lembur!");
-      }
-    });
+    if (amtEl) amtEl.innerText = "Rp " + totalAmountCombined.toLocaleString('id-ID');
   }
 
   /**
