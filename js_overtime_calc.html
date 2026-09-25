@@ -1,0 +1,359 @@
+<script>
+  /**
+   * ============================================================================
+   * MODUL: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021)
+   * System: e-LMS Data Center KSPS
+   * Responsibility:
+   * 1. Mengelola state kalkulasi upah lembur per baris karyawan.
+   * 2. Otomatisasi Murni Tipe Hari (Workday vs Day Off) Berdasarkan Tanggal Actual.
+   * 3. Menampilkan status Tipe Hari sebagai BADGE STATIS / FIXED (TIDAK BISA DIUBAH MANUAL).
+   * 4. Kalkulasi otomatis: Potongan Istirahat, Jam Efektif, Bobot Rate, Nominal Upah.
+   * 5. Interaksi UI, Filter Multi-kriteria, Sync & Export.
+   * ============================================================================
+   */
+
+  var currentCalcRawList = [];
+  var currentProcessedCalcList = [];
+
+  /**
+   * Helper format tanggal YYYY-MM
+   */
+  function UtilitiesFormatDateMonth() {
+    var d = new Date();
+    var month = ('0' + (d.getMonth() + 1)).slice(-2);
+    return d.getFullYear() + '-' + month;
+  }
+
+  /**
+   * Helper pemastian library Excel SpreadsheetJS tersedia
+   */
+  function ensureXlsxLibrary(callback) {
+    if (window.XLSX) {
+      callback(true);
+      return;
+    }
+    var script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    script.onload = function() { callback(true); };
+    script.onerror = function() { callback(false); };
+    document.head.appendChild(script);
+  }
+
+  /**
+   * Cek Tanggal Merah Hari Libur Nasional Indonesia
+   */
+  function isIndonesianHolidayFrontend(dateStr) {
+    if (!dateStr) return false;
+    var holidays = [
+      "-01-01", "-05-01", "-06-01", "-08-17", "-12-25",
+      "2025-01-27", "2025-01-29", "2025-03-29", "2025-03-31", "2025-04-01",
+      "2025-04-18", "2025-05-12", "2025-05-29", "2025-06-06", "2025-06-27", "2025-09-05",
+      "2026-01-16", "2026-02-17", "2026-03-19", "2026-03-20", "2026-03-21",
+      "2026-04-03", "2026-05-14", "2026-05-27", "2026-05-31", "2026-06-16", "2026-08-25",
+      "2027-02-05", "2027-02-06", "2027-03-09", "2027-03-10", "2027-03-26",
+      "2027-05-06", "2027-05-16", "2027-05-20", "2027-06-06"
+    ];
+    var datePart = dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr;
+    var monthDay = datePart.length >= 10 ? datePart.substring(4) : "";
+    return holidays.indexOf(datePart) !== -1 || holidays.indexOf(monthDay) !== -1;
+  }
+
+  /**
+   * Deteksi Otomatis Murni Tipe Hari Berdasarkan Tanggal Actual
+   */
+  function determineAutoDayTypeFrontend(dateStr) {
+    if (!dateStr) return "Workday";
+    var d = new Date(dateStr + "T00:00:00");
+    var dayOfWeek = d.getDay(); // 0 = Minggu, 6 = Sabtu
+    if (dayOfWeek === 0 || dayOfWeek === 6 || isIndonesianHolidayFrontend(dateStr)) {
+      return "Day Off";
+    }
+    return "Workday";
+  }
+
+  /**
+   * Memuat data lembur berstatus Approved untuk dikalkulasi
+   */
+  function loadOvertimeCalculationData() {
+    var periodFilter = document.getElementById("calcPeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    var siteFilter = document.getElementById("calcSiteFilter");
+    var siteVal = siteFilter ? siteFilter.value : "ALL";
+
+    showToast("Mengambil data lembur disetujui...");
+
+    callBackend('getApprovedOvertimeForCalculation', [periodVal, siteVal], function(res) {
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal memuat data lembur.");
+        return;
+      }
+
+      currentCalcRawList = res.data || [];
+
+      // Isikan dropdown filter karyawan
+      populateCalcEmployeeDropdown();
+
+      // Render tabel dan hitung ulang
+      renderOvertimeCalculationTable();
+    });
+  }
+
+  /**
+   * Mengisi dropdown karyawan dinamis berdasarkan data yang ada
+   */
+  function populateCalcEmployeeDropdown() {
+    var empSelect = document.getElementById("calcEmployeeFilter");
+    if (!empSelect) return;
+
+    var currentVal = empSelect.value || "ALL";
+    empSelect.innerHTML = '<option value="ALL">Semua Karyawan</option>';
+
+    var seenUsers = {};
+    currentCalcRawList.forEach(function(item) {
+      if (!seenUsers[item.user_id]) {
+        seenUsers[item.user_id] = true;
+        var opt = document.createElement("option");
+        opt.value = item.user_id;
+        opt.innerText = item.nama_lengkap + " (" + item.site + ")";
+        empSelect.appendChild(opt);
+      }
+    });
+
+    var exists = Array.from(empSelect.options).some(function(o) { return o.value === currentVal; });
+    empSelect.value = exists ? currentVal : "ALL";
+  }
+
+  /**
+   * FORMULA UTAMA PP NO. 35 TAHUN 2021
+   * 1. Wage per Hour = Math.round(Wage / 173)
+   *    - CGK1, CGK2, CGK3, CGK3A: Rp 5.729.876 / 173 = Rp 33.121
+   *    - CGK4: Rp 5.783.676 / 173 = Rp 33.432
+   * 2. Potongan Istirahat = Raw >= 4 -> 0.5 Jam
+   * 3. Jam Efektif = Raw - Potongan Istirahat
+   * 4. Rate Hours:
+   *    - Workday: <= 1 jam -> x1.5 | > 1 jam -> 1.5 + ((Effective - 1) * 2.0)
+   *    - Day Off: <= 8 jam -> x2.0 | > 8-9 jam -> 16 + ((Effective - 8) * 3.0) | > 9 jam -> 19 + ((Effective - 9) * 4.0)
+   * 5. Total Nominal = Math.round(Rate Hours * Wage per Hour)
+   */
+  function calculatePP35Single(rawHours, overtimeType, wageBase) {
+    var hourlyWage = Math.round(wageBase / 173);
+    var restDeduction = rawHours >= 4 ? 0.5 : 0;
+    var effectiveHours = Math.max(0, rawHours - restDeduction);
+    effectiveHours = Math.round(effectiveHours * 10) / 10;
+
+    var rateHours = 0;
+    if (overtimeType === 'Workday') {
+      if (effectiveHours <= 1) {
+        rateHours = effectiveHours * 1.5;
+      } else {
+        rateHours = 1.5 + ((effectiveHours - 1) * 2.0);
+      }
+    } else { // Day Off / Libur (Sabtu, Minggu, Libur Nasional)
+      if (effectiveHours <= 8) {
+        rateHours = effectiveHours * 2.0;
+      } else if (effectiveHours <= 9) {
+        rateHours = 16.0 + ((effectiveHours - 8) * 3.0);
+      } else {
+        rateHours = 19.0 + ((effectiveHours - 9) * 4.0);
+      }
+    }
+
+    rateHours = Math.round(rateHours * 10) / 10;
+    var overtimeAmount = Math.round(rateHours * hourlyWage);
+
+    return {
+      hourly_wage: hourlyWage,
+      rest_deduction: restDeduction,
+      effective_hours: effectiveHours,
+      rate_hours: rateHours,
+      overtime_amount: overtimeAmount
+    };
+  }
+
+  /**
+   * Render Tabel Kalkulasi Upah Lembur Responsif
+   * KOLOM TIPE HARI DITERAPKAN DALAM BENTUK BADGE TERKUNCI (FIXED READ-ONLY)
+   */
+  function renderOvertimeCalculationTable() {
+    var tbody = document.getElementById("rekapLemburTableBody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    var empFilterVal = document.getElementById("calcEmployeeFilter") ? document.getElementById("calcEmployeeFilter").value : "ALL";
+
+    var filteredList = currentCalcRawList.filter(function(item) {
+      return (empFilterVal === "ALL" || item.user_id === empFilterVal);
+    });
+
+    if (filteredList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="12" class="text-center text-slate-500 text-sm py-8">Tidak ada data lembur berstatus Approved yang ditemukan.</td></tr>';
+      updateCalcSummaryBadges(0, 0, 0);
+      currentProcessedCalcList = [];
+      return;
+    }
+
+    currentProcessedCalcList = [];
+    var totalEmpCount = new Set();
+    var totalEffectiveHours = 0;
+    var totalNominalAmount = 0;
+
+    filteredList.forEach(function(item, idx) {
+      // 100% TERKUNCI DARI KALENDER ACTUAL
+      var autoType = determineAutoDayTypeFrontend(item.tanggal);
+      var calcRes = calculatePP35Single(item.raw_hours, autoType, item.wage_base);
+
+      var processedItem = Object.assign({}, item, {
+        overtime_type: autoType,
+        hourly_wage: calcRes.hourly_wage,
+        rest_deduction: calcRes.rest_deduction,
+        effective_hours: calcRes.effective_hours,
+        rate_hours: calcRes.rate_hours,
+        overtime_amount: calcRes.overtime_amount
+      });
+
+      currentProcessedCalcList.push(processedItem);
+
+      totalEmpCount.add(item.user_id);
+      totalEffectiveHours += calcRes.effective_hours;
+      totalNominalAmount += calcRes.overtime_amount;
+
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition border-b border-slate-100 text-xs";
+
+      // BADGE TIPE HARI FIX TERKUNCI (READ-ONLY)
+      var typeBadgeHtml = '';
+      if (autoType === 'Day Off') {
+        typeBadgeHtml = '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300/80 inline-flex items-center shadow-2xs" title="Hari Libur (Sabtu, Minggu / Tanggal Merah)"><i class="fa-solid fa-calendar-day mr-1 text-amber-700"></i> Day Off (Libur)</span>';
+      } else {
+        typeBadgeHtml = '<span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center" title="Hari Kerja Reguler (Senin - Jumat)"><i class="fa-solid fa-briefcase mr-1 text-slate-500"></i> Workday (Kerja)</span>';
+      }
+
+      var statusSyncBadge = item.is_synced ?
+        '<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i>Tersimpan</span>' :
+        '<span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-bold">Draft</span>';
+
+      tr.innerHTML = '<td class="py-3 px-3 text-center font-bold text-slate-500">' + (idx + 1) + '</td>' +
+        '<td class="py-3 px-3"><div class="font-bold text-slate-900">' + item.nama_lengkap + '</div><div class="text-[10px] font-mono text-slate-500">' + item.nik + '</div></td>' +
+        '<td class="py-3 px-3 text-center"><span class="bg-indigo-50 text-[#1C1B8E] px-2 py-0.5 rounded-full text-[11px] font-bold border border-indigo-100">' + item.site + '</span></td>' +
+        '<td class="py-3 px-3 text-center font-bold text-slate-800 whitespace-nowrap">' + item.tanggal + '</td>' +
+        '<td class="py-3 px-3 text-center">' + typeBadgeHtml + '</td>' +
+        '<td class="py-3 px-3 text-center font-bold text-slate-700">' + item.raw_hours + ' Jam</td>' +
+        '<td class="py-3 px-3 text-center font-semibold text-rose-600 bg-rose-50/50">' + calcRes.rest_deduction + ' Jam</td>' +
+        '<td class="py-3 px-3 text-center font-extrabold text-[#1C1B8E] bg-indigo-50/30">' + calcRes.effective_hours + ' Jam</td>' +
+        '<td class="py-3 px-3 text-center font-bold text-amber-800 bg-amber-50/30">' + calcRes.rate_hours + ' Rate</td>' +
+        '<td class="py-3 px-3 text-right font-mono font-medium text-slate-600">Rp ' + calcRes.hourly_wage.toLocaleString('id-ID') + '</td>' +
+        '<td class="py-3 px-3 text-right font-mono font-extrabold text-emerald-700 bg-emerald-50/40">Rp ' + calcRes.overtime_amount.toLocaleString('id-ID') + '</td>' +
+        '<td class="py-3 px-3 text-center">' + statusSyncBadge + '</td>';
+
+      tbody.appendChild(tr);
+    });
+
+    updateCalcSummaryBadges(totalEmpCount.size, Math.round(totalEffectiveHours * 10) / 10, totalNominalAmount);
+  }
+
+  /**
+   * Perbarui Card Indikator Ringkasan
+   */
+  function updateCalcSummaryBadges(empCount, effectiveHours, totalAmount) {
+    var empEl = document.getElementById("calcSumTotalEmployees");
+    var hrsEl = document.getElementById("calcSumTotalHours");
+    var amtEl = document.getElementById("calcSumTotalAmount");
+
+    if (empEl) empEl.innerText = empCount + " Orang";
+    if (hrsEl) hrsEl.innerText = effectiveHours + " Jam";
+    if (amtEl) amtEl.innerText = "Rp " + totalAmount.toLocaleString('id-ID');
+  }
+
+  /**
+   * Sinkronkan & Simpan Pembukuan Hasil Kalkulasi ke Sheet REKAP_LEMBUR
+   */
+  function handleSyncRekapLembur() {
+    if (!currentProcessedCalcList || currentProcessedCalcList.length === 0) {
+      showToast("Tidak ada data kalkulasi untuk disinkronkan.");
+      return;
+    }
+
+    var btn = document.getElementById("btnSyncRekapLembur");
+    var originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Menyimpan ke Spreadsheet...</span>';
+    }
+
+    showToast("Menyimpan rekapitulasi ke tab REKAP_LEMBUR...");
+
+    callBackend('saveCalculatedOvertimeToSheet', [currentProcessedCalcList], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast(res.message || "Data rekapitulasi lembur berhasil disinkronkan!");
+        loadOvertimeCalculationData();
+      } else {
+        showToast(res ? res.error : "Gagal menyimpan rekapitulasi lembur!");
+      }
+    });
+  }
+
+  /**
+   * Ekspor Rekapitulasi Upah Lembur ke Format Excel (.xlsx)
+   */
+  function handleExportRekapExcel() {
+    if (!currentProcessedCalcList || currentProcessedCalcList.length === 0) {
+      showToast("Tidak ada data untuk diekspor!");
+      return;
+    }
+
+    var periodFilter = document.getElementById("calcPeriodFilter");
+    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+
+    ensureXlsxLibrary(function(loaded) {
+      if (!loaded || !window.XLSX) {
+        showToast("Gagal memuat library Excel Spreadsheet.");
+        return;
+      }
+
+      var aoaData = [
+        ["REKAPITULASI UPAH LEMBUR KARYAWAN (PP NO. 35 TAHUN 2021)"],
+        ["Periode: " + periodVal],
+        ["Tanggal Ekspor: " + new Date().toLocaleString('id-ID')],
+        [""],
+        ["NO", "NIK", "NAMA LENGKAP", "SITE", "TANGGAL", "TIPE HARI", "JAM KOTOR", "POT. ISTIRAHAT", "JAM EFEKTIF", "BOBOT RATE", "UPAH/JAM (RP)", "TOTAL LEMBUR (RP)"]
+      ];
+
+      currentProcessedCalcList.forEach(function(item, idx) {
+        aoaData.push([
+          (idx + 1),
+          item.nik || "-",
+          String(item.nama_lengkap || "").toUpperCase(),
+          item.site || "CGK1",
+          item.tanggal || "-",
+          item.overtime_type,
+          item.raw_hours,
+          item.rest_deduction,
+          item.effective_hours,
+          item.rate_hours,
+          item.hourly_wage,
+          item.overtime_amount
+        ]);
+      });
+
+      var ws = XLSX.utils.aoa_to_sheet(aoaData);
+      ws['!cols'] = [
+        { wch: 6 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 14 },
+        { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+        { wch: 16 }, { wch: 20 }
+      ];
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap Lembur PP35");
+
+      var fileName = "Rekap_Upah_Lembur_PP35_" + periodVal + ".xlsx";
+      XLSX.writeFile(wb, fileName);
+      showToast("Berkas " + fileName + " berhasil diunduh!");
+    });
+  }
+</script>
