@@ -78,7 +78,8 @@
       </div>
     </div>
 
-    <nav class="space-y-1.5">
+    <!-- DERETAN MENU SIDEBAR (SEMUA UKURAN & BENTUK 100% KONSISTEN) -->
+    <nav class="space-y-1.5" id="mainSidebarNav">
       <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition active-nav">
         <i class="fa-solid fa-chart-pie w-5"></i>
         <span>Dashboard</span>
@@ -107,6 +108,11 @@
       <button type="button" onclick="switchTab('backup')" id="nav-backup" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
         <i class="fa-solid fa-database w-5 text-indigo-600"></i>
         <span>Backup &amp; Restore</span>
+      </button>
+      <!-- MENU SUPER ADMIN: UNDER CONSTRUCTION (1 BARIS RAPI & SERAGAM) -->
+      <button type="button" onclick="switchTab('under-construction')" id="nav-under-construction" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-super-admin">
+        <i class="fa-solid fa-screwdriver-wrench w-5 text-[#F38F00]"></i>
+        <span>Under Construction</span>
       </button>
     </nav>
   </div>
@@ -163,4 +169,26 @@
     </div>
     <span class="floating-label">Backup</span>
   </button>
+  <button type="button" onclick="switchTab('under-construction')" id="mobile-nav-under-construction" class="floating-nav-item hidden role-super-admin">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-screwdriver-wrench text-[#F38F00]"></i>
+    </div>
+    <span class="floating-label">Maint.</span>
+  </button>
 </nav>
+
+<script>
+  function syncSuperAdminNavigationVisibility() {
+    if (!window.currentUser) return;
+    var isSuperAdmin = (currentUser.role === 'Super Admin');
+    var superAdminElements = document.querySelectorAll(".role-super-admin");
+    superAdminElements.forEach(function(el) {
+      if (isSuperAdmin) {
+        el.classList.remove("hidden");
+      } else {
+        el.classList.add("hidden");
+      }
+    });
+  }
+  setInterval(syncSuperAdminNavigationVisibility, 1000);
+</script>
