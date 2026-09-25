@@ -1,0 +1,175 @@
+<script>
+  /**
+   * ==========================================================================
+   * JS BACKUP, RESTORE & SAFE MAINTENANCE ENGINE
+   * System: e-LMS Data Center KSPS
+   * Terhubung langsung dengan fungsi backend di file .gs:
+   * 1. exportFullDatabaseBackup()
+   * 2. restoreDatabaseFromJson(jsonString)
+   * 3. executeSafeCleanDatabase(cleanType, confirmSecret)
+   * ==========================================================================
+   */
+
+  /**
+   * Helper pemanggilan backend yang aman dan mendukung semua model runner
+   */
+  function callBackendSafe(funcName, args, callback) {
+    if (typeof callBackend === "function") {
+      callBackend(funcName, args, callback);
+    } else if (window.google && google.script && google.script.run) {
+      var runner = google.script.run
+        .withSuccessHandler(function(res) { if (callback) callback(res); })
+        .withFailureHandler(function(err) { if (callback) callback({ success: false, error: err.toString() }); });
+      runner[funcName].apply(runner, args);
+    } else {
+      if (callback) callback({ success: false, error: "Koneksi Google Apps Script tidak terdeteksi." });
+    }
+  }
+
+  /**
+   * 1. Export & Download Full Backup Database (JSON)
+   */
+  function handleExportDatabaseBackup() {
+    var btn = document.getElementById("btnExportDatabaseBackup");
+    var btnText = document.getElementById("btnExportBackupText");
+    var originalHtml = btn ? btn.innerHTML : "";
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Mengekstrak Spreadsheet...</span>';
+    }
+
+    showToast("Sedang mencadangkan seluruh sheet database...");
+
+    callBackendSafe("exportFullDatabaseBackup", [], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (!res || !res.success) {
+        showToast(res ? res.error : "Gagal membuat cadangan database!");
+        return;
+      }
+
+      try {
+        var jsonString = JSON.stringify(res, null, 2);
+        var blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
+        var downloadUrl = URL.createObjectURL(blob);
+        var downloadLink = document.createElement("a");
+
+        downloadLink.href = downloadUrl;
+        downloadLink.download = res.filename || ("eLMS_KSPS_Backup_" + (res.timestamp || "snapshot") + ".json");
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(downloadUrl);
+
+        showToast("Cadangan database (" + res.sheetsCount + " Sheet) berhasil diunduh!");
+      } catch (err) {
+        showToast("Gagal memproses unduhan berkas: " + err.message);
+      }
+    });
+  }
+
+  /**
+   * 2. Restore Database dari Berkas JSON Cadangan
+   */
+  function handleRestoreDatabaseBackup() {
+    var fileInput = document.getElementById("backupRestoreFileInput");
+    var file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
+
+    if (!file) {
+      showToast("Pilih berkas cadangan JSON (.json) terlebih dahulu!");
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      showToast("Berkas harus berekstensi .json!");
+      return;
+    }
+
+    var btn = document.getElementById("btnRestoreDatabaseBackup");
+    var originalHtml = btn ? btn.innerHTML : "";
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var jsonContent = e.target.result;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Memulihkan Database...</span>';
+      }
+
+      showToast("Sedang memulihkan data spreadsheet dari JSON...");
+
+      callBackendSafe("restoreDatabaseFromJson", [jsonContent], function(res) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+
+        if (res && res.success) {
+          showToast(res.message || "Database berhasil dipulihkan!");
+          if (fileInput) fileInput.value = "";
+          
+          // Muat ulang data dashboard jika fungsi tersedia
+          setTimeout(function() {
+            if (typeof loadCourses === "function") loadCourses(1);
+            if (typeof loadOvertimeData === "function") loadOvertimeData();
+          }, 1000);
+        } else {
+          showToast(res ? res.error : "Gagal memulihkan database dari JSON!");
+        }
+      });
+    };
+
+    reader.onerror = function() {
+      showToast("Gagal membaca berkas cadangan lokal!");
+    };
+
+    reader.readAsText(file);
+  }
+
+  /**
+   * 3. Eksekusi Pembersihan Aman Terkendali (Safe Clean)
+   */
+  function handleExecuteSafeClean() {
+    var cleanType = document.getElementById("safeCleanTargetSelect").value;
+    var secretInput = document.getElementById("safeCleanConfirmSecretInput");
+    var secretVal = secretInput ? secretInput.value.trim() : "";
+
+    if (secretVal !== "HAPUS-DATA") {
+      showToast("Kata konfirmasi tidak valid! Wajib ketik persis 'HAPUS-DATA'.");
+      if (secretInput) secretInput.focus();
+      return;
+    }
+
+    var btn = document.getElementById("btnExecuteSafeClean");
+    var originalHtml = btn ? btn.innerHTML : "";
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Membersihkan Data...</span>';
+    }
+
+    callBackendSafe("executeSafeCleanDatabase", [cleanType, secretVal], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast(res.message || "Pembersihan database berhasil dijalankan!");
+        if (secretInput) secretInput.value = "";
+
+        // Segarkan data lembur jika yang dibersihkan adalah lembur
+        if (cleanType === "OVERTIME_AND_KJK" && typeof loadOvertimeData === "function") {
+          loadOvertimeData();
+        }
+      } else {
+        showToast(res ? res.error : "Pembersihan ditolak oleh server!");
+      }
+    });
+  }
+</script>
