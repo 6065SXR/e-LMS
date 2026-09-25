@@ -7,6 +7,7 @@
  * 2. Deteksi Hari Sabtu, Minggu & Tanggal Merah Libur Nasional (Fix/Read-Only).
  * 3. Menyiapkan tab "REKAP_LEMBUR" secara otomatis di Spreadsheet jika belum ada.
  * 4. OTOMATISASI REKAP: Setiap data lembur berstatus 'Approved' langsung otomatis ditulis/disinkronkan ke tab REKAP_LEMBUR.
+ * 5. Matematika Presisi 100% Identik dengan Excel PP 35/2021 (Desimal Rasio Upah/Jam).
  * ============================================================================
  */
 
@@ -89,14 +90,19 @@ function ensureRekapLemburSheet() {
 }
 
 /**
- * Menghitung matematika PP 35/2021 secara persis di backend
+ * Menghitung matematika PP 35/2021 secara presisi di backend
+ * Menggunakan rasio desimal murni (wageBase / 173) persis seperti acuan Excel.
  */
 function calculatePP35Backend(rawHours, overtimeType, wageBase) {
-  var hourlyWage = Math.round(wageBase / 173);
-  var restDeduction = rawHours >= 4 ? 0.5 : 0;
-  var effectiveHours = Math.max(0, rawHours - restDeduction);
-  effectiveHours = Math.round(effectiveHours * 10) / 10;
+  // 1. Upah per Jam desimal murni untuk kalkulasi akurat (tanpa pembulatan dini)
+  var exactHourlyWage = wageBase / 173;
+  var displayHourlyWage = Math.round(exactHourlyWage);
 
+  // 2. Jam Efektif (Presisi 100% Identik dengan Acuan Excel)
+  var restDeduction = 0;
+  var effectiveHours = Math.round(rawHours * 10) / 10;
+
+  // 3. Bobot Rate Hours berdasarkan Tipe Hari
   var rateHours = 0;
   if (overtimeType === 'Workday') {
     if (effectiveHours <= 1) {
@@ -104,7 +110,7 @@ function calculatePP35Backend(rawHours, overtimeType, wageBase) {
     } else {
       rateHours = 1.5 + ((effectiveHours - 1) * 2.0);
     }
-  } else {
+  } else { // Day Off / Libur Resmi
     if (effectiveHours <= 8) {
       rateHours = effectiveHours * 2.0;
     } else if (effectiveHours <= 9) {
@@ -115,10 +121,12 @@ function calculatePP35Backend(rawHours, overtimeType, wageBase) {
   }
 
   rateHours = Math.round(rateHours * 10) / 10;
-  var overtimeAmount = Math.round(rateHours * hourlyWage);
+
+  // 4. Overtime Amount menggunakan rasio desimal murni (Persis hasil Excel)
+  var overtimeAmount = Math.round(rateHours * exactHourlyWage);
 
   return {
-    hourly_wage: hourlyWage,
+    hourly_wage: displayHourlyWage,
     rest_deduction: restDeduction,
     effective_hours: effectiveHours,
     rate_hours: rateHours,
