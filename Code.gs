@@ -231,3 +231,129 @@ function syncMonthlyMission(userId, periodeBulan) {
   }
   SpreadsheetApp.flush();
 }
+
+/**
+ * ============================================================================
+ * BACKEND EXTENSION: UNDER CONSTRUCTION MANAGER & WHATSAPP INTEGRATION
+ * Sheet Target: "UNDER_CONSTRUCTION"
+ * ============================================================================
+ */
+function getUnderConstructionConfig() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("UNDER_CONSTRUCTION");
+
+    var defaultConfig = {
+      whatsapp_number: "081234567890",
+      default_message: "Halo Admin KSPS, saya ingin menanyakan pembaruan fitur",
+      menus: [
+        { id: "dashboard", name: "Dashboard", lock_karyawan: false, lock_pm: false, note: "Dashboard sedang sinkronisasi data analitik." },
+        { id: "katalog", name: "Katalog Materi", lock_karyawan: false, lock_pm: false, note: "Silabus materi baru sedang dipersiapkan oleh tim operasional." },
+        { id: "karyawan", name: "Data Karyawan", lock_karyawan: false, lock_pm: false, note: "Sinkronisasi profil data personel sedang berlangsung." },
+        { id: "misi", name: "Misi Bulanan", lock_karyawan: false, lock_pm: false, note: "Penyesuaian target kompetensi bulanan sedang dioptimalkan." },
+        { id: "overtime", name: "Form Lembur", lock_karyawan: false, lock_pm: false, note: "Modul pengajuan lembur sedang dalam pemeliharaan berkala." },
+        { id: "users", name: "Manajemen User", lock_karyawan: false, lock_pm: false, note: "Sistem autentikasi dan manajemen hak akses sedang dimutakhirkan." },
+        { id: "backup", name: "Backup & Restore", lock_karyawan: false, lock_pm: false, note: "Modul backup database sedang dalam pemeliharaan berkala." }
+      ]
+    };
+
+    // Buat otomatis sheet jika belum ada di spreadsheet
+    if (!sheet) {
+      sheet = ss.insertSheet("UNDER_CONSTRUCTION");
+      sheet.appendRow(["menu_id", "menu_name", "lock_karyawan", "lock_pm", "custom_note", "whatsapp_number", "default_message"]);
+      
+      sheet.getRange(1, 1, 1, 7)
+           .setFontWeight("bold")
+           .setBackground("#1C1B8E")
+           .setFontColor("#FFFFFF")
+           .setHorizontalAlignment("center");
+      
+      defaultConfig.menus.forEach(function(m, idx) {
+        var wa = (idx === 0) ? "'" + defaultConfig.whatsapp_number : "";
+        var msg = (idx === 0) ? defaultConfig.default_message : "";
+        sheet.appendRow([m.id, m.name, m.lock_karyawan, m.lock_pm, m.note, wa, msg]);
+      });
+
+      sheet.autoResizeColumns(1, 7);
+      return { success: true, data: defaultConfig };
+    }
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return { success: true, data: defaultConfig };
+    }
+
+    var config = {
+      whatsapp_number: (data[1][5] !== undefined && data[1][5] !== "") ? String(data[1][5]) : defaultConfig.whatsapp_number,
+      default_message: (data[1][6] !== undefined && data[1][6] !== "") ? String(data[1][6]) : defaultConfig.default_message,
+      menus: []
+    };
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0]) continue;
+
+      config.menus.push({
+        id: String(row[0]).trim(),
+        name: String(row[1] || row[0]).trim(),
+        lock_karyawan: (row[2] === true || String(row[2]).toLowerCase() === "true"),
+        lock_pm: (row[3] === true || String(row[3]).toLowerCase() === "true"),
+        note: String(row[4] || "")
+      });
+    }
+
+    return { success: true, data: config };
+  } catch (err) {
+    Logger.log("getUnderConstructionConfig Error: " + err.toString());
+    return { success: false, error: err.toString() };
+  }
+}
+
+function saveUnderConstructionConfig(config) {
+  try {
+    if (!config) {
+      return { success: false, error: "Konfigurasi tidak valid." };
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("UNDER_CONSTRUCTION");
+
+    if (!sheet) {
+      sheet = ss.insertSheet("UNDER_CONSTRUCTION");
+    }
+
+    sheet.clear();
+    sheet.appendRow(["menu_id", "menu_name", "lock_karyawan", "lock_pm", "custom_note", "whatsapp_number", "default_message"]);
+    
+    sheet.getRange(1, 1, 1, 7)
+         .setFontWeight("bold")
+         .setBackground("#1C1B8E")
+         .setFontColor("#FFFFFF")
+         .setHorizontalAlignment("center");
+
+    var menus = config.menus || [];
+    var waNumber = config.whatsapp_number || "081234567890";
+    var defaultMsg = config.default_message || "Halo Admin KSPS, saya ingin menanyakan pembaruan fitur";
+
+    menus.forEach(function(m, idx) {
+      var wa = (idx === 0) ? "'" + waNumber : "";
+      var msg = (idx === 0) ? defaultMsg : "";
+      
+      sheet.appendRow([
+        m.id,
+        m.name,
+        Boolean(m.lock_karyawan),
+        Boolean(m.lock_pm),
+        m.note || "",
+        wa,
+        msg
+      ]);
+    });
+
+    sheet.autoResizeColumns(1, 7);
+    return { success: true, message: "Konfigurasi Under Construction berhasil disimpan ke database!" };
+  } catch (err) {
+    Logger.log("saveUnderConstructionConfig Error: " + err.toString());
+    return { success: false, error: err.toString() };
+  }
+}
