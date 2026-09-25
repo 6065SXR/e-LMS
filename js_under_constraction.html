@@ -1,0 +1,286 @@
+<script>
+  /**
+   * ==========================================================================
+   * JS UNDER CONSTRUCTION ENGINE & WHATSAPP INTEGRATION
+   * System: e-LMS Data Center KSPS
+   * ==========================================================================
+   */
+
+  var underConstructionConfig = {
+    whatsapp_number: "081234567890",
+    default_message: "Halo Admin KSPS, saya ingin menanyakan pembaruan fitur",
+    menus: [
+      { id: "dashboard", name: "Dashboard", lock_karyawan: false, lock_pm: false, note: "Dashboard sedang sinkronisasi data analitik." },
+      { id: "katalog", name: "Katalog Materi", lock_karyawan: false, lock_pm: false, note: "Silabus materi baru sedang dipersiapkan oleh tim operasional." },
+      { id: "karyawan", name: "Data Karyawan", lock_karyawan: false, lock_pm: false, note: "Sinkronisasi profil data personel sedang berlangsung." },
+      { id: "misi", name: "Misi Bulanan", lock_karyawan: false, lock_pm: false, note: "Penyesuaian target kompetensi bulanan sedang dioptimalkan." },
+      { id: "overtime", name: "Form Lembur", lock_karyawan: false, lock_pm: false, note: "Modul pengajuan lembur sedang dalam pemeliharaan berkala." },
+      { id: "users", name: "Manajemen User", lock_karyawan: false, lock_pm: false, note: "Sistem autentikasi dan manajemen hak akses sedang dimutakhirkan." },
+      { id: "backup", name: "Backup & Restore", lock_karyawan: false, lock_pm: false, note: "Modul backup database sedang dalam pemeliharaan berkala." }
+    ]
+  };
+
+  var currentUnderConstructionTargetTab = "";
+
+  function sanitizeWhatsAppNumber(phone) {
+    if (!phone) return "6281234567890";
+    var cleaned = String(phone).replace(/\D/g, "");
+
+    if (cleaned.startsWith("0")) {
+      cleaned = "62" + cleaned.substring(1);
+    } else if (cleaned.startsWith("8")) {
+      cleaned = "62" + cleaned;
+    } else if (!cleaned.startsWith("62") && cleaned.length > 0) {
+      cleaned = "62" + cleaned;
+    }
+    return cleaned;
+  }
+
+  function handleContactAdminWhatsApp() {
+    var rawPhone = underConstructionConfig.whatsapp_number || "081234567890";
+    var cleanPhone = sanitizeWhatsAppNumber(rawPhone);
+
+    var menuObj = getMenuConfigById(currentUnderConstructionTargetTab);
+    var menuName = menuObj ? menuObj.name : "Aplikasi";
+    var userName = currentUser ? (currentUser.name || "Karyawan") : "Karyawan";
+    var userRole = currentUser ? (currentUser.role || "User") : "User";
+
+    var defaultPrefix = underConstructionConfig.default_message || "Halo Admin KSPS, saya ingin menanyakan pembaruan fitur";
+    var chatText = defaultPrefix + " *" + menuName + "*.\n\n" +
+                   "Nama: " + userName + "\n" +
+                   "Role: " + userRole + "\n" +
+                   "Status: Mengakses halaman yang sedang under construction. Mohon informasinya, terima kasih.";
+
+    var waUrl = "https://wa.me/" + cleanPhone + "?text=" + encodeURIComponent(chatText);
+    window.open(waUrl, "_blank");
+  }
+
+  function getMenuConfigById(menuId) {
+    if (!underConstructionConfig || !underConstructionConfig.menus) return null;
+    for (var i = 0; i < underConstructionConfig.menus.length; i++) {
+      if (underConstructionConfig.menus[i].id === menuId) {
+        return underConstructionConfig.menus[i];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * INTERCEPTOR NAVIGASI (SWITCH TAB HOOK)
+   */
+  (function initSwitchTabInterceptor() {
+    var originalSwitchTab = window.switchTab;
+
+    window.switchTab = function(targetTab) {
+      var cleanTabId = String(targetTab).replace("view-", "");
+
+      // 1. Sembunyikan layar penutup Under Construction
+      hideUnderConstructionScreen();
+
+      // 2. Cek apakah menu sedang dikunci untuk akun pengguna saat ini (Karyawan / PM)
+      if (isTabUnderConstructionForCurrentUser(cleanTabId)) {
+        showUnderConstructionScreen(cleanTabId);
+        updateSidebarActiveStyle(cleanTabId);
+        return;
+      }
+
+      // 3. Khusus jika Super Admin membuka "under-construction"
+      if (cleanTabId === "under-construction") {
+        // Sembunyikan seluruh view section reguler
+        var allSections = document.querySelectorAll("main section[id^='view-']");
+        allSections.forEach(function(sec) {
+          sec.classList.add("hidden");
+        });
+
+        // Buka view under-construction Super Admin
+        var ucView = document.getElementById("view-under-construction");
+        if (ucView) ucView.classList.remove("hidden");
+
+        renderUnderConstructionAdminPanel();
+        updateSidebarActiveStyle("under-construction");
+        return;
+      }
+
+      // 4. Untuk menu reguler yang tidak dikunci, sembunyikan view under-construction
+      var ucView = document.getElementById("view-under-construction");
+      if (ucView) ucView.classList.add("hidden");
+
+      // Jalankan fungsi switchTab bawaan
+      if (typeof originalSwitchTab === "function") {
+        originalSwitchTab(targetTab);
+      }
+
+      updateSidebarActiveStyle(cleanTabId);
+    };
+  })();
+
+  function updateSidebarActiveStyle(activeTabId) {
+    // Desktop Nav
+    var desktopBtns = document.querySelectorAll("#mainSidebarNav button");
+    desktopBtns.forEach(function(btn) {
+      btn.classList.remove("active-nav");
+    });
+    var activeDesktopBtn = document.getElementById("nav-" + activeTabId);
+    if (activeDesktopBtn) {
+      activeDesktopBtn.classList.add("active-nav");
+    }
+
+    // Mobile Nav
+    var mobileBtns = document.querySelectorAll(".floating-nav-item");
+    mobileBtns.forEach(function(btn) {
+      btn.classList.remove("active-mobile-nav");
+    });
+    var activeMobileBtn = document.getElementById("mobile-nav-" + activeTabId);
+    if (activeMobileBtn) {
+      activeMobileBtn.classList.add("active-mobile-nav");
+    }
+  }
+
+  function isTabUnderConstructionForCurrentUser(tabId) {
+    if (!currentUser) return false;
+    if (currentUser.role === "Super Admin") return false;
+
+    var menu = getMenuConfigById(tabId);
+    if (!menu) return false;
+
+    if (currentUser.role === "Karyawan" && menu.lock_karyawan) return true;
+    if (currentUser.role === "Project Manager" && menu.lock_pm) return true;
+    return false;
+  }
+
+  function showUnderConstructionScreen(tabId) {
+    currentUnderConstructionTargetTab = tabId;
+    var menu = getMenuConfigById(tabId);
+    var menuName = menu ? menu.name : "Fitur";
+    var note = (menu && menu.note) ? menu.note : "Halaman ini sedang dalam tahap peningkatan dan pemeliharaan sistem.";
+
+    // Sembunyikan seluruh section views
+    var allSections = document.querySelectorAll("main section[id^='view-']");
+    allSections.forEach(function(sec) {
+      sec.classList.add("hidden");
+    });
+
+    var ucView = document.getElementById("view-under-construction");
+    if (ucView) ucView.classList.add("hidden");
+
+    var ucContainer = document.getElementById("underConstructionContainer");
+    if (ucContainer) {
+      ucContainer.classList.remove("hidden");
+
+      var titleEl = document.getElementById("ucMenuTitleDisplay");
+      if (titleEl) titleEl.innerText = "Fitur " + menuName + " Sedang Dalam Pengembangan";
+
+      var noteEl = document.getElementById("ucCustomNoteDisplay");
+      if (noteEl) noteEl.innerText = note;
+
+      ucContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function hideUnderConstructionScreen() {
+    var ucContainer = document.getElementById("underConstructionContainer");
+    if (ucContainer) {
+      ucContainer.classList.add("hidden");
+    }
+  }
+
+  function renderUnderConstructionAdminPanel() {
+    var tbody = document.getElementById("ucMenuTableBody");
+    var phoneInput = document.getElementById("ucConfigPhone");
+    var msgInput = document.getElementById("ucConfigDefaultMsg");
+
+    if (phoneInput) phoneInput.value = underConstructionConfig.whatsapp_number || "081234567890";
+    if (msgInput) msgInput.value = underConstructionConfig.default_message || "Halo Admin KSPS, saya ingin menanyakan pembaruan fitur";
+
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    underConstructionConfig.menus.forEach(function(item, idx) {
+      var tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+
+      tr.innerHTML = 
+        '<td class="py-3.5 px-4 text-center font-bold text-slate-400 text-xs">' + (idx + 1) + '</td>' +
+        '<td class="py-3.5 px-4 font-bold text-slate-900 text-xs">' +
+          '<div class="flex items-center space-x-2">' +
+            '<span class="w-2 h-2 rounded-full ' + ((item.lock_karyawan || item.lock_pm) ? 'bg-amber-500' : 'bg-emerald-500') + '"></span>' +
+            '<span>' + item.name + '</span>' +
+          '</div>' +
+          '<span class="text-[10px] text-slate-400 font-mono">id: view-' + item.id + '</span>' +
+        '</td>' +
+        '<td class="py-3.5 px-4 text-center">' +
+          '<label class="inline-flex items-center cursor-pointer">' +
+            '<input type="checkbox" ' + (item.lock_karyawan ? 'checked' : '') + ' onchange="toggleMenuLockState(\'' + item.id + '\', \'karyawan\', this.checked)" class="sr-only peer">' +
+            '<div class="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500"></div>' +
+          '</label>' +
+        '</td>' +
+        '<td class="py-3.5 px-4 text-center">' +
+          '<label class="inline-flex items-center cursor-pointer">' +
+            '<input type="checkbox" ' + (item.lock_pm ? 'checked' : '') + ' onchange="toggleMenuLockState(\'' + item.id + '\', \'pm\', this.checked)" class="sr-only peer">' +
+            '<div class="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>' +
+          '</label>' +
+        '</td>' +
+        '<td class="py-3.5 px-4">' +
+          '<input type="text" value="' + (item.note || '') + '" onchange="updateMenuCustomNote(\'' + item.id + '\', this.value)" placeholder="Tulis catatan pemeliharaan..." class="w-full p-2 rounded-xl border border-slate-200 text-xs font-normal focus:outline-none focus:ring-2 focus:ring-[#1C1B8E] bg-white">' +
+        '</td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function toggleMenuLockState(menuId, targetRole, isLocked) {
+    var menu = getMenuConfigById(menuId);
+    if (!menu) return;
+
+    if (targetRole === 'karyawan') {
+      menu.lock_karyawan = isLocked;
+    } else if (targetRole === 'pm') {
+      menu.lock_pm = isLocked;
+    }
+  }
+
+  function updateMenuCustomNote(menuId, noteText) {
+    var menu = getMenuConfigById(menuId);
+    if (menu) {
+      menu.note = noteText;
+    }
+  }
+
+  function saveUnderConstructionConfigToServer() {
+    var phoneInput = document.getElementById("ucConfigPhone");
+    var msgInput = document.getElementById("ucConfigDefaultMsg");
+    var btn = document.getElementById("btnSaveUcConfig");
+
+    if (phoneInput) underConstructionConfig.whatsapp_number = phoneInput.value.trim();
+    if (msgInput) underConstructionConfig.default_message = msgInput.value.trim();
+
+    var originalHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Menyimpan...';
+    }
+
+    callBackend('saveUnderConstructionConfig', [underConstructionConfig], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast("Konfigurasi Under Construction berhasil disimpan ke database!");
+      } else {
+        showToast(res ? res.error : "Pengaturan tersimpan lokal.");
+      }
+    });
+  }
+
+  function loadInitialUnderConstructionConfig() {
+    callBackend('getUnderConstructionConfig', [], function(res) {
+      if (res && res.success && res.data) {
+        underConstructionConfig = res.data;
+      }
+    });
+  }
+
+  setTimeout(loadInitialUnderConstructionConfig, 800);
+</script>
