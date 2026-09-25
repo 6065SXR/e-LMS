@@ -21,6 +21,9 @@
   var currentKjkPage = 1;
   var kjkItemsPerPage = 10;
 
+  // Tracker Filter Sebelumnya (Untuk Mencegah Auto Reset Halaman Saat Approve)
+  var lastOvtFilterState = { period: '', site: '', emp: '' };
+
   function UtilitiesFormatDateMonth() {
     var d = new Date();
     var month = '' + (d.getMonth() + 1);
@@ -198,6 +201,35 @@
         var matchEmp = (empVal === "ALL" || item.user_id === empVal);
         return matchSite && matchEmp;
       });
+
+      // SMART PRIORITY SORTING (KHUSUS PM & SUPER ADMIN):
+      // Prioritas 1: Pending (Menunggu persetujuan PM) -> Urutan teratas (Halaman 1)
+      // Prioritas 2: Perlu Revisi (Menunggu perbaikan/tindakan)
+      // Prioritas 3: Approved (Sudah selesai disetujui) -> Turun ke bawah
+      // Prioritas 4: Rejected / Lainnya
+      currentFilteredOvertimeCache.sort(function(a, b) {
+        var getPriority = function(status) {
+          if (status === 'Pending') return 1;
+          if (status === 'Perlu Revisi') return 2;
+          if (status === 'Approved') return 3;
+          if (status === 'Rejected') return 4;
+          return 5;
+        };
+
+        var pA = getPriority(a.status_approval);
+        var pB = getPriority(b.status_approval);
+
+        if (pA !== pB) {
+          return pA - pB;
+        }
+
+        // Sub-sorting: Jika status prioritas sama, urutkan dari tanggal terbaru
+        var dateComp = String(b.tanggal || '').localeCompare(String(a.tanggal || ''));
+        if (dateComp !== 0) return dateComp;
+
+        // Jika tanggal sama persis, urutkan berdasarkan jam mulai
+        return String(b.jam_mulai || '').localeCompare(String(a.jam_mulai || ''));
+      });
     }
 
     // 1. Hitung Total Akumulasi Jam Lembur
@@ -266,9 +298,26 @@
     var toolbarHoursEl = document.getElementById("ovtTotalMonthHoursToolbar");
     if (toolbarHoursEl) toolbarHoursEl.innerText = totalHrs + " Jam";
 
-    // Reset paginasi ke halaman 1 saat filter berubah
-    currentOvtPage = 1;
-    currentKjkPage = 1;
+    // PRESERVE PAGE STATE (PENTING):
+    // Reset paginasi ke Halaman 1 HANYA JIKA PM/User sengaja mengubah filter dropdown.
+    // Jika hanya proses Approve/Revisi, posisi halaman aktif saat ini akan tetap dijaga.
+    var currentPeriod = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var currentSite = document.getElementById("overtimeSiteFilter") ? document.getElementById("overtimeSiteFilter").value : "ALL";
+    var currentEmp = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
+
+    var isFilterChanged = (lastOvtFilterState.period !== currentPeriod ||
+                           lastOvtFilterState.site !== currentSite ||
+                           lastOvtFilterState.emp !== currentEmp);
+
+    if (isFilterChanged) {
+      currentOvtPage = 1;
+      currentKjkPage = 1;
+      lastOvtFilterState = {
+        period: currentPeriod,
+        site: currentSite,
+        emp: currentEmp
+      };
+    }
 
     // Render tabel aktif sesuai sub-tab terpilih
     if (currentOvertimeSubTab === 'kjk') {
