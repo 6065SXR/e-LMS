@@ -10,6 +10,7 @@
    * 4. Akumulasi Card Total Nominal Menghitung SELURUH Nilai (Workday + Day Off).
    * 5. Otomatisasi Simpan Realtime ke Spreadsheet (Tanpa Tombol Manual).
    * 6. PAGINASI TABEL: Pembatasan tampilan maksimal 10 data per halaman.
+   * 7. Presisi Matematika PP35 Identik 100% dengan Acuan Excel.
    * ============================================================================
    */
 
@@ -140,18 +141,18 @@
   }
 
   /**
-   * FORMULA UTAMA PP NO. 35 TAHUN 2021
-   * 1. Wage per Hour = Math.round(Wage / 173)
-   * 2. Potongan Istirahat = Raw >= 4 -> 0.5 Jam
-   * 3. Jam Efektif = Raw - Potongan Istirahat
-   * 4. Rate Hours berdasarkan Tipe Hari (Workday vs Day Off)
-   * 5. Total Nominal = Math.round(Rate Hours * Wage per Hour)
+   * FORMULA UTAMA PP NO. 35 TAHUN 2021 (PRESISI EXCEL 100%)
+   * 1. Exact Hourly Wage = wageBase / 173 (Rasio desimal murni)
+   * 2. Jam Efektif = rawHours (Identik 100% dengan acuan Excel)
+   * 3. Rate Hours berdasarkan Tipe Hari (Workday vs Day Off)
+   * 4. Total Nominal = Math.round(Rate Hours * Exact Hourly Wage)
    */
   function calculatePP35Single(rawHours, overtimeType, wageBase) {
-    var hourlyWage = Math.round(wageBase / 173);
-    var restDeduction = rawHours >= 4 ? 0.5 : 0;
-    var effectiveHours = Math.max(0, rawHours - restDeduction);
-    effectiveHours = Math.round(effectiveHours * 10) / 10;
+    var exactHourlyWage = wageBase / 173; // Desimal murni
+    var displayHourlyWage = Math.round(exactHourlyWage); // Tampilan UI (33.121 / 33.432)
+
+    var restDeduction = 0;
+    var effectiveHours = Math.round(rawHours * 10) / 10;
 
     var rateHours = 0;
     if (overtimeType === 'Workday') {
@@ -171,10 +172,11 @@
     }
 
     rateHours = Math.round(rateHours * 10) / 10;
-    var overtimeAmount = Math.round(rateHours * hourlyWage);
+    // Perkalian presisi rasio murni persis hasil Excel
+    var overtimeAmount = Math.round(rateHours * exactHourlyWage);
 
     return {
-      hourly_wage: hourlyWage,
+      hourly_wage: displayHourlyWage,
       rest_deduction: restDeduction,
       effective_hours: effectiveHours,
       rate_hours: rateHours,
@@ -314,7 +316,6 @@
       if (p === calcCurrentPage) {
         controlsHtml += '<button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1C1B8E] text-white shadow-xs cursor-default">' + p + '</button>';
       } else {
-        // Tampilkan halaman pertama, terakhir, dan yang berada di dekat halaman aktif
         if (p === 1 || p === totalPages || (p >= calcCurrentPage - 1 && p <= calcCurrentPage + 1)) {
           controlsHtml += '<button type="button" onclick="changeCalcPage(' + p + ')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition cursor-pointer">' + p + '</button>';
         } else if (p === calcCurrentPage - 2 || p === calcCurrentPage + 2) {
