@@ -6,8 +6,7 @@
  * 1. Otomasi murni penentuan Tipe Hari (Workday vs Day Off) berdasarkan Kalender Resmi Indonesia.
  * 2. Deteksi Hari Sabtu, Minggu & Tanggal Merah Libur Nasional (Fix/Read-Only).
  * 3. Menyiapkan tab "REKAP_LEMBUR" secara otomatis di Spreadsheet jika belum ada.
- * 4. Menarik data lembur berstatus 'Approved' dari sheet OVERTIME.
- * 5. Pembukuan & sinkronisasi hasil kalkulasi upah lembur ke tab REKAP_LEMBUR.
+ * 4. OTOMATISASI REKAP: Setiap data lembur berstatus 'Approved' langsung otomatis ditulis/disinkronkan ke tab REKAP_LEMBUR.
  * ============================================================================
  */
 
@@ -19,7 +18,6 @@
 function isIndonesianHoliday(dateStr) {
   if (!dateStr) return false;
   
-  // Daftar Tanggal Merah Libur Nasional Resmi Kalender Indonesia
   var holidays = [
     // Libur Nasional Tahunan Tetap (Fixed Date)
     "-01-01", // Tahun Baru Masehi
@@ -55,11 +53,9 @@ function isIndonesianHoliday(dateStr) {
 function determineAutoDayType(dateStr) {
   if (!dateStr) return "Workday";
   
-  // Parsing tanggal akurat dengan waktu lokal 00:00:00
   var d = new Date(dateStr + "T00:00:00");
   var dayOfWeek = d.getDay(); // 0 = Minggu, 6 = Sabtu
 
-  // Jika Sabtu, Minggu, atau Tanggal Merah Libur Nasional -> Day Off
   if (dayOfWeek === 0 || dayOfWeek === 6 || isIndonesianHoliday(dateStr)) {
     return "Day Off";
   }
@@ -93,52 +89,78 @@ function ensureRekapLemburSheet() {
 }
 
 /**
- * Menarik data lembur berstatus "Approved" untuk periode dan site tertentu,
- * dipadankan dengan data master karyawan & ketentuan gaji per site.
- * Tipe hari dikunci murni secara otomatis dari kalender Indonesia.
+ * Menghitung matematika PP 35/2021 secara persis di backend
+ */
+function calculatePP35Backend(rawHours, overtimeType, wageBase) {
+  var hourlyWage = Math.round(wageBase / 173);
+  var restDeduction = rawHours >= 4 ? 0.5 : 0;
+  var effectiveHours = Math.max(0, rawHours - restDeduction);
+  effectiveHours = Math.round(effectiveHours * 10) / 10;
+
+  var rateHours = 0;
+  if (overtimeType === 'Workday') {
+    if (effectiveHours <= 1) {
+      rateHours = effectiveHours * 1.5;
+    } else {
+      rateHours = 1.5 + ((effectiveHours - 1) * 2.0);
+    }
+  } else {
+    if (effectiveHours <= 8) {
+      rateHours = effectiveHours * 2.0;
+    } else if (effectiveHours <= 9) {
+      rateHours = 16.0 + ((effectiveHours - 8) * 3.0);
+    } else {
+      rateHours = 19.0 + ((effectiveHours - 9) * 4.0);
+    }
+  }
+
+  rateHours = Math.round(rateHours * 10) / 10;
+  var overtimeAmount = Math.round(rateHours * hourlyWage);
+
+  return {
+    hourly_wage: hourlyWage,
+    rest_deduction: restDeduction,
+    effective_hours: effectiveHours,
+    rate_hours: rateHours,
+    overtime_amount: overtimeAmount
+  };
+}
+
+/**
+ * Menarik data lembur berstatus "Approved" untuk periode dan site tertentu.
+ * Mengikutsertakan FITUR OTOMATISASI PENULISAN LANGSUNG KE SHEET REKAP_LEMBUR.
  * @param {string} monthPeriod Format YYYY-MM
  * @param {string} targetSite Nama Site (CGK1-CGK4 atau "ALL")
  * @returns {Object} Result object berisi list data kalkulasi lembur
  */
 function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
   try {
-    ensureRekapLemburSheet();
+    var rekapSheet = ensureRekapLemburSheet();
     var period = monthPeriod || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
     var siteFilter = targetSite || "ALL";
 
     var ovtRows = getSheetDisplayValues("OVERTIME");
     var empRows = getSheetDisplayValues("EMPLOYEES");
-    var rekapRows = getSheetDisplayValues("REKAP_LEMBUR");
+    var rekapRows = rekapSheet.getDataRange().getDisplayValues();
 
-    // Mapping data rekap yang sudah tersinkronisasi sebelumnya
+    // Map data rekap yang sudah ada di sheet
     var syncedMap = {};
     for (var r = 1; r < rekapRows.length; r++) {
       var ovtId = rekapRows[r][1]; // overtime_id
       if (ovtId) {
         syncedMap[ovtId] = {
-          rekap_id: rekapRows[r][0],
-          overtime_type: rekapRows[r][8],
-          wage_base: parseFloat(rekapRows[r][9]) || 0,
-          raw_hours: parseFloat(rekapRows[r][10]) || 0,
-          rest_deduction: parseFloat(rekapRows[r][11]) || 0,
-          effective_hours: parseFloat(rekapRows[r][12]) || 0,
-          rate_hours: parseFloat(rekapRows[r][13]) || 0,
-          hourly_wage: parseFloat(rekapRows[r][14]) || 0,
-          overtime_amount: parseFloat(rekapRows[r][15]) || 0,
-          calculated_at: rekapRows[r][16],
-          status_sync: rekapRows[r][17] || "Tersimpan"
+          rowIdx: r + 1,
+          rekap_id: rekapRows[r][0]
         };
       }
     }
 
-    // Standard Wage Base per Site: CGK1, CGK2, CGK3, CGK3A = Rp 5.729.876 | CGK4 = Rp 5.783.676
     function getSiteDefaultWage(siteName) {
       var s = String(siteName || "").toUpperCase().trim();
       if (s === "CGK4") return 5783676;
       return 5729876;
     }
 
-    // Master Data Karyawan Map
     var empMap = {};
     for (var e = 1; e < empRows.length; e++) {
       var uId = empRows[e][1];
@@ -156,6 +178,9 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
     }
 
     var list = [];
+    var newRowsToAppend = [];
+    var nowTimestamp = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+
     for (var i = 1; i < ovtRows.length; i++) {
       var r = ovtRows[i];
       var ovtId = r[0];
@@ -163,7 +188,6 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
       var tgl = r[2]; // YYYY-MM-DD
       var statusApp = r[9]; // Status Approval
 
-      // Hanya proses lembur yang disetujui (Approved)
       if (statusApp !== "Approved") continue;
 
       var rPeriod = tgl ? tgl.substring(0, 7) : "";
@@ -179,10 +203,20 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
       if (siteFilter !== "ALL" && empInfo.site !== siteFilter) continue;
 
       var rawHours = parseFloat(r[5]) || 0;
-      var existingSync = syncedMap[ovtId];
-
-      // OTOMATISASI & TERKUNCI MUTLAK: Tipe Hari Murni Dari Tanggal Actual Kalender Indonesia
       var autoType = determineAutoDayType(tgl);
+      var calcRes = calculatePP35Backend(rawHours, autoType, empInfo.wage);
+
+      // OTOMATISASI SIMPAN DRAFT KE SHEET JIKA BELUM ADA DI TAB REKAP_LEMBUR
+      if (!syncedMap[ovtId]) {
+        var generatedRekapId = "RKL-" + Math.floor(100000 + Math.random() * 900000);
+        var rowValues = [
+          generatedRekapId, ovtId, uId, empInfo.nik, empInfo.nama_lengkap,
+          empInfo.site, rPeriod, tgl, autoType, empInfo.wage,
+          rawHours, calcRes.rest_deduction, calcRes.effective_hours, calcRes.rate_hours,
+          calcRes.hourly_wage, calcRes.overtime_amount, nowTimestamp, "Tersimpan"
+        ];
+        newRowsToAppend.push(rowValues);
+      }
 
       list.push({
         overtime_id: ovtId,
@@ -197,11 +231,22 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
         deskripsi: r[6],
         wage_base: empInfo.wage,
         raw_hours: rawHours,
-        overtime_type: autoType, // Selalu murni otomatis dari tanggal
-        auto_detected_type: autoType,
-        is_synced: !!existingSync,
-        synced_data: existingSync || null
+        overtime_type: autoType,
+        is_synced: true,
+        hourly_wage: calcRes.hourly_wage,
+        rest_deduction: calcRes.rest_deduction,
+        effective_hours: calcRes.effective_hours,
+        rate_hours: calcRes.rate_hours,
+        overtime_amount: calcRes.overtime_amount
       });
+    }
+
+    // Jika ada data approved baru yang belum masuk ke REKAP_LEMBUR, langsung append
+    if (newRowsToAppend.length > 0) {
+      newRowsToAppend.forEach(function(row) {
+        rekapSheet.appendRow(row);
+      });
+      SpreadsheetApp.flush();
     }
 
     return {
@@ -216,68 +261,82 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
 }
 
 /**
- * Menyimpan / memperbarui pembukuan data kalkulasi lembur ke sheet REKAP_LEMBUR.
- * @param {Array<Object>} calculatedDataList List objek kalkulasi lembur
- * @returns {Object} Output status eksekusi
+ * HELPER OTOMATISASI:
+ * Dipanggil langsung ketika PM menekan tombol Approve pada pengajuan lembur.
+ * Langsung membuat baris kalkulasi resmi di tab REKAP_LEMBUR tanpa perlu tombol manual.
  */
-function saveCalculatedOvertimeToSheet(calculatedDataList) {
+function autoSyncApprovedOvertimeEntry(ovtId) {
   try {
-    var sheet = ensureRekapLemburSheet();
-    if (!calculatedDataList || !Array.isArray(calculatedDataList) || calculatedDataList.length === 0) {
-      return { success: false, error: "Tidak ada data kalkulasi untuk disimpan." };
-    }
+    if (!ovtId) return;
+    var rekapSheet = ensureRekapLemburSheet();
+    var ovtRows = getSheetDisplayValues("OVERTIME");
+    var empRows = getSheetDisplayValues("EMPLOYEES");
 
-    var existingRows = sheet.getDataRange().getDisplayValues();
-    var ovtRowMap = {};
-    for (var i = 1; i < existingRows.length; i++) {
-      var ovtId = existingRows[i][1];
-      if (ovtId) {
-        ovtRowMap[ovtId] = i + 1; // 1-based index
+    var targetOvtRow = null;
+    for (var i = 1; i < ovtRows.length; i++) {
+      if (ovtRows[i][0] === ovtId) {
+        targetOvtRow = ovtRows[i];
+        break;
       }
     }
 
-    var dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
-    var savedCount = 0;
+    if (!targetOvtRow) return;
 
-    calculatedDataList.forEach(function(item) {
-      var targetRowIdx = ovtRowMap[item.overtime_id];
-      var rekapId = targetRowIdx ? existingRows[targetRowIdx - 1][0] : generateSequentialId("REKAP_LEMBUR", "RKL", savedCount);
+    var uId = targetOvtRow[1];
+    var tgl = targetOvtRow[2];
+    var rawHours = parseFloat(targetOvtRow[5]) || 0;
+    var rPeriod = tgl ? tgl.substring(0, 7) : "";
 
-      var rowValues = [
-        rekapId,
-        item.overtime_id,
-        item.user_id,
-        item.nik,
-        item.nama_lengkap,
-        item.site,
-        item.periode,
-        item.tanggal,
-        item.overtime_type,
-        item.wage_base,
-        item.raw_hours,
-        item.rest_deduction,
-        item.effective_hours,
-        item.rate_hours,
-        item.hourly_wage,
-        item.overtime_amount,
-        dateStr,
-        "Tersimpan"
-      ];
+    function getSiteDefaultWage(siteName) {
+      var s = String(siteName || "").toUpperCase().trim();
+      if (s === "CGK4") return 5783676;
+      return 5729876;
+    }
 
-      if (targetRowIdx) {
-        sheet.getRange(targetRowIdx, 1, 1, rowValues.length).setValues([rowValues]);
-      } else {
-        sheet.appendRow(rowValues);
-        savedCount++;
+    var empInfo = { nik: "-", nama_lengkap: "Karyawan", site: "CGK1", wage: 5729876 };
+    for (var e = 1; e < empRows.length; e++) {
+      if (empRows[e][1] === uId) {
+        var eSite = empRows[e][10] || "CGK1";
+        var customWage = parseFloat(empRows[e][12]) || 0;
+        empInfo = {
+          nik: empRows[e][2] || "-",
+          nama_lengkap: empRows[e][3] || "-",
+          site: eSite,
+          wage: customWage > 0 ? customWage : getSiteDefaultWage(eSite)
+        };
+        break;
       }
-    });
+    }
 
+    var autoType = determineAutoDayType(tgl);
+    var calcRes = calculatePP35Backend(rawHours, autoType, empInfo.wage);
+    var nowTimestamp = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+
+    // Cek apakah sudah ada di sheet
+    var existingRows = rekapSheet.getDataRange().getDisplayValues();
+    var targetRowIdx = null;
+    for (var r = 1; r < existingRows.length; r++) {
+      if (existingRows[r][1] === ovtId) {
+        targetRowIdx = r + 1;
+        break;
+      }
+    }
+
+    var rekapId = targetRowIdx ? existingRows[targetRowIdx - 1][0] : "RKL-" + Math.floor(100000 + Math.random() * 900000);
+    var rowValues = [
+      rekapId, ovtId, uId, empInfo.nik, empInfo.nama_lengkap,
+      empInfo.site, rPeriod, tgl, autoType, empInfo.wage,
+      rawHours, calcRes.rest_deduction, calcRes.effective_hours, calcRes.rate_hours,
+      calcRes.hourly_wage, calcRes.overtime_amount, nowTimestamp, "Tersimpan"
+    ];
+
+    if (targetRowIdx) {
+      rekapSheet.getRange(targetRowIdx, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      rekapSheet.appendRow(rowValues);
+    }
     SpreadsheetApp.flush();
-    return {
-      success: true,
-      message: "Berhasil menyinkronkan " + calculatedDataList.length + " data rekapitulasi upah lembur ke spreadsheet!"
-    };
   } catch (err) {
-    return { success: false, error: "Gagal menyimpan rekap lembur: " + err.toString() };
+    Logger.log("Error autoSyncApprovedOvertimeEntry: " + err.toString());
   }
 }
