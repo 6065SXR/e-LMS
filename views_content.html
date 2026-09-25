@@ -684,6 +684,124 @@
       </div>
     </section>
 
+    <!-- VIEW 5B: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021) -->
+    <section id="view-rekap-lembur" class="space-y-6 hidden w-full">
+      <!-- Header Banner KSPS -->
+      <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+        <div class="space-y-1 z-10 max-w-xl">
+          <div class="inline-flex items-center space-x-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold text-amber-300 border border-white/20">
+            <i class="fa-solid fa-scale-balanced"></i>
+            <span>PP No. 35 Tahun 2021 Compliant</span>
+          </div>
+          <h2 class="text-xl font-extrabold leading-tight">Kalkulasi Upah Lembur & Rekapitulasi</h2>
+          <p class="text-xs text-indigo-100">Pembukuan otomatis upah lembur karyawan berdasarkan jam kerja efektif, potongan istirahat, dan bobot rate resmi per lokasi site (CGK1-CGK4).</p>
+        </div>
+      </div>
+
+      <!-- Toolbar Filter & Ringkasan Indikator -->
+      <div class="bg-white p-5 rounded-2xl card-shadow space-y-4 border border-slate-100">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Periode Bulan</label>
+            <input type="month" id="calcPeriodFilter" onchange="loadOvertimeCalculationData()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 focus:ring-0 focus:border-[#1C1B8E]">
+          </div>
+
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Site Lokasi</label>
+            <select id="calcSiteFilter" onchange="loadOvertimeCalculationData()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 focus:ring-0 focus:border-[#1C1B8E]">
+              <option value="ALL">Semua Site Lokasi</option>
+              <option value="CGK1">Site CGK1</option>
+              <option value="CGK2">Site CGK2</option>
+              <option value="CGK3">Site CGK3</option>
+              <option value="CGK3A">Site CGK3A</option>
+              <option value="CGK4">Site CGK4</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Tipe Hari Default (Global)</label>
+            <select id="calcGlobalTypeFilter" onchange="handleGlobalTypeChange()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 focus:ring-0 focus:border-[#1C1B8E]">
+              <option value="Workday">Workday (Hari Kerja)</option>
+              <option value="Day Off">Day Off (Hari Libur)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Filter Karyawan</label>
+            <select id="calcEmployeeFilter" onchange="renderOvertimeCalculationTable()" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 focus:ring-0 focus:border-[#1C1B8E]">
+              <option value="ALL">Semua Karyawan</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Badges Card Summary & Action Buttons -->
+        <div class="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="grid grid-cols-3 gap-3 w-full md:w-auto">
+            <div class="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 text-center">
+              <span class="text-[10px] font-bold text-slate-500 uppercase block">Karyawan</span>
+              <span id="calcSumTotalEmployees" class="text-sm font-extrabold text-[#1C1B8E]">0 Orang</span>
+            </div>
+            <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-100 text-center">
+              <span class="text-[10px] font-bold text-slate-500 uppercase block">Jam Efektif</span>
+              <span id="calcSumTotalHours" class="text-sm font-extrabold text-amber-800">0 Jam</span>
+            </div>
+            <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 text-center">
+              <span class="text-[10px] font-bold text-slate-500 uppercase block">Total Nominal</span>
+              <span id="calcSumTotalAmount" class="text-sm font-extrabold text-emerald-700">Rp 0</span>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button type="button" id="btnSyncRekapLembur" onclick="handleSyncRekapLembur()" class="px-4 py-2.5 rounded-xl bg-[#1C1B8E] hover:bg-[#121163] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>Sinkronkan ke Spreadsheet</span>
+            </button>
+            <button type="button" onclick="handleExportRekapExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>Ekspor Excel</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel Kalkulasi Upah Lembur Responsif -->
+      <div class="bg-white rounded-2xl card-shadow overflow-hidden border border-slate-100">
+        <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 text-sm flex items-center">
+            <i class="fa-solid fa-table-list text-[#1C1B8E] mr-2"></i>
+            Rincian Pembukuan Lembur (Status Approved)
+          </h3>
+          <span class="text-[11px] font-semibold text-slate-500">PP No. 35/2021 Math Rule</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 px-3 text-center">No</th>
+                <th class="py-3 px-3">NAMA KARYAWAN & NIK</th>
+                <th class="py-3 px-3 text-center">SITE</th>
+                <th class="py-3 px-3 text-center">TANGGAL</th>
+                <th class="py-3 px-3 text-center">TIPE HARI</th>
+                <th class="py-3 px-3 text-center">JAM KOTOR</th>
+                <th class="py-3 px-3 text-center">POT. ISTIRAHAT</th>
+                <th class="py-3 px-3 text-center">JAM EFEKTIF</th>
+                <th class="py-3 px-3 text-center">BOBOT RATE</th>
+                <th class="py-3 px-3 text-right">UPAH/JAM</th>
+                <th class="py-3 px-3 text-right">TOTAL NOMINAL</th>
+                <th class="py-3 px-3 text-center">STATUS SYNC</th>
+              </tr>
+            </thead>
+            <tbody id="rekapLemburTableBody">
+              <tr>
+                <td colspan="12" class="text-center text-slate-500 text-sm py-8">Memuat data kalkulasi upah lembur...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- VIEW 6: MANAJEMEN USER -->
     <section id="view-users" class="space-y-6 hidden">
       <div class="bg-white p-6 rounded-2xl card-shadow space-y-4">
