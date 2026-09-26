@@ -684,7 +684,7 @@
       </div>
     </section>
 
-    <!-- VIEW 5B: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021) & KJK (FLAT 2X) -->
+    <!-- VIEW 5B: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021) & KJK (FLAT 2X) & SUMMARY THP -->
     <section id="view-rekap-lembur" class="space-y-6 hidden w-full">
       <!-- Header Banner KSPS -->
       <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
@@ -694,17 +694,20 @@
             <span>PP No. 35/2021 &amp; KJK Flat Multiplier Engine</span>
           </div>
           <h2 class="text-xl font-extrabold leading-tight">Kalkulasi Upah Lembur &amp; Rekapitulasi KJK</h2>
-          <p class="text-xs text-indigo-100">Pembukuan otomatis upah lembur karyawan berdasarkan PP No. 35/2021 dan rekapitulasi KJK (Flat 2x) per lokasi site (CGK1-CGK4).</p>
+          <p class="text-xs text-indigo-100">Pembukuan otomatis upah lembur karyawan berdasarkan PP No. 35/2021, KJK (Flat 2x), dan Rincian Summary Pendapatan THP per lokasi site (CGK1-CGK4).</p>
         </div>
       </div>
 
-      <!-- SUB-TAB SWITCHER BUTTONS (REKAP LEMBUR VS REKAP KJK) -->
-      <div class="flex items-center space-x-2 bg-slate-200/60 p-1.5 rounded-2xl w-fit">
+      <!-- SUB-TAB SWITCHER BUTTONS (3 SUB-TABS: REKAP LEMBUR, REKAP KJK, SUMMARY TAKE HOME PAY) -->
+      <div class="flex flex-wrap items-center gap-2 bg-slate-200/60 p-1.5 rounded-2xl w-fit">
         <button type="button" id="btnSubTabPp35" onclick="switchCalcSubTab('pp35')" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-[#1C1B8E] text-white shadow-xs cursor-pointer">
           <i class="fa-solid fa-scale-balanced mr-1.5"></i> Rekap Lembur (PP35)
         </button>
         <button type="button" id="btnSubTabKjk" onclick="switchCalcSubTab('kjk')" class="px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer">
           <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Rekap KJK (Flat 2x)
+        </button>
+        <button type="button" id="btnSubTabSummary" onclick="switchCalcSubTab('summary')" class="px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer">
+          <i class="fa-solid fa-wallet mr-1.5"></i> Summary Take Home Pay
         </button>
       </div>
 
@@ -771,7 +774,7 @@
         </div>
       </div>
 
-      <!-- Tabel Kalkulasi Upah Lembur / KJK Responsif -->
+      <!-- Tabel Kalkulasi Upah Lembur / KJK / Summary Responsif -->
       <div class="bg-white rounded-2xl card-shadow overflow-hidden border border-slate-100">
         <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm flex items-center" id="rekapTableCardTitle">
@@ -807,7 +810,7 @@
           </table>
         </div>
 
-        <!-- FOOTER PAGINATION KONTROL KALKULASI REKAP LEMBUR / KJK (10 DATA PER HALAMAN) -->
+        <!-- FOOTER PAGINATION KONTROL KALKULASI REKAP LEMBUR / KJK / SUMMARY (10 DATA PER HALAMAN) -->
         <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div>
             <p id="calcPaginationInfo" class="font-medium text-slate-600">Menampilkan 0 dari 0 data</p>
