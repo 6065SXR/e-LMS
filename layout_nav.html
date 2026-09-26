@@ -100,6 +100,11 @@
         <i class="fa-solid fa-business-time w-5"></i>
         <span>Form Lembur</span>
       </button>
+      <!-- MENU PM & ADMIN: KALKULASI & REKAP LEMBUR (PP NO. 35/2021) -->
+      <button type="button" onclick="switchTab('rekap-lembur')" id="nav-rekap-lembur" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-pm role-admin">
+        <i class="fa-solid fa-calculator w-5 text-amber-600"></i>
+        <span>Kalkulasi & Rekap Lembur</span>
+      </button>
       <button type="button" onclick="switchTab('users')" id="nav-users" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-admin">
         <i class="fa-solid fa-users-gear w-5"></i>
         <span>Manajemen User</span>
@@ -156,6 +161,12 @@
       <i class="fa-solid fa-business-time"></i>
     </div>
     <span class="floating-label">Lembur</span>
+  </button>
+  <button type="button" onclick="switchTab('rekap-lembur')" id="mobile-nav-rekap-lembur" class="floating-nav-item hidden role-pm role-admin">
+    <div class="floating-icon-wrapper">
+      <i class="fa-solid fa-calculator text-amber-600"></i>
+    </div>
+    <span class="floating-label">Rekap</span>
   </button>
   <button type="button" onclick="switchTab('users')" id="mobile-nav-users" class="floating-nav-item hidden role-admin">
     <div class="floating-icon-wrapper">
