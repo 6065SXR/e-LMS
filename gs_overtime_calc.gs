@@ -1,13 +1,14 @@
 /**
  * ============================================================================
- * MODUL: KALKULASI & REKAP UPAH LEMBUR (PP 35/2021) & REKAP KJK (FLAT 2X)
+ * MODUL: KALKULASI & REKAP UPAH LEMBUR (PP 35/2021), KJK (FLAT 2X) & SUMMARY THP
  * System: e-LMS Data Center KSPS
  * Responsibility:
  * 1. Otomasi murni penentuan Tipe Hari (Workday vs Day Off) berdasarkan Kalender Resmi RI.
  * 2. Deteksi Hari Sabtu, Minggu & Tanggal Merah Libur Nasional (Fix/Read-Only).
- * 3. Menyiapkan tab "REKAP_LEMBUR" dan "REKAP_KJK" secara otomatis di Spreadsheet.
- * 4. OTOMATISASI REKAP: Setiap data lembur/KJK approved langsung otomatis ditulis/disinkronkan.
- * 5. Matematika Presisi 100% Identik dengan Acuan Excel (PP35 & KJK Flat 2x).
+ * 3. Otomatisasi pemotongan istirahat 0.5 Jam jika Jam Kotor >= 4 Jam.
+ * 4. Menyiapkan tab "REKAP_LEMBUR" dan "REKAP_KJK" secara otomatis di Spreadsheet.
+ * 5. OTOMATISASI REKAP & SUMMARY PAYROLL: Menghitung total THP per karyawan (Gaji + Lembur + KJK).
+ * 6. Matematika Presisi 100% Identik dengan Acuan Excel (PP35, KJK Flat 2x & Summary THP).
  * ============================================================================
  */
 
@@ -89,8 +90,14 @@ function calculatePP35Backend(rawHours, overtimeType, wageBase) {
   var exactHourlyWage = wageBase / 173;
   var displayHourlyWage = Math.round(exactHourlyWage);
 
+  // Otomatis potongan istirahat 0.5 Jam jika jam kotor >= 4 Jam
   var restDeduction = 0;
-  var effectiveHours = Math.round(rawHours * 10) / 10;
+  if (rawHours >= 4) {
+    restDeduction = 0.5;
+  }
+
+  var effectiveHours = Math.round((rawHours - restDeduction) * 10) / 10;
+  if (effectiveHours < 0) effectiveHours = 0;
 
   var rateHours = 0;
   if (overtimeType === 'Workday') {
@@ -139,19 +146,16 @@ function parseMonthPeriod(dateStr, createdAtStr) {
   if (!dateStr) return "";
   var s = String(dateStr).trim();
   
-  // 1. Check YYYY-MM or YYYY-MM-DD pattern
   var matchYMD = s.match(/(\d{4})[-/.](\d{1,2})/);
   if (matchYMD) {
     return matchYMD[1] + "-" + ("0" + matchYMD[2]).slice(-2);
   }
   
-  // 2. Check MM/YYYY or MM-YYYY pattern
   var matchMY = s.match(/(\d{1,2})[-/.](\d{4})/);
   if (matchMY) {
     return matchMY[2] + "-" + ("0" + matchMY[1]).slice(-2);
   }
   
-  // 3. Check for text month names (e.g., "September")
   var monthNames = {
     "jan": "01", "feb": "02", "mar": "03", "apr": "04", "mei": "05", "may": "05",
     "jun": "06", "jul": "07", "agu": "08", "aug": "08", "sep": "09", "okt": "10",
@@ -159,12 +163,9 @@ function parseMonthPeriod(dateStr, createdAtStr) {
   };
   
   var lower = s.toLowerCase();
-  
-  // Extract year if present in s
   var yearMatch = lower.match(/\d{4}/);
   var year = yearMatch ? yearMatch[0] : "";
 
-  // If no year in s, attempt to extract year from createdAtStr (e.g., "2026-09-23")
   if (!year && createdAtStr) {
     var createdYearMatch = String(createdAtStr).match(/\d{4}/);
     if (createdYearMatch) {
@@ -172,7 +173,6 @@ function parseMonthPeriod(dateStr, createdAtStr) {
     }
   }
 
-  // Fallback to current year if still missing
   if (!year) {
     year = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy');
   }
@@ -354,7 +354,6 @@ function getApprovedKjkForCalculation(monthPeriod, targetSite) {
       };
     }
 
-    // Dynamic Column Mapping for KJK Sheet
     var headerRow = kjkRows.length > 0 ? kjkRows[0] : [];
     var colKjkId = -1, colUserId = -1, colNik = -1, colName = -1, colSite = -1, colHours = -1, colBulan = -1, colCreatedAt = -1;
 
@@ -396,13 +395,11 @@ function getApprovedKjkForCalculation(monthPeriod, targetSite) {
 
       if (!kjkHours || kjkHours <= 0) continue;
 
-      // Smart Month Period parsing with Created At fallback
       var kjkPeriod = parseMonthPeriod(kjkBulanRaw, kjkCreatedAtRaw);
       if (!kjkPeriod) {
         kjkPeriod = period || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
       }
 
-      // Filter Period Check
       if (period && period !== "ALL" && period.trim() !== "") {
         if (kjkPeriod !== period) {
           continue;
@@ -453,6 +450,89 @@ function getApprovedKjkForCalculation(monthPeriod, targetSite) {
         rekapKjkSheet.appendRow(row);
       });
       SpreadsheetApp.flush();
+    }
+
+    return {
+      success: true,
+      data: list,
+      period: period,
+      site: siteFilter
+    };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+function getSummaryPayrollForCalculation(monthPeriod, targetSite) {
+  try {
+    var period = monthPeriod || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+    var siteFilter = targetSite || "ALL";
+
+    // 1. Get Overtime Data
+    var ovtRes = getApprovedOvertimeForCalculation(period, siteFilter);
+    var ovtList = (ovtRes && ovtRes.success) ? ovtRes.data : [];
+    
+    var ovtAggMap = {};
+    for (var i = 0; i < ovtList.length; i++) {
+      var item = ovtList[i];
+      var uId = item.user_id;
+      if (!ovtAggMap[uId]) ovtAggMap[uId] = 0;
+      ovtAggMap[uId] += (parseFloat(item.overtime_amount) || 0);
+    }
+
+    // 2. Get KJK Data
+    var kjkRes = getApprovedKjkForCalculation(period, siteFilter);
+    var kjkList = (kjkRes && kjkRes.success) ? kjkRes.data : [];
+
+    var kjkAggMap = {};
+    for (var j = 0; j < kjkList.length; j++) {
+      var kItem = kjkList[j];
+      var kUid = kItem.user_id;
+      if (!kjkAggMap[kUid]) kjkAggMap[kUid] = 0;
+      kjkAggMap[kUid] += (parseFloat(kItem.kjk_amount) || 0);
+    }
+
+    // 3. Get All Active Employees
+    var empRows = getSheetDisplayValues("EMPLOYEES");
+    function getSiteDefaultWage(siteName) {
+      var s = String(siteName || "").toUpperCase().trim();
+      if (s === "CGK4") return 5783676;
+      return 5729876;
+    }
+
+    var list = [];
+
+    for (var e = 1; e < empRows.length; e++) {
+      var r = empRows[e];
+      var uId = r[1];
+      if (!uId) continue;
+      
+      var eNik = r[2] || "-";
+      var eName = r[3] || "-";
+      var eSite = r[10] || "CGK1";
+      var eStatus = r[8] || "Aktif";
+      
+      if (eStatus.toLowerCase() === 'non-aktif' || eStatus.toLowerCase() === 'non aktif') continue;
+      if (siteFilter !== "ALL" && eSite !== siteFilter) continue;
+
+      var customWage = parseFloat(r[12]) || 0;
+      var wageBase = customWage > 0 ? customWage : getSiteDefaultWage(eSite);
+
+      var ovtAmount = ovtAggMap[uId] || 0;
+      var kjkAmount = kjkAggMap[uId] || 0;
+      var thp = wageBase + ovtAmount + kjkAmount;
+
+      list.push({
+        user_id: uId,
+        nik: eNik,
+        nama_lengkap: eName,
+        site: eSite,
+        periode: period,
+        wage_base: wageBase,
+        overtime_amount: ovtAmount,
+        kjk_amount: kjkAmount,
+        take_home_pay: thp
+      });
     }
 
     return {
