@@ -355,8 +355,18 @@
 
   function readFileAsBase64(file) {
     return new Promise(function(resolve, reject) {
+      if (!file) {
+        resolve(null);
+        return;
+      }
       var reader = new FileReader();
-      reader.onload = function() { resolve(reader.result); };
+      reader.onload = function(e) {
+        resolve({
+          name: file.name,
+          type: file.type,
+          base64: e.target.result
+        });
+      };
       reader.onerror = function(err) { reject(err); };
       reader.readAsDataURL(file);
     });
@@ -443,10 +453,10 @@
           spinnerText.innerText = "Mengunggah " + item.docName + " (" + (q + 1) + "/" + uploadQueue.length + ")...";
         }
 
-        var fileBase64Data = await readFileAsBase64(item.file);
+        var fileDataObject = await readFileAsBase64(item.file);
 
         await new Promise(function(resolve, reject) {
-          callBackend('saveAttendanceForm', [uid, period, item.slotKey, item.docName, fileBase64Data], function(res) {
+          callBackend('saveAttendanceForm', [uid, period, item.slotKey, item.docName, fileDataObject], function(res) {
             if (res && res.success) {
               currentAttendanceMap[uid][item.slotKey] = {
                 attendance_id: res.attendance_id || "",
