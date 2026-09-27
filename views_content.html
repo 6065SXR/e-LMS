@@ -1,6 +1,6 @@
 <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50">
-  <!-- HEADER APLIKASI UTAMA (MEMBENTANG 100% LEBAR DI BAGIAN PALING ATAS) -->
-  <header class="w-full bg-white border-b border-slate-200/80 p-4 px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-xs">
+  <!-- HEADER APLIKASI UTAMA (Ditingkatkan z-index ke z-40 agar dropdown profil berada di paling depan) -->
+  <header class="w-full bg-white border-b border-slate-200/80 p-4 px-6 flex items-center justify-between flex-shrink-0 z-40 shadow-xs">
     <div class="flex items-center space-x-4 flex-1 max-w-md">
       <div class="relative w-full">
         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
@@ -51,7 +51,7 @@
     </div>
   </header>
 
-  <!-- KONTAINER SEMUA HALAMAN (TEPAT DI BAWAH HEADER, FULL-WIDTH) -->
+  <!-- KONTAINER SEMUA HALAMAN -->
   <div class="p-6 space-y-6 flex-1 overflow-y-auto w-full">
 
     <!-- VIEW 1: DASHBOARD -->
@@ -684,7 +684,7 @@
       </div>
     </section>
 
-    <!-- VIEW 5B: KALKULASI & REKAP UPAH LEMBUR (PP NO. 35 TAHUN 2021) & KJK (FLAT 2X) & SUMMARY THP -->
+    <!-- VIEW 5B: KALKULASI & REKAP UPAH LEMBUR & KJK -->
     <section id="view-rekap-lembur" class="space-y-6 hidden w-full">
       <!-- Header Banner KSPS -->
       <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
@@ -698,7 +698,7 @@
         </div>
       </div>
 
-      <!-- SUB-TAB SWITCHER BUTTONS (3 SUB-TABS: REKAP LEMBUR, REKAP KJK, SUMMARY TAKE HOME PAY) -->
+      <!-- SUB-TAB SWITCHER BUTTONS -->
       <div class="flex flex-wrap items-center gap-2 bg-slate-200/60 p-1.5 rounded-2xl w-fit">
         <button type="button" id="btnSubTabPp35" onclick="switchCalcSubTab('pp35')" class="px-4 py-2 rounded-xl text-xs font-bold transition bg-[#1C1B8E] text-white shadow-xs cursor-pointer">
           <i class="fa-solid fa-scale-balanced mr-1.5"></i> Rekap Lembur (PP35)
@@ -711,7 +711,7 @@
         </button>
       </div>
 
-      <!-- Toolbar Filter & Ringkasan Indikator -->
+      <!-- Toolbar Filter -->
       <div class="bg-white p-5 rounded-2xl card-shadow space-y-4 border border-slate-100">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
@@ -731,7 +731,6 @@
             </select>
           </div>
 
-          <!-- INDIKATOR OTOMASI KALENDER INDONESIA (READ-ONLY) -->
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Penentuan Tipe Hari</label>
             <div class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 flex items-center justify-between">
@@ -748,7 +747,6 @@
           </div>
         </div>
 
-        <!-- Badges Card Summary & Action Buttons -->
         <div class="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="grid grid-cols-3 gap-3 w-full md:w-auto">
             <div class="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 text-center">
@@ -774,7 +772,7 @@
         </div>
       </div>
 
-      <!-- Tabel Kalkulasi Upah Lembur / KJK / Summary Responsif -->
+      <!-- Tabel Kalkulasi -->
       <div class="bg-white rounded-2xl card-shadow overflow-hidden border border-slate-100">
         <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <h3 class="font-bold text-slate-800 text-sm flex items-center" id="rekapTableCardTitle">
@@ -810,7 +808,6 @@
           </table>
         </div>
 
-        <!-- FOOTER PAGINATION KONTROL KALKULASI REKAP LEMBUR / KJK / SUMMARY (10 DATA PER HALAMAN) -->
         <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div>
             <p id="calcPaginationInfo" class="font-medium text-slate-600">Menampilkan 0 dari 0 data</p>
@@ -847,7 +844,7 @@
       </div>
     </section>
 
-    <!-- VIEW 7: BACKUP & RESTORE DATABASE (TERHUBUNG KE GS ANDA) -->
+    <!-- VIEW 7: BACKUP, DRIVE CLONING, RESTORE & SAFE MAINTENANCE -->
     <section id="view-backup" class="space-y-6 hidden w-full">
       <!-- Header Banner Super Admin -->
       <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
@@ -856,8 +853,8 @@
             <span class="bg-white/20 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">Super Admin Privilege</span>
             <span class="text-xs text-amber-300 font-extrabold"><i class="fa-solid fa-shield-halved mr-1"></i> Database Security Hub</span>
           </div>
-          <h2 class="text-xl font-extrabold leading-tight">Backup, Restore &amp; Safe Maintenance</h2>
-          <p class="text-xs text-white/90">Cadangkan snapshot database ke file JSON, pulihkan data arsip, atau lakukan pembersihan log transaksi secara terisolasi.</p>
+          <h2 class="text-xl font-extrabold leading-tight">Backup, Drive Archive &amp; Safe Maintenance</h2>
+          <p class="text-xs text-white/90">Duplikasikan database langsung ke Google Drive, jalankan penutupan buku bulanan, atau ekspor snapshot JSON lokal.</p>
         </div>
         <div class="mt-3 md:mt-0 z-10 flex-shrink-0">
           <span class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-xs font-bold">
@@ -867,37 +864,88 @@
         </div>
       </div>
 
-      <!-- Grid 3 Kartu Operasi Backup & Maintenance -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Grid 5 Kartu Operasi Backup, Archive & Maintenance -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        <!-- KARTU 1: EXPORT / UNDUH FULL BACKUP JSON -->
-        <div class="bg-white p-6 rounded-2xl card-shadow border border-slate-100 flex flex-col justify-between space-y-4">
+        <!-- KARTU 1: 1-CLICK DIRECT DRIVE BACKUP -->
+        <div class="bg-white p-6 rounded-2xl card-shadow border border-indigo-100 flex flex-col justify-between space-y-4">
           <div class="space-y-3">
             <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-[#1C1B8E] flex items-center justify-center text-xl font-bold border border-indigo-100">
-              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <i class="fa-brands fa-google-drive"></i>
             </div>
             <div>
-              <h3 class="font-bold text-slate-900 text-base">Pencadangan Penuh (Backup JSON)</h3>
+              <h3 class="font-bold text-slate-900 text-base">Direct Drive Snapshot</h3>
               <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                Mengekstrak seluruh sheet aktif (Karyawan, Overtime, KJK, Misi, Users) ke dalam berkas snapshot JSON lokal berstempel waktu resmi.
+                Menduplikasi seluruh spreadsheet database utama secara instan ke dalam Folder Google Drive Cadangan berstempel waktu resmi.
+              </p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1">
+              <p><i class="fa-solid fa-folder text-amber-500 mr-1"></i> Folder: <code>Google Drive Cadangan</code></p>
+              <p><i class="fa-solid fa-clock text-indigo-600 mr-1"></i> Format: <code>eLMS_KSPS_Database_Backup_TIMESTAMP</code></p>
+            </div>
+          </div>
+          <button type="button" id="btnDriveBackup" onclick="handleDriveBackup()" class="w-full py-3 rounded-xl btn-primary font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span id="btnDriveBackupText">Duplikasikan Database ke Drive</span>
+          </button>
+        </div>
+
+        <!-- KARTU 2: MONTHLY ARCHIVE & AUTO-PURGE RESET -->
+        <div class="bg-white p-6 rounded-2xl card-shadow border border-amber-200 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-xl font-bold border border-amber-100">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Penutupan Buku Akhir Bulan</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Membuat berkas arsip bulan di Drive, lalu mengosongkan data transaksi (Lembur, KJK, Progress) agar database utama tetap ringan.
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                Ketik Kata Konfirmasi Keamanan:
+              </label>
+              <input type="text" id="monthlyResetConfirmSecretInput" placeholder="Ketik RESET-BULANAN" class="w-full p-2.5 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-xs text-amber-900 font-bold bg-white">
+              <p class="text-[10px] text-slate-400 mt-0.5">Wajib ketik persis: <code>RESET-BULANAN</code></p>
+            </div>
+          </div>
+
+          <button type="button" id="btnExecuteMonthlyReset" onclick="handleMonthlyArchiveReset()" class="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
+            <i class="fa-solid fa-box-archive"></i>
+            <span>Jalankan Penutupan &amp; Reset</span>
+          </button>
+        </div>
+
+        <!-- KARTU 3: EXPORT FULL BACKUP JSON -->
+        <div class="bg-white p-6 rounded-2xl card-shadow border border-slate-100 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold border border-blue-100">
+              <i class="fa-solid fa-file-code"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Ekspor Berkas JSON Lokal</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Mengekstrak seluruh isi sheet aktif ke dalam berkas cadangan snapshot JSON di perangkat lokal Anda.
               </p>
             </div>
             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1">
               <p><i class="fa-solid fa-circle-info text-[#1C1B8E] mr-1"></i> Format: <code>.json</code></p>
-              <p><i class="fa-solid fa-clock text-amber-500 mr-1"></i> Penamaan file memuat timestamp Jakarta (WIB).</p>
+              <p><i class="fa-solid fa-clock text-amber-500 mr-1"></i> Timestamp WIB terintegrasi.</p>
             </div>
           </div>
-          <button type="button" id="btnExportDatabaseBackup" onclick="handleExportDatabaseBackup()" class="w-full py-3 rounded-xl btn-primary font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
+          <button type="button" id="btnExportDatabaseBackup" onclick="handleExportDatabaseBackup()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
             <i class="fa-solid fa-download"></i>
-            <span id="btnExportBackupText">Unduh Backup Database (.json)</span>
+            <span id="btnExportBackupText">Unduh Backup JSON</span>
           </button>
         </div>
 
-        <!-- KARTU 2: RESTORE DATABASE DARI FILE JSON -->
+        <!-- KARTU 4: RESTORE DATABASE FROM JSON -->
         <div class="bg-white p-6 rounded-2xl card-shadow border border-slate-100 flex flex-col justify-between space-y-4">
           <div class="space-y-3">
             <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold border border-emerald-100">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <i class="fa-solid fa-rotate-left"></i>
             </div>
             <div>
               <h3 class="font-bold text-slate-900 text-base">Pemulihan (Restore JSON)</h3>
@@ -911,31 +959,29 @@
             </div>
           </div>
           <button type="button" id="btnRestoreDatabaseBackup" onclick="handleRestoreDatabaseBackup()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer">
-            <i class="fa-solid fa-rotate-left"></i>
-            <span id="btnRestoreBackupText">Pulihkan Database dari JSON</span>
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span id="btnRestoreBackupText">Pulihkan Database</span>
           </button>
         </div>
 
-        <!-- KARTU 3: SAFE CLEAN MAINTENANCE (DENGAN PROTEKSI MUTLAK) -->
-        <div class="bg-white p-6 rounded-2xl card-shadow border border-rose-100 flex flex-col justify-between space-y-4">
+        <!-- KARTU 5: SAFE CLEAN MAINTENANCE -->
+        <div class="bg-white p-6 rounded-2xl card-shadow border border-rose-100 flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
           <div class="space-y-3">
             <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold border border-rose-100">
               <i class="fa-solid fa-broom"></i>
             </div>
             <div>
-              <h3 class="font-bold text-slate-900 text-base">Pembersihan Aman (Safe Clean)</h3>
+              <h3 class="font-bold text-slate-900 text-base">Pembersihan Selektif Aman</h3>
               <p class="text-xs text-slate-500 mt-1 leading-relaxed">
                 Pembersihan data operasional secara selektif. Dilengkapi proteksi server agar materi pelatihan &amp; kuis tidak terhapus.
               </p>
             </div>
 
-            <!-- Proteksi Banner -->
             <div class="p-2.5 bg-rose-50/80 rounded-xl border border-rose-200 text-[11px] text-rose-900 font-medium">
               <i class="fa-solid fa-lock text-rose-600 mr-1"></i>
-              <strong>Proteksi Server Aktif:</strong> Sheet <code>COURSES</code> &amp; <code>QUIZZES</code> dilindungi permanen dari pembersihan massal.
+              <strong>Proteksi Server:</strong> <code>COURSES</code> &amp; <code>QUIZZES</code> dikunci permanen.
             </div>
 
-            <!-- Pilihan Data yang Ingin Dibersihkan -->
             <div>
               <label class="block text-[11px] font-bold text-slate-700 mb-1">Target Pembersihan:</label>
               <select id="safeCleanTargetSelect" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500">
@@ -945,7 +991,6 @@
               </select>
             </div>
 
-            <!-- Input Kata Konfirmasi Keamanan -->
             <div>
               <label class="block text-[11px] font-bold text-slate-700 mb-1">
                 Ketik Kata Konfirmasi Keamanan:
@@ -964,7 +1009,7 @@
       </div>
     </section>
 
-    <!-- VIEW 8: UNDER CONSTRUCTION MANAGER (SUPER ADMIN PRIVILEGE - 100% FULL WIDTH DI BAWAH HEADER) -->
+    <!-- VIEW 8: UNDER CONSTRUCTION MANAGER -->
     <section id="view-under-construction" class="space-y-6 hidden w-full">
       <!-- Header Banner Kontrol -->
       <div class="ksps-banner rounded-2xl p-5 text-white card-shadow flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
