@@ -1,10 +1,10 @@
 /**
  * Overtime / Form Lembur, Multi-Slot Attendance Form & Dedicated KJK Sheet Backend Controller
  * System: e-LMS Data Center KSPS
- * Update:
- * 1. Mendukung 3 slot berkas upload (Slot 1: Form Absensi Fix, Slot 2 & 3: Custom Dokumen misal Surat Sakit / Surat Cuti)
- * 2. Fungsi hapus berkas per-slot jika karyawan salah upload file
- * 3. Helper penarikan seluruh berkas PDF Base64 untuk Cetak Gabungan
+ * Update Presisi:
+ * 1. Isolasi try/catch pada setSharing Drive agar penolakan izin publik Google Workspace tidak menggagalkan upload.
+ * 2. Menjamin file URL selalu tercatat ke sheet ATTENDANCE dan memicu notifikasi sukses hijau.
+ * 3. Helper getPdfBase64 & getAllAttendancePdfsBase64 siap membaca stream Base64 dokumen absensi untuk Cetak Gabungan.
  */
 
 // ID Folder Google Drive target untuk menyimpan berkas upload karyawan
@@ -49,7 +49,6 @@ function ensureAttendanceSheet() {
     sheet.setFrozenRows(1);
     SpreadsheetApp.flush();
   } else {
-    // Memastikan jika ada sheet ATTENDANCE versi lama (6 kolom), dinaikkan menjadi 8 kolom
     var lastCol = sheet.getLastColumn();
     if (lastCol < 8 && sheet.getLastRow() > 0) {
       var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -143,13 +142,11 @@ function getOvertimeData(userId, monthPeriod) {
           attendanceMap[aUid] = {};
         }
 
-        // Cek struktur kolom versi baru (8 kolom) vs versi lama (6 kolom)
         var slotKey = attendanceRows[a][3] || "slot1";
         var docName = attendanceRows[a][4] || "Form Absensi";
         var fileName = attendanceRows[a][5] || attendanceRows[a][3] || "Dokumen.pdf";
         var fileUrl = attendanceRows[a][6] || attendanceRows[a][4] || "#";
 
-        // Jika terdeteksi baris lama di mana kolom 3 adalah nama file
         if (slotKey.indexOf(".pdf") !== -1 || slotKey.indexOf("Form_") === 0) {
           fileName = attendanceRows[a][3];
           fileUrl = attendanceRows[a][4];
@@ -173,7 +170,6 @@ function getOvertimeData(userId, monthPeriod) {
       userSigMap[userRows[u][0]] = userRows[u][11] || "";
     }
 
-    // Pemetaan NIK berdasarkan Nama & User ID untuk mencari NIK Approver/PM
     var empMapByName = {};
     var empMapByUid = {};
     for (var ep = 1; ep < empRows.length; ep++) {
@@ -188,10 +184,9 @@ function getOvertimeData(userId, monthPeriod) {
     for (var i = 1; i < overtimeRows.length; i++) {
       var r = overtimeRows[i];
       var uid = r[1];
-      var tgl = r[2]; // YYYY-MM-DD
+      var tgl = r[2];
       var rPeriod = tgl ? tgl.substring(0, 7) : "";
 
-      // Abaikan jika masih ada entri lama bertanda KJK di sheet OVERTIME
       if (r[0].indexOf("KJK-") === 0 || r[6] === "REKAPITULASI KELEBIHAN JAM KERJA (KJK)") {
         continue;
       }
@@ -224,7 +219,7 @@ function getOvertimeData(userId, monthPeriod) {
 
         var userSig = r[14] || userSigMap[uid] || "";
         var approverName = r[12] || "";
-        var approverNik = "7268900080"; // Default NIK Project Manager
+        var approverNik = "7268900080";
 
         if (approverName) {
           var cleanApp = approverName.trim().toLowerCase();
@@ -390,6 +385,36 @@ function deleteOvertimeEntry(overtimeId, pmUserId) {
 }
 
 /**
+ * Helper menyimpan stream Base64 ke folder target Google Drive
+ * Pembaruan: try/catch terisolasi pada setSharing agar Google Workspace / Shared Drive tidak melempar exception fatal
+ */
+function uploadFileToDrive(base64Data, fileName, mimeType, folderId) {
+  try {
+    var folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.getRootFolder();
+    var cleanBase64 = base64Data;
+    if (cleanBase64.indexOf("base64,") !== -1) {
+      cleanBase64 = cleanBase64.split("base64,")[1];
+    }
+    var decoded = Utilities.base64Decode(cleanBase64);
+    var blob = Utilities.newBlob(decoded, mimeType || "application/pdf", fileName || "dokumen.pdf");
+    var file = folder.createFile(blob);
+
+    // Pengaman perizinan: jika akun Google Workspace menolak perubahan izin publik via skrip,
+    // proses tetap berjalan normal dan URL file tetap diambil via file.getUrl().
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (shareErr) {
+      Logger.log("Peringatan izin sharing Drive (aman diabaikan): " + shareErr.toString());
+    }
+
+    return file.getUrl();
+  } catch (err) {
+    Logger.log("uploadFileToDrive fatal error: " + err.toString());
+    return "#";
+  }
+}
+
+/**
  * Menyimpan Form Absensi & Dokumen Pendukung (3 Slot) ke Google Drive & Database ATTENDANCE
  */
 function saveAttendanceForm(userId, period, slotKey, docName, fileData) {
@@ -407,7 +432,6 @@ function saveAttendanceForm(userId, period, slotKey, docName, fileData) {
     var cleanDocName = dName.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
     var fileName = fileData.name || (cleanDocName + "_" + uid + "_" + per + ".pdf");
     
-    // Menyimpan file langsung ke folder target spesifik Google Drive
     var fileUrl = uploadFileToDrive(fileData.base64, fileName, "application/pdf", ATTENDANCE_FOLDER_ID);
     
     if (!fileUrl || fileUrl === "#" || fileUrl.indexOf("http") === -1) {
@@ -451,9 +475,6 @@ function saveAttendanceForm(userId, period, slotKey, docName, fileData) {
   }
 }
 
-/**
- * Menghapus berkas upload form absensi atau dokumen pendukung per-slot
- */
 function deleteAttendanceFile(userId, period, slotKey) {
   try {
     var sheet = ensureAttendanceSheet();
@@ -480,7 +501,6 @@ function deleteAttendanceFile(userId, period, slotKey) {
       return { success: false, error: "Berkas tidak ditemukan atau sudah dihapus sebelumnya." };
     }
 
-    // Coba hapus file dari Google Drive jika ada fileId valid
     if (fileUrl && fileUrl.indexOf("drive.google.com") !== -1) {
       try {
         var matchId = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || fileUrl.match(/id=([a-zA-Z0-9_-]+)/);
@@ -506,6 +526,49 @@ function deleteAttendanceFile(userId, period, slotKey) {
 }
 
 /**
+ * Helper mengambil Base64 asli dari file PDF di Google Drive berdasarkan link URL
+ */
+function getPdfBase64(fileUrl) {
+  try {
+    if (!fileUrl || typeof fileUrl !== "string") {
+      return { success: false, error: "URL file tidak valid" };
+    }
+    
+    var fileId = "";
+    var match1 = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    var match2 = fileUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    var match3 = fileUrl.match(/open\?id=([a-zA-Z0-9_-]+)/);
+    
+    if (match1 && match1[1]) {
+      fileId = match1[1];
+    } else if (match2 && match2[1]) {
+      fileId = match2[1];
+    } else if (match3 && match3[1]) {
+      fileId = match3[1];
+    } else if (fileUrl.length > 20 && fileUrl.indexOf("/") === -1) {
+      fileId = fileUrl.trim();
+    }
+    
+    if (!fileId) {
+      return { success: false, error: "Gagal menemukan File ID dari URL Drive: " + fileUrl };
+    }
+    
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    var base64Data = Utilities.base64Encode(blob.getBytes());
+    
+    return {
+      success: true,
+      base64: base64Data,
+      mimeType: blob.getContentType(),
+      fileName: file.getName()
+    };
+  } catch (err) {
+    return { success: false, error: "Gagal membaca PDF dari Google Drive: " + err.toString() };
+  }
+}
+
+/**
  * Helper mengambil seluruh stream Base64 dokumen terupload (3 Slot) untuk Cetak Gabungan
  */
 function getAllAttendancePdfsBase64(userId, period) {
@@ -523,7 +586,6 @@ function getAllAttendancePdfsBase64(userId, period) {
         var docName = attendanceRows[a][4] || "Form Absensi";
         var fileUrl = attendanceRows[a][6] || attendanceRows[a][4] || "";
 
-        // Backward compatibility jika baris lama
         if (slotKey.indexOf(".pdf") !== -1 || slotKey.indexOf("Form_") === 0) {
           fileUrl = attendanceRows[a][4];
           slotKey = "slot1";
@@ -554,9 +616,6 @@ function getAllAttendancePdfsBase64(userId, period) {
   }
 }
 
-/**
- * Menyimpan data KJK langsung ke sheet khusus KJK
- */
 function saveKjkEntry(data) {
   try {
     var kjkSheet = ensureKjkSheet();
