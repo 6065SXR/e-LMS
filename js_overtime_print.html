@@ -2,12 +2,15 @@
   /**
    * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, KJK, STL & Gabungan)
    * System: e-LMS Data Center KSPS
-   * Pembaruan Presisi:
-   * 1. Menyelaraskan 100% struktur template tabel Rekap Lembur (Shift) dengan tombol hijau "Cetak Rekap (PDF)".
-   * 2. Perbaikan CSS tabel: Mengunci vertical-align: middle !important pada seluruh sel td/th dan melepas tinggi baris kaku (height: 18px),
-   *    sehingga teks 1 baris berada persis di tengah vertikal dan teks 2-3 baris mengembang rapi tanpa menabrak garis bawah.
-   * 3. Fitur Cetak Gabungan langsung terunduh otomatis (Auto Download) ke folder Downloads tanpa jeda pratinjau.
-   * 4. Mempertahankan cetak individual (Rekap & STL) serta modal susunan dokumen tanpa mengubah desain antarmuka.
+   * Revisi Presisi Terpadu:
+   * 1. Presisi Vertikal Tabel Rekapitulasi (Identik Gambar 1 & Gambar 2):
+   *    - Teks deskripsi 2 baris tidak lagi memotong / menabrak garis bawah border.
+   *    - Teks deskripsi 1 baris berdiri presisi tepat di titik tengah vertikal sel.
+   *    - Tanda centang (✓) melayang di tengah kotak sel tanpa menusuk garis bawah.
+   *    - Setiap baris tanggal 1 s/d 30/31 memiliki tinggi baris dasar yang seragam (18px).
+   * 2. Alur Cetak Gabungan:
+   *    - TIDAK membuka tab browser baru, melainkan langsung memunculkan Dialog Print Native Browser
+   *      (Save as PDF) di atas web apps persis seperti tombol Cetak Rekap (PDF) pada Gambar 1.
    */
 
   var KSPS_LOGO_CUSTOM_URL = "";
@@ -74,48 +77,39 @@
   }
 
   /**
-   * Helper memuat library html2canvas & jsPDF secara dinamis dan aman
+   * Generator Baris Tabel Rekapitulasi Lembur (Shift)
+   * Menyediakan kalkulasi metrik presisi:
+   * - Tinggi minimum baris: 18px (konsisten pada tanggal kosong maupun terisi).
+   * - Kolom deskripsi: font 9px, line-height 1.18, padding 2.5px 5px.
+   *   Teks 2 baris tidak akan menabrak garis bawah border.
+   *   Teks 1 baris melayang tepat di titik tengah vertikal sel.
+   * - Tanda centang (✓): terangkat -1.5px melayang tepat di titik tengah kotak.
    */
-  function ensurePdfLibraries(callback) {
-    var needHtml2Canvas = !window.html2canvas;
-    var needJsPdf = !(window.jspdf && window.jspdf.jsPDF) && !window.jsPDF;
+  function generateRekapRowsHtml(entryByDay, daysInMonth) {
+    var rowsHtml = "";
+    for (var day = 1; day <= daysInMonth; day++) {
+      var entry = entryByDay[day];
+      var mulai = (entry && entry.jam_mulai) ? entry.jam_mulai : "&nbsp;";
+      var akhir = (entry && entry.jam_selesai) ? entry.jam_selesai : "&nbsp;";
+      var totalJam = (entry && entry.total_jam) ? entry.total_jam : "&nbsp;";
+      var desc = (entry && entry.deskripsi) ? entry.deskripsi : "&nbsp;";
+      
+      var disetujui = (entry && entry.status_approval === 'Approved') ?
+        '<span style="font-weight: bold; font-size: 11px; line-height: 1; display: inline-block; vertical-align: middle; transform: translateY(-1.5px); -webkit-transform: translateY(-1.5px);">✓</span>' :
+        "&nbsp;";
 
-    if (!needHtml2Canvas && !needJsPdf) {
-      callback(true);
-      return;
+      rowsHtml += '<tr style="height: 18px;">' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px; font-size: 9.5px; line-height: 1.2;">' + day + '</td>' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px; font-size: 9.5px; line-height: 1.2;">' + mulai + '</td>' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px; font-size: 9.5px; line-height: 1.2;">' + akhir + '</td>' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: center; font-weight: bold; vertical-align: middle !important; padding: 2px 1px; font-size: 9.5px; line-height: 1.2;">' + totalJam + '</td>' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: left; vertical-align: middle !important; padding: 2.5px 5px; font-size: 9px; line-height: 1.18; word-break: break-word;">' + desc + '</td>' +
+        '<td valign="middle" style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + disetujui + '</td>' +
+        '</tr>';
     }
-
-    var promises = [];
-    if (needHtml2Canvas) {
-      promises.push(new Promise(function(resolve) {
-        var s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        s.onload = function() { resolve(); };
-        s.onerror = function() { resolve(); };
-        document.head.appendChild(s);
-      }));
-    }
-    if (needJsPdf) {
-      promises.push(new Promise(function(resolve) {
-        var s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-        s.onload = function() { resolve(); };
-        s.onerror = function() { resolve(); };
-        document.head.appendChild(s);
-      }));
-    }
-
-    Promise.all(promises).then(function() {
-      var hasH2c = !!window.html2canvas;
-      var hasPdf = !!((window.jspdf && window.jspdf.jsPDF) || window.jsPDF);
-      callback(hasH2c && hasPdf);
-    });
+    return rowsHtml;
   }
 
-  /**
-   * Fungsi Cetak Rekap (PDF) Tombol Hijau
-   * Diperbarui agar CSS sel vertical-align middle dan padding seimbang
-   */
   function printOvertimePDF() {
     var dataset = (currentFilteredOvertimeCache && currentFilteredOvertimeCache.length > 0) ? 
       currentFilteredOvertimeCache : currentOvertimeCache;
@@ -185,24 +179,7 @@
       if (currentUser.nik) latestApproverNik = currentUser.nik;
     }
 
-    var rowsHtml = "";
-    for (var day = 1; day <= daysInMonth; day++) {
-      var entry = entryByDay[day];
-      var mulai = entry ? entry.jam_mulai : "";
-      var akhir = entry ? entry.jam_selesai : "";
-      var totalJam = entry ? entry.total_jam : "";
-      var desc = entry ? entry.deskripsi : "";
-      var disetujui = (entry && entry.status_approval === 'Approved') ? "✓" : "";
-
-      rowsHtml += '<tr style="font-size: 10px; line-height: 1.25;">' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + day + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + mulai + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + akhir + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; vertical-align: middle !important; padding: 2px 1px;">' + totalJam + '</td>' +
-        '<td style="border: 1px solid #000; vertical-align: middle !important; padding: 3px 6px; word-break: break-word;">' + desc + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px; font-size: 11px;">' + disetujui + '</td>' +
-        '</tr>';
-    }
+    var rowsHtml = generateRekapRowsHtml(entryByDay, daysInMonth);
 
     var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 42px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
@@ -215,15 +192,15 @@
       '<style>' +
       '@page { size: A4 portrait; margin: 0; }' +
       '@media print { html, body { margin: 0; padding: 0; } }' +
-      'html, body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; }' +
+      'html, body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; background: #fff; }' +
       '* { box-sizing: border-box; }' +
-      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; background: #fff; }' +
       '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
       '.header-table td { vertical-align: middle; }' +
       '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
       '.info-table td { padding: 1.5px 0; }' +
-      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
-      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; vertical-align: middle !important; }' +
+      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; table-layout: fixed; }' +
+      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.2; vertical-align: middle !important; }' +
       '.data-table td { vertical-align: middle !important; }' +
       '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
       '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
@@ -256,12 +233,12 @@
       '<table class="data-table">' +
       '<thead>' +
       '<tr>' +
-      '<th style="width: 42px;">TGL</th>' +
-      '<th style="width: 72px;">MULAI</th>' +
-      '<th style="width: 72px;">AKHIR</th>' +
-      '<th style="width: 88px;">TOTAL JAM<br>LEMBUR</th>' +
+      '<th style="width: 40px;">TGL</th>' +
+      '<th style="width: 68px;">MULAI</th>' +
+      '<th style="width: 68px;">AKHIR</th>' +
+      '<th style="width: 85px;">TOTAL JAM<br>LEMBUR</th>' +
       '<th>DESKRIPSI LEMBUR</th>' +
-      '<th style="width: 82px;">DISETUJUI</th>' +
+      '<th style="width: 78px;">DISETUJUI</th>' +
       '</tr>' +
       '</thead>' +
       '<tbody>' + rowsHtml + '</tbody>' +
@@ -335,9 +312,9 @@
       '<style>' +
       '@page { size: A4 portrait; margin: 0; }' +
       '@media print { html, body { margin: 0; padding: 0; } }' +
-      'html, body { margin: 0; padding: 0; font-family: "Times New Roman", Times, serif; color: #000; font-size: 12px; line-height: 1.35; }' +
+      'html, body { margin: 0; padding: 0; font-family: "Times New Roman", Times, serif; color: #000; font-size: 12px; line-height: 1.35; background: #fff; }' +
       '* { box-sizing: border-box; }' +
-      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; }' +
+      '.sheet-page { width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm; margin: 0 auto; background: #fff; }' +
       '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
       '.header-table td { vertical-align: middle; }' +
       '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
@@ -436,10 +413,6 @@
       }, 500);
     }
   }
-
-  /* =========================================================
-   * 7. PANEL MINI ATUR URUTAN DOKUMEN CETAK GABUNGAN
-   * ========================================================= */
 
   var docPrintOrder = [];
   var docOrderMeta = {};
@@ -611,8 +584,8 @@
   }
 
   /**
-   * EKSEKUSI CETAK GABUNGAN OTOMATIS:
-   * Mengambil stream dokumen absensi, menyusun lembaran presisi, dan langsung mengunduh file PDF ke Downloads.
+   * Menyiapkan seluruh dokumen dan langsung membuka Dialog Cetak Native Browser
+   * tepat di atas Web Apps (Persis Gambar 1), tanpa berpindah ke tab baru.
    */
   function executeCombinedPrintWithOrder() {
     closeReorderDocumentsModal();
@@ -631,13 +604,26 @@
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : "2026-09";
 
+    // Buka jendela popup berukuran modal dialog tepat di atas web apps (Menghindari popup blocker)
+    var printWindow = window.open('', '_blank', 'width=900,height=750');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write('<!DOCTYPE html><html><head><title>Memuat Dokumen Cetak...</title>' +
+        '<style>body{margin:0;padding:0;background:#f8fafc;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;}.box{text-align:center;padding:24px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(0,0,0,0.06);max-width:360px;}.spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top:3px solid #1C1B8E;border-radius:50%;animation:spin 0.85s linear infinite;margin:0 auto 12px;}@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style></head>' +
+        '<body><div class="box"><div class="spinner"></div><h3 style="margin:0 0 6px 0;font-size:15px;color:#1C1B8E;">Menyiapkan Cetak Dokumen...</h3><p style="margin:0;font-size:11.5px;color:#64748b;line-height:1.4;">Sedang menyusun seluruh lembaran dokumen. Dialog cetak akan otomatis terbuka.</p></div></body></html>');
+      printWindow.document.close();
+    }
+
     showGlobalSpinner();
-    showToast("Menyiapkan & menyusun berkas cetak gabungan...");
+    var spinnerTextEl = document.querySelector("#globalLoadingSpinner span");
+    if (spinnerTextEl) spinnerTextEl.innerText = "Menyiapkan berkas cetak gabungan...";
 
     var hasPdfSlot = docPrintOrder.some(function(k) { return k === 'slot1' || k === 'slot2' || k === 'slot3'; });
 
     if (hasPdfSlot) {
       callBackend('getAllAttendancePdfsBase64', [targetUid, periodVal], function(res) {
+        if (spinnerTextEl) spinnerTextEl.innerText = "Membaca berkas absensi & menyusun lembaran...";
+
         var filesList = (res && res.success && res.files) ? res.files : [];
 
         if (filesList.length > 0 && window.pdfjsLib) {
@@ -677,24 +663,20 @@
           });
 
           Promise.all(processFilePromises).then(function() {
-            buildAndDownloadCombinedPdf(slotImagesMap, dataset, targetItem, periodVal);
+            renderAndPrintCombinedHtml(slotImagesMap, dataset, targetItem, periodVal, printWindow);
           }).catch(function() {
-            buildAndDownloadCombinedPdf({}, dataset, targetItem, periodVal);
+            renderAndPrintCombinedHtml({}, dataset, targetItem, periodVal, printWindow);
           });
         } else {
-          buildAndDownloadCombinedPdf({}, dataset, targetItem, periodVal);
+          renderAndPrintCombinedHtml({}, dataset, targetItem, periodVal, printWindow);
         }
       });
     } else {
-      buildAndDownloadCombinedPdf({}, dataset, targetItem, periodVal);
+      renderAndPrintCombinedHtml({}, dataset, targetItem, periodVal, printWindow);
     }
   }
 
-  /**
-   * Mengompilasi seluruh lembaran halaman per halaman beresolusi tinggi ke dalam jsPDF
-   * dan otomatis mengunduh berkas ke folder Downloads.
-   */
-  async function buildAndDownloadCombinedPdf(slotImagesMap, dataset, targetItem, periodVal) {
+  function renderAndPrintCombinedHtml(slotImagesMap, dataset, targetItem, periodVal, printWindow) {
     var parts = periodVal.split("-");
     var yearNum = parseInt(parts[0], 10) || 2026;
     var monthNum = parseInt(parts[1], 10) || 9;
@@ -751,25 +733,8 @@
       if (currentUser.nik) latestApproverNik = currentUser.nik;
     }
 
-    // Generator baris tabel selaras penuh dengan tombol hijau Cetak Rekap (PDF)
-    var rowsHtml = "";
-    for (var day = 1; day <= daysInMonth; day++) {
-      var entry = entryByDay[day];
-      var mulai = entry ? entry.jam_mulai : "";
-      var akhir = entry ? entry.jam_selesai : "";
-      var totalJam = entry ? entry.total_jam : "";
-      var desc = entry ? entry.deskripsi : "";
-      var disetujui = (entry && entry.status_approval === 'Approved') ? "✓" : "";
-
-      rowsHtml += '<tr style="font-size: 10px; line-height: 1.25;">' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + day + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + mulai + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px;">' + akhir + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; font-weight: bold; vertical-align: middle !important; padding: 2px 1px;">' + totalJam + '</td>' +
-        '<td style="border: 1px solid #000; vertical-align: middle !important; padding: 3px 6px; word-break: break-word;">' + desc + '</td>' +
-        '<td style="border: 1px solid #000; text-align: center; vertical-align: middle !important; padding: 2px 1px; font-size: 11px;">' + disetujui + '</td>' +
-        '</tr>';
-    }
+    // Baris tabel Rekapitulasi dengan metrik presisi tinggi identik Gambar 2
+    var rowsHtml = generateRekapRowsHtml(entryByDay, daysInMonth);
 
     var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 42px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
     var employeeSigHtml = renderSignatureHtml(userSig, fallbackEmpSvg);
@@ -780,12 +745,17 @@
 
     var sections = {};
 
-    // 1, 2, 3: Form Absensi & Dokumen Pendukung (Gambar mentah dari PDF.js)
+    // 1, 2, 3: Form Absensi & Dokumen Pendukung (Halaman Gambar Full-Page A4)
     ["slot1", "slot2", "slot3"].forEach(function(sKey) {
-      sections[sKey] = (slotImagesMap && slotImagesMap[sKey]) ? slotImagesMap[sKey] : [];
+      var imgArr = (slotImagesMap && slotImagesMap[sKey]) ? slotImagesMap[sKey] : [];
+      sections[sKey] = imgArr.map(function(imgUrl) {
+        return '<div class="sheet-page sheet-page-image">' +
+               '<img src="' + imgUrl + '" style="width: 100%; height: 100%; max-height: 297mm; object-fit: contain; display: block;" alt="Attendance Page" />' +
+               '</div>';
+      });
     });
 
-    // 4. Lembar Rekapitulasi Lembur (Shift) - Format & Struktur Identik Tombol Hijau
+    // 4. Lembar Rekapitulasi Lembur (Shift)
     sections.rekap = [
       '<div class="sheet-page">' +
       '<table class="header-table">' +
@@ -812,12 +782,12 @@
       '<table class="data-table">' +
       '<thead>' +
       '<tr>' +
-      '<th style="width: 42px;">TGL</th>' +
-      '<th style="width: 72px;">MULAI</th>' +
-      '<th style="width: 72px;">AKHIR</th>' +
-      '<th style="width: 88px;">TOTAL JAM<br>LEMBUR</th>' +
+      '<th style="width: 40px;">TGL</th>' +
+      '<th style="width: 68px;">MULAI</th>' +
+      '<th style="width: 68px;">AKHIR</th>' +
+      '<th style="width: 85px;">TOTAL JAM<br>LEMBUR</th>' +
       '<th>DESKRIPSI LEMBUR</th>' +
-      '<th style="width: 82px;">DISETUJUI</th>' +
+      '<th style="width: 78px;">DISETUJUI</th>' +
       '</tr>' +
       '</thead>' +
       '<tbody>' + rowsHtml + '</tbody>' +
@@ -1004,153 +974,95 @@
     });
     sections.stl = stlPagesHtml;
 
-    // Susun urutan lembaran dokumen sesuai modal atur urutan
-    var pagesToRender = [];
+    // Rangkai urutan lembaran sesuai konfigurasi modal
+    var fullDocHtml = "";
     docPrintOrder.forEach(function(sectionKey) {
       if (sections[sectionKey] && sections[sectionKey].length > 0) {
         sections[sectionKey].forEach(function(contentItem) {
-          pagesToRender.push({
-            type: (sectionKey.indexOf('slot') === 0) ? 'image' : 'html',
-            content: contentItem
-          });
+          fullDocHtml += contentItem;
         });
       }
     });
 
-    if (pagesToRender.length === 0) {
+    if (!fullDocHtml || fullDocHtml.trim() === "") {
       hideGlobalSpinner();
-      showToast("Tidak ada dokumen yang siap diunduh.");
+      if (printWindow && !printWindow.closed) printWindow.close();
+      showToast("Tidak ada dokumen yang siap dicetak.");
       return;
     }
 
-    var cleanEmpName = (empName || "Karyawan").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim().replace(/\s+/g, "_");
-    var downloadFileName = "Cetak_Gabungan_Lembur_" + cleanEmpName + "_" + periodVal + ".pdf";
+    var fullHtml = '<!DOCTYPE html><html><head><title></title>' +
+      '<style>' +
+      '@page { size: A4 portrait; margin: 0; }' +
+      '@media print {' +
+      '  html, body { margin: 0; padding: 0; background: #fff; }' +
+      '  .sheet-page { page-break-after: always; break-after: page; }' +
+      '  .sheet-page:last-child { page-break-after: avoid !important; break-after: avoid !important; }' +
+      '}' +
+      'html, body { font-family: "Times New Roman", Times, serif; color: #000; margin: 0; padding: 0; line-height: 1.25; font-size: 11px; background: #fff; }' +
+      '* { box-sizing: border-box; }' +
+      '.sheet-page {' +
+      '  width: 100%; min-height: 297mm; box-sizing: border-box; padding: 10mm 12mm;' +
+      '  margin: 0 auto; background: #fff; page-break-after: always; break-after: page; position: relative;' +
+      '}' +
+      '.sheet-page-image {' +
+      '  padding: 0 !important; display: flex; align-items: center; justify-content: center;' +
+      '  height: 297mm; min-height: 297mm; overflow: hidden; page-break-after: always; break-after: page; background: #fff;' +
+      '}' +
+      '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
+      '.header-table td { vertical-align: middle; }' +
+      '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
+      '.info-table td { padding: 1.5px 0; }' +
+      '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; table-layout: fixed; }' +
+      '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.2; vertical-align: middle !important; }' +
+      '.data-table td { vertical-align: middle !important; }' +
+      '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
+      '.signature-box img { max-height: 44px; max-width: 135px; filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+      '.kjk-info-table { width: 100%; margin-top: 15px; margin-bottom: 18px; font-size: 12px; font-weight: bold; }' +
+      '.kjk-info-table td { padding: 3px 0; }' +
+      '.kjk-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 11.5px; }' +
+      '.kjk-table th { border: 1.5px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #fff; font-size: 11.5px; vertical-align: middle !important; }' +
+      '.kjk-table td { border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-size: 11.5px; vertical-align: middle !important; }' +
+      '.kjk-signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.kjk-signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
+      '.kjk-signature-box { height: 52px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }' +
+      '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
+      '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
+      '.info-block td { padding: 3px 0; vertical-align: top; }' +
+      '.stl-signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; page-break-inside: avoid; break-inside: avoid; }' +
+      '.stl-signature-table td { vertical-align: top; width: 50%; }' +
+      '.stl-signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
+      '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
+      'p { margin: 5px 0; }' +
+      'ul { margin: 4px 0 10px 22px; padding: 0; }' +
+      '</style></head><body>' +
+      fullDocHtml +
+      '</body></html>';
 
-    ensurePdfLibraries(async function(ready) {
-      var jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
-      if (!ready || !window.html2canvas || !jsPDFConstructor) {
-        hideGlobalSpinner();
-        showToast("Gagal memuat engine kompilasi PDF. Coba periksa koneksi internet Anda.");
-        return;
-      }
+    hideGlobalSpinner();
 
-      try {
-        var pdf = new jsPDFConstructor({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4',
-          compress: true
-        });
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(fullHtml);
+      printWindow.document.title = "";
+      printWindow.document.close();
 
-        // Kontainer staging dengan z-index terisolasi di bawah spinner
-        var stage = document.getElementById("pdfCombinedRenderStage");
-        if (!stage) {
-          stage = document.createElement("div");
-          stage.id = "pdfCombinedRenderStage";
-          document.body.appendChild(stage);
-        }
-
-        stage.style.position = "fixed";
-        stage.style.top = "0";
-        stage.style.left = "0";
-        stage.style.width = "794px";
-        stage.style.minHeight = "1123px";
-        stage.style.zIndex = "9998";
-        stage.style.background = "#ffffff";
-        stage.style.boxSizing = "border-box";
-        stage.style.margin = "0";
-        stage.style.padding = "0";
-        stage.style.overflow = "visible";
-        stage.style.pointerEvents = "none";
-
-        var stylingHeader = '<style>' +
-          'html, body { margin: 0; padding: 0; background: #fff; font-family: "Times New Roman", Times, serif; color: #000; line-height: 1.25; font-size: 11px; }' +
-          '* { box-sizing: border-box; }' +
-          '.sheet-page { width: 794px; min-height: 1123px; box-sizing: border-box; padding: 38px 45px; margin: 0 auto; background: #fff; }' +
-          '.header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }' +
-          '.header-table td { vertical-align: middle; }' +
-          '.info-table { width: 100%; margin-bottom: 8px; font-size: 11.5px; font-weight: bold; }' +
-          '.info-table td { padding: 1.5px 0; }' +
-          '.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px; }' +
-          '.data-table th { border: 1px solid #000; padding: 4px 2px; font-weight: bold; text-align: center; background: #f2f2f2; font-size: 10px; line-height: 1.15; vertical-align: middle !important; }' +
-          '.data-table td { border: 1px solid #000; vertical-align: middle !important; }' +
-          '.signature-table { width: 100%; margin-top: 10px; font-size: 11.5px; text-align: center; }' +
-          '.signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
-          '.signature-box { height: 46px; display: flex; align-items: center; justify-content: center; margin: 2px 0; }' +
-          '.signature-box img, .stl-signature-box img, .kjk-signature-box img { filter: grayscale(100%) contrast(300%) brightness(0) !important; -webkit-filter: grayscale(100%) contrast(300%) brightness(0) !important; }' +
-          '.doc-title { text-align: center; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }' +
-          '.info-block { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 12px; }' +
-          '.info-block td { padding: 3px 0; vertical-align: top; }' +
-          '.stl-signature-table { width: 100%; margin-top: 16px; font-size: 12px; text-align: center; }' +
-          '.stl-signature-table td { vertical-align: top; width: 50%; }' +
-          '.stl-signature-box { height: 46px; display: flex; align-items: center; justify-content: center; }' +
-          '.kjk-info-table { width: 100%; margin-top: 15px; margin-bottom: 18px; font-size: 12px; font-weight: bold; }' +
-          '.kjk-info-table td { padding: 3px 0; }' +
-          '.kjk-table { width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 11.5px; }' +
-          '.kjk-table th { border: 1.5px solid #000; padding: 6px 4px; font-weight: bold; text-align: center; background: #fff; font-size: 11.5px; vertical-align: middle !important; }' +
-          '.kjk-table td { border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-size: 11.5px; vertical-align: middle !important; }' +
-          '.kjk-signature-table { width: 100%; margin-top: 20px; font-size: 12px; text-align: center; }' +
-          '.kjk-signature-table td { vertical-align: top; width: 50%; padding: 0 10px; }' +
-          '.kjk-signature-box { height: 52px; display: flex; align-items: center; justify-content: center; margin: 4px 0; }' +
-          '.divider-line { border-top: 1.5px dashed #000; margin: 18px 0; }' +
-          'p { margin: 5px 0; }' +
-          'ul { margin: 4px 0 10px 22px; padding: 0; }' +
-          '</style>';
-
-        // Render setiap halaman satu per satu
-        for (var i = 0; i < pagesToRender.length; i++) {
-          var pageItem = pagesToRender[i];
-          if (i > 0) {
-            pdf.addPage('a4', 'portrait');
-          }
-
-          if (pageItem.type === 'image') {
-            // Berkas hasil scan dari Google Drive disematkan langsung
-            pdf.addImage(pageItem.content, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-          } else {
-            // Lembaran HTML KSPS (Rekap, KJK, STL)
-            stage.innerHTML = stylingHeader + pageItem.content;
-
-            await new Promise(function(resolve) { setTimeout(resolve, 80); });
-
-            var targetEl = stage.querySelector('.sheet-page') || stage;
-            var canvas = await html2canvas(targetEl, {
-              scale: 2,
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#ffffff',
-              scrollX: 0,
-              scrollY: 0,
-              windowWidth: 794
-            });
-
-            var imgData = canvas.toDataURL('image/jpeg', 0.96);
-            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-          }
-        }
-
-        // Simpan langsung berkas PDF ke folder Downloads
-        pdf.save(downloadFileName);
-
-        if (stage.parentNode) {
-          stage.parentNode.removeChild(stage);
-        }
-
-        hideGlobalSpinner();
-        showToast("Berkas " + downloadFileName + " berhasil diunduh otomatis!");
-      } catch (err) {
-        hideGlobalSpinner();
-        var stg = document.getElementById("pdfCombinedRenderStage");
-        if (stg && stg.parentNode) stg.parentNode.removeChild(stg);
-        console.error("Gagal merakit PDF:", err);
-        showToast("Gagal mengunduh berkas PDF gabungan: " + err.toString());
-      }
-    });
+      setTimeout(function() {
+        printWindow.document.title = "";
+        printWindow.focus();
+        printWindow.print();
+      }, 600);
+    }
   }
 
-  // Kompatibilitas fungsi pemanggil lama
+  function buildAndDownloadCombinedPdf(slotImagesMap, dataset, targetItem, periodVal, onComplete) {
+    executeCombinedPrintWithOrder();
+  }
+
   function buildAndPrintCombinedHtml(slotImagesMap, dataset, targetItem, periodVal) {
-    buildAndDownloadCombinedPdf(slotImagesMap, dataset, targetItem, periodVal);
+    executeCombinedPrintWithOrder();
   }
 
   function printCombinedOvertimePDF() {
