@@ -189,7 +189,7 @@
   }
 
   function switchTab(tabId) {
-    var views = ['dashboard', 'katalog', 'karyawan', 'misi', 'overtime', 'users'];
+    var views = ['dashboard', 'katalog', 'karyawan', 'misi', 'overtime', 'rekap-lembur', 'users', 'backup', 'under-construction'];
     views.forEach(function(v) {
       var el = document.getElementById('view-' + v);
       var nav = document.getElementById('nav-' + v);
@@ -213,6 +213,7 @@
     if (tabId === 'karyawan') loadEmployees();
     if (tabId === 'misi') loadMonthlyMissions();
     if (tabId === 'overtime') loadOvertimeData();
+    if (tabId === 'rekap-lembur') loadOvertimeCalculationData();
     if (tabId === 'users') loadUsers();
   }
 
