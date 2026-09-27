@@ -189,13 +189,20 @@ function parseMonthPeriod(dateStr, createdAtStr) {
 
 function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
   try {
-    var rekapSheet = ensureRekapLemburSheet();
     var period = monthPeriod || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
     var siteFilter = targetSite || "ALL";
 
-    var ovtRows = getSheetDisplayValues("OVERTIME");
-    var empRows = getSheetDisplayValues("EMPLOYEES");
-    var rekapRows = rekapSheet.getDataRange().getDisplayValues();
+    // Hubungkan ke Smart Archive Reader (Membaca Spreadsheet Utama ATAU Archive Drive)
+    var targetSs = typeof getSpreadsheetForPeriod === "function" ? 
+      getSpreadsheetForPeriod(period, "OVERTIME") : SpreadsheetApp.getActiveSpreadsheet();
+
+    var ovtSheet = targetSs.getSheetByName("OVERTIME");
+    var empSheet = targetSs.getSheetByName("EMPLOYEES") || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("EMPLOYEES");
+    var rekapSheet = targetSs.getSheetByName("REKAP_LEMBUR") || ensureRekapLemburSheet();
+
+    var ovtRows = ovtSheet ? ovtSheet.getDataRange().getDisplayValues() : [];
+    var empRows = empSheet ? empSheet.getDataRange().getDisplayValues() : [];
+    var rekapRows = rekapSheet ? rekapSheet.getDataRange().getDisplayValues() : [];
 
     var syncedMap = {};
     for (var r = 1; r < rekapRows.length; r++) {
@@ -313,13 +320,20 @@ function getApprovedOvertimeForCalculation(monthPeriod, targetSite) {
 
 function getApprovedKjkForCalculation(monthPeriod, targetSite) {
   try {
-    var rekapKjkSheet = ensureRekapKjkSheet();
     var period = monthPeriod || "";
     var siteFilter = targetSite || "ALL";
 
-    var kjkRows = getSheetDisplayValues("KJK");
-    var empRows = getSheetDisplayValues("EMPLOYEES");
-    var rekapKjkRows = rekapKjkSheet.getDataRange().getDisplayValues();
+    // Hubungkan ke Smart Archive Reader (Membaca Spreadsheet Utama ATAU Archive Drive)
+    var targetSs = typeof getSpreadsheetForPeriod === "function" ? 
+      getSpreadsheetForPeriod(period, "KJK") : SpreadsheetApp.getActiveSpreadsheet();
+
+    var kjkSheet = targetSs.getSheetByName("KJK");
+    var empSheet = targetSs.getSheetByName("EMPLOYEES") || SpreadsheetApp.getActiveSpreadsheet().getSheetByName("EMPLOYEES");
+    var rekapKjkSheet = targetSs.getSheetByName("REKAP_KJK") || ensureRekapKjkSheet();
+
+    var kjkRows = kjkSheet ? kjkSheet.getDataRange().getDisplayValues() : [];
+    var empRows = empSheet ? empSheet.getDataRange().getDisplayValues() : [];
+    var rekapKjkRows = rekapKjkSheet ? rekapKjkSheet.getDataRange().getDisplayValues() : [];
 
     var syncedMap = {};
     for (var r = 1; r < rekapKjkRows.length; r++) {
