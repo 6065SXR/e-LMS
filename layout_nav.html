@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <!-- DERETAN MENU SIDEBAR (SEMUA UKURAN & BENTUK 100% KONSISTEN) -->
+    <!-- DERETAN MENU SIDEBAR DESKTOP -->
     <nav class="space-y-1.5" id="mainSidebarNav">
       <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition active-nav">
         <i class="fa-solid fa-chart-pie w-5"></i>
@@ -114,7 +114,7 @@
         <i class="fa-solid fa-database w-5 text-indigo-600"></i>
         <span>Backup &amp; Restore</span>
       </button>
-      <!-- MENU SUPER ADMIN: UNDER CONSTRUCTION (1 BARIS RAPI & SERAGAM) -->
+      <!-- MENU SUPER ADMIN: UNDER CONSTRUCTION -->
       <button type="button" onclick="switchTab('under-construction')" id="nav-under-construction" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm transition hidden role-super-admin">
         <i class="fa-solid fa-screwdriver-wrench w-5 text-[#F38F00]"></i>
         <span>Under Construction</span>
@@ -130,7 +130,7 @@
   </div>
 </aside>
 
-<!-- MOBILE FLOATING NAVIGATION -->
+<!-- MOBILE FLOATING NAVIGATION BAR (KHUSUS TAMPIL DI HANDPHONE & SINKRON DENGAN ROLE PM / SUPER ADMIN) -->
 <nav class="md:hidden floating-bottom-nav">
   <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="floating-nav-item active-mobile-nav">
     <div class="floating-icon-wrapper">
@@ -162,6 +162,8 @@
     </div>
     <span class="floating-label">Lembur</span>
   </button>
+
+  <!-- MENU KHUSUS HANDPHONE UNTUK ROLE PM & SUPER ADMIN -->
   <button type="button" onclick="switchTab('rekap-lembur')" id="mobile-nav-rekap-lembur" class="floating-nav-item hidden role-pm role-admin">
     <div class="floating-icon-wrapper">
       <i class="fa-solid fa-calculator text-amber-600"></i>
@@ -176,7 +178,7 @@
   </button>
   <button type="button" onclick="switchTab('backup')" id="mobile-nav-backup" class="floating-nav-item hidden role-admin">
     <div class="floating-icon-wrapper">
-      <i class="fa-solid fa-database"></i>
+      <i class="fa-solid fa-database text-indigo-600"></i>
     </div>
     <span class="floating-label">Backup</span>
   </button>
@@ -189,17 +191,43 @@
 </nav>
 
 <script>
-  function syncSuperAdminNavigationVisibility() {
+  /**
+   * SINKRONISASI VISIBILITAS MENU MOBILE NAV DENGAN ROLE USER (PM, ADMIN, SUPER ADMIN & KARYAWAN)
+   */
+  function syncRoleNavigationVisibility() {
     if (!window.currentUser) return;
-    var isSuperAdmin = (currentUser.role === 'Super Admin');
-    var superAdminElements = document.querySelectorAll(".role-super-admin");
-    superAdminElements.forEach(function(el) {
-      if (isSuperAdmin) {
-        el.classList.remove("hidden");
-      } else {
-        el.classList.add("hidden");
-      }
+    
+    var role = String(currentUser.role || '').toLowerCase().trim();
+    var isSuperAdmin = (role === 'super admin');
+    var isAdmin = (role === 'admin' || isSuperAdmin);
+    var isPM = (role === 'project manager' || role === 'pm' || isAdmin);
+    var isKaryawan = (role === 'karyawan');
+
+    // Filter Super Admin
+    document.querySelectorAll(".role-super-admin").forEach(function(el) {
+      if (isSuperAdmin) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+    });
+
+    // Filter Admin / Super Admin
+    document.querySelectorAll(".role-admin").forEach(function(el) {
+      if (isAdmin) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+    });
+
+    // Filter PM (Project Manager & Super Admin)
+    document.querySelectorAll(".role-pm").forEach(function(el) {
+      if (isPM) el.classList.remove("hidden");
+      else el.classList.add("hidden");
+    });
+
+    // Filter Karyawan
+    document.querySelectorAll(".role-karyawan").forEach(function(el) {
+      if (isKaryawan || (!isPM && !isAdmin)) el.classList.remove("hidden");
+      else el.classList.add("hidden");
     });
   }
-  setInterval(syncSuperAdminNavigationVisibility, 1000);
+
+  // Jalankan sinkronisasi role setiap 500ms
+  setInterval(syncRoleNavigationVisibility, 500);
 </script>
