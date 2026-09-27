@@ -1,18 +1,11 @@
 <script>
   /**
    * ==========================================================================
-   * JS BACKUP, RESTORE & SAFE MAINTENANCE ENGINE
+   * JS BACKUP, DRIVE CLONING, RESTORE & SAFE MAINTENANCE ENGINE
    * System: e-LMS Data Center KSPS
-   * Terhubung langsung dengan fungsi backend di file .gs:
-   * 1. exportFullDatabaseBackup()
-   * 2. restoreDatabaseFromJson(jsonString)
-   * 3. executeSafeCleanDatabase(cleanType, confirmSecret)
    * ==========================================================================
    */
 
-  /**
-   * Helper pemanggilan backend yang aman dan mendukung semua model runner
-   */
   function callBackendSafe(funcName, args, callback) {
     if (typeof callBackend === "function") {
       callBackend(funcName, args, callback);
@@ -26,12 +19,81 @@
     }
   }
 
-  /**
-   * 1. Export & Download Full Backup Database (JSON)
-   */
+  function handleDriveBackup() {
+    var btn = document.getElementById("btnDriveBackup");
+    var btnText = document.getElementById("btnDriveBackupText");
+    var originalHtml = btn ? btn.innerHTML : "";
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Menduplikasi ke Drive...</span>';
+    }
+
+    showToast("Meduplikasi database utama ke Folder Google Drive...");
+
+    callBackendSafe("backupDatabaseToGoogleDrive", [], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast("Database berhasil diduplikasi ke Google Drive!");
+        if (res.fileUrl) {
+          window.open(res.fileUrl, '_blank');
+        }
+      } else {
+        showToast(res ? res.error : "Gagal menduplikasi database ke Google Drive!");
+      }
+    });
+  }
+
+  function handleMonthlyArchiveReset() {
+    var secretInput = document.getElementById("monthlyResetConfirmSecretInput");
+    var secretVal = secretInput ? secretInput.value.trim() : "";
+
+    if (secretVal !== "RESET-BULANAN") {
+      showToast("Kata konfirmasi salah! Wajib ketik 'RESET-BULANAN'.");
+      if (secretInput) secretInput.focus();
+      return;
+    }
+
+    var btn = document.getElementById("btnExecuteMonthlyReset");
+    var originalHtml = btn ? btn.innerHTML : "";
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> <span>Mengarshipkan & Reset...</span>';
+    }
+
+    showToast("Mengarshipkan database & mengosongkan data transaksi...");
+
+    callBackendSafe("executeMonthlyArchiveAndReset", [secretVal], function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+
+      if (res && res.success) {
+        showToast("Penutupan buku bulanan selesai!");
+        if (secretInput) secretInput.value = "";
+        
+        if (res.archiveUrl) {
+          window.open(res.archiveUrl, '_blank');
+        }
+
+        setTimeout(function() {
+          if (typeof loadOvertimeData === "function") loadOvertimeData();
+          if (typeof loadCourses === "function") loadCourses(1);
+        }, 1000);
+      } else {
+        showToast(res ? res.error : "Penutupan buku bulanan gagal!");
+      }
+    });
+  }
+
   function handleExportDatabaseBackup() {
     var btn = document.getElementById("btnExportDatabaseBackup");
-    var btnText = document.getElementById("btnExportBackupText");
     var originalHtml = btn ? btn.innerHTML : "";
 
     if (btn) {
@@ -72,9 +134,6 @@
     });
   }
 
-  /**
-   * 2. Restore Database dari Berkas JSON Cadangan
-   */
   function handleRestoreDatabaseBackup() {
     var fileInput = document.getElementById("backupRestoreFileInput");
     var file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
@@ -113,7 +172,6 @@
           showToast(res.message || "Database berhasil dipulihkan!");
           if (fileInput) fileInput.value = "";
           
-          // Muat ulang data dashboard jika fungsi tersedia
           setTimeout(function() {
             if (typeof loadCourses === "function") loadCourses(1);
             if (typeof loadOvertimeData === "function") loadOvertimeData();
@@ -131,9 +189,6 @@
     reader.readAsText(file);
   }
 
-  /**
-   * 3. Eksekusi Pembersihan Aman Terkendali (Safe Clean)
-   */
   function handleExecuteSafeClean() {
     var cleanType = document.getElementById("safeCleanTargetSelect").value;
     var secretInput = document.getElementById("safeCleanConfirmSecretInput");
@@ -163,7 +218,6 @@
         showToast(res.message || "Pembersihan database berhasil dijalankan!");
         if (secretInput) secretInput.value = "";
 
-        // Segarkan data lembur jika yang dibersihkan adalah lembur
         if (cleanType === "OVERTIME_AND_KJK" && typeof loadOvertimeData === "function") {
           loadOvertimeData();
         }
