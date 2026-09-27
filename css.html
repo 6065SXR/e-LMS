@@ -126,7 +126,7 @@
     border-left: 4px solid #1C1B8E;
   }
 
-  /* MOBILE FLOATING NAVIGATION BAR */
+  /* MOBILE FLOATING NAVIGATION BAR (OPTIMIZED FOR HANDPHONE ACCORDING TO ROLES) */
   .floating-bottom-nav {
     position: fixed;
     bottom: 12px;
@@ -137,14 +137,21 @@
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(226, 232, 240, 0.85);
     border-radius: 2rem;
-    padding: 0.4rem 0.9rem;
+    padding: 0.4rem 0.75rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    box-shadow: 0 10px 28px rgba(28, 27, 142, 0.16);
+    gap: 0.75rem;
+    box-shadow: 0 10px 28px rgba(28, 27, 142, 0.18);
     z-index: 40;
     width: max-content;
-    max-width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .floating-bottom-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
   }
 
   .floating-nav-item {
@@ -155,6 +162,8 @@
     font-weight: 600;
     color: #64748B;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    cursor: pointer;
   }
 
   .floating-icon-wrapper {
@@ -185,7 +194,10 @@
     #view-karyawan, 
     #view-misi, 
     #view-overtime, 
-    #view-users {
+    #view-rekap-lembur,
+    #view-users,
+    #view-backup,
+    #view-under-construction {
       padding-bottom: 5.5rem;
     }
   }
