@@ -8,7 +8,7 @@
    * 2. Presisi matematika identik 100% dengan acuan Excel.
    * 3. Otomatisasi pemotongan istirahat 0.5 Jam jika Jam Kotor >= 4 Jam.
    * 4. Menampilkan '-' untuk karyawan tanpa Lembur/KJK di sub-tab Summary Take Home Pay.
-   * 5. PAGINASI TABEL: Pembatasan maksimal 10 data per halaman.
+   * 5. Inisialisasi otomatis periode aktif & paginasi tabel 10 baris.
    * ============================================================================
    */
 
@@ -33,10 +33,25 @@
   var summaryPageSize = 10;
 
   function UtilitiesFormatDateMonth() {
+    var ovtPeriod = document.getElementById("overtimePeriodFilter");
+    if (ovtPeriod && ovtPeriod.value && ovtPeriod.value.trim() !== "") {
+      return ovtPeriod.value;
+    }
     var d = new Date();
     var month = ('0' + (d.getMonth() + 1)).slice(-2);
     return d.getFullYear() + '-' + month;
   }
+
+  function ensureCalcPeriodInitialized() {
+    var periodFilter = document.getElementById("calcPeriodFilter");
+    if (periodFilter && (!periodFilter.value || periodFilter.value.trim() === "")) {
+      periodFilter.value = UtilitiesFormatDateMonth() || "2026-09";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    ensureCalcPeriodInitialized();
+  });
 
   function ensureXlsxLibrary(callback) {
     if (window.XLSX) {
@@ -59,10 +74,7 @@
     var labelHoursCard = document.getElementById("calcSumHoursCardLabel");
     var tableHeaderEl = document.getElementById("calcTableHeaderRow");
 
-    var periodFilter = document.getElementById("calcPeriodFilter");
-    if (periodFilter && (!periodFilter.value || periodFilter.value.trim() === "")) {
-      periodFilter.value = UtilitiesFormatDateMonth();
-    }
+    ensureCalcPeriodInitialized();
 
     // Reset All Button Classes to Inactive Style
     if (btnPp35) btnPp35.className = "px-4 py-2 rounded-xl text-xs font-bold transition text-slate-600 hover:text-slate-900 cursor-pointer";
@@ -153,8 +165,9 @@
   }
 
   function loadOvertimeCalculationData() {
+    ensureCalcPeriodInitialized();
     var periodFilter = document.getElementById("calcPeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var periodVal = (periodFilter && periodFilter.value) ? periodFilter.value : UtilitiesFormatDateMonth();
 
     var siteFilter = document.getElementById("calcSiteFilter");
     var siteVal = siteFilter ? siteFilter.value : "ALL";
@@ -164,6 +177,8 @@
     callBackend('getApprovedOvertimeForCalculation', [periodVal, siteVal], function(res) {
       if (!res || !res.success) {
         showToast(res ? res.error : "Gagal memuat data lembur.");
+        var tbody = document.getElementById("rekapLemburTableBody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="text-center text-rose-500 text-sm py-8">' + (res ? res.error : 'Gagal memuat data') + '</td></tr>';
         return;
       }
 
@@ -176,8 +191,9 @@
   }
 
   function loadKjkCalculationData() {
+    ensureCalcPeriodInitialized();
     var periodFilter = document.getElementById("calcPeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var periodVal = (periodFilter && periodFilter.value) ? periodFilter.value : UtilitiesFormatDateMonth();
 
     var siteFilter = document.getElementById("calcSiteFilter");
     var siteVal = siteFilter ? siteFilter.value : "ALL";
@@ -187,6 +203,8 @@
     callBackend('getApprovedKjkForCalculation', [periodVal, siteVal], function(res) {
       if (!res || !res.success) {
         showToast(res ? res.error : "Gagal memuat data KJK.");
+        var tbody = document.getElementById("rekapLemburTableBody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-rose-500 text-sm py-8">' + (res ? res.error : 'Gagal memuat data') + '</td></tr>';
         return;
       }
 
@@ -199,8 +217,9 @@
   }
 
   function loadSummaryPayrollData() {
+    ensureCalcPeriodInitialized();
     var periodFilter = document.getElementById("calcPeriodFilter");
-    var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
+    var periodVal = (periodFilter && periodFilter.value) ? periodFilter.value : UtilitiesFormatDateMonth();
 
     var siteFilter = document.getElementById("calcSiteFilter");
     var siteVal = siteFilter ? siteFilter.value : "ALL";
@@ -210,6 +229,8 @@
     callBackend('getSummaryPayrollForCalculation', [periodVal, siteVal], function(res) {
       if (!res || !res.success) {
         showToast(res ? res.error : "Gagal memuat data Summary Take Home Pay.");
+        var tbody = document.getElementById("rekapLemburTableBody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-rose-500 text-sm py-8">' + (res ? res.error : 'Gagal memuat data') + '</td></tr>';
         return;
       }
 
@@ -639,6 +660,7 @@
     var isSummary = (currentCalcSubTab === 'summary');
     var isKjk = (currentCalcSubTab === 'kjk');
 
+    ensureCalcPeriodInitialized();
     var periodFilter = document.getElementById("calcPeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
 
