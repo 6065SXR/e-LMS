@@ -179,7 +179,9 @@
 
     var selectedSites = getSelectedSitesFromModal();
     var filteredEmployees = overtimeMasterEmployees.filter(function(emp) {
-      return selectedSites.indexOf(emp.site) !== -1;
+      return selectedSites.some(function(s) {
+        return (typeof isSiteMatching === "function") ? isSiteMatching(emp.site, emp.departemen, s) : (emp.site === s);
+      });
     });
 
     if (filteredEmployees.length === 0) {
