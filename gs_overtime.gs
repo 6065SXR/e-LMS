@@ -5,10 +5,36 @@
  * 1. Isolasi try/catch pada setSharing Drive agar penolakan izin publik Google Workspace tidak menggagalkan upload.
  * 2. Menjamin file URL selalu tercatat ke sheet ATTENDANCE dan memicu notifikasi sukses hijau.
  * 3. Helper getPdfBase64 & getAllAttendancePdfsBase64 siap membaca stream Base64 dokumen absensi untuk Cetak Gabungan.
+ * 4. Helper isSiteMatchingBackend agar ekspor KJK per site mendukung variasi nama site/departemen (misal: CGK1 & CGK1 KPPTI).
  */
 
 // ID Folder Google Drive target untuk menyimpan berkas upload karyawan
 var ATTENDANCE_FOLDER_ID = "1n289pzwIJ93e-3cTc-w2EazTGc6w_BcY";
+
+/**
+ * Helper Pencocokan Fleksibel Site & Departemen di Sisi Backend
+ */
+function isSiteMatchingBackend(itemSite, itemDept, targetSite) {
+  if (!targetSite || targetSite === "ALL") return true;
+  var sSite = String(itemSite || "").toUpperCase().trim();
+  var sDept = String(itemDept || "").toUpperCase().trim();
+  var target = String(targetSite).toUpperCase().trim().replace(/^SITE\s+/, "");
+
+  if (sSite === target || sDept === target) return true;
+
+  if (target === "CGK1") {
+    if (sSite.indexOf("CGK1") !== -1 || sSite.indexOf("KPPTI") !== -1) return true;
+    if (sDept.indexOf("CGK1") !== -1 || sDept.indexOf("KPPTI") !== -1) return true;
+  } else if (target === "CGK3") {
+    if (sSite === "CGK3" || (sSite.indexOf("CGK3") !== -1 && sSite.indexOf("CGK3A") === -1)) return true;
+    if (sDept.indexOf("CGK3") !== -1 && sDept.indexOf("CGK3A") === -1) return true;
+  } else if (target === "CGK3A") {
+    if (sSite.indexOf("CGK3A") !== -1 || sDept.indexOf("CGK3A") !== -1) return true;
+  } else {
+    if (sSite.indexOf(target) !== -1 || sDept.indexOf(target) !== -1) return true;
+  }
+  return false;
+}
 
 /**
  * Memastikan sheet database KJK tersedia dengan struktur kolom presisi
@@ -384,10 +410,6 @@ function deleteOvertimeEntry(overtimeId, pmUserId) {
   }
 }
 
-/**
- * Helper menyimpan stream Base64 ke folder target Google Drive
- * Pembaruan: try/catch terisolasi pada setSharing agar Google Workspace / Shared Drive tidak melempar exception fatal
- */
 function uploadFileToDrive(base64Data, fileName, mimeType, folderId) {
   try {
     var folder = folderId ? DriveApp.getFolderById(folderId) : DriveApp.getRootFolder();
@@ -399,8 +421,6 @@ function uploadFileToDrive(base64Data, fileName, mimeType, folderId) {
     var blob = Utilities.newBlob(decoded, mimeType || "application/pdf", fileName || "dokumen.pdf");
     var file = folder.createFile(blob);
 
-    // Pengaman perizinan: jika akun Google Workspace menolak perubahan izin publik via skrip,
-    // proses tetap berjalan normal dan URL file tetap diambil via file.getUrl().
     try {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (shareErr) {
@@ -414,9 +434,6 @@ function uploadFileToDrive(base64Data, fileName, mimeType, folderId) {
   }
 }
 
-/**
- * Menyimpan Form Absensi & Dokumen Pendukung (3 Slot) ke Google Drive & Database ATTENDANCE
- */
 function saveAttendanceForm(userId, period, slotKey, docName, fileData) {
   try {
     var sheet = ensureAttendanceSheet();
@@ -525,9 +542,6 @@ function deleteAttendanceFile(userId, period, slotKey) {
   }
 }
 
-/**
- * Helper mengambil Base64 asli dari file PDF di Google Drive berdasarkan link URL
- */
 function getPdfBase64(fileUrl) {
   try {
     if (!fileUrl || typeof fileUrl !== "string") {
@@ -568,9 +582,6 @@ function getPdfBase64(fileUrl) {
   }
 }
 
-/**
- * Helper mengambil seluruh stream Base64 dokumen terupload (3 Slot) untuk Cetak Gabungan
- */
 function getAllAttendancePdfsBase64(userId, period) {
   try {
     ensureAttendanceSheet();
@@ -713,8 +724,9 @@ function getKjkExportData(site, monthName) {
       var eNik = empRows[e][2] || "-";
       var eName = String(empRows[e][3] || "").trim().toUpperCase();
       var eSite = empRows[e][10] || "CGK1";
+      var eDept = empRows[e][6] || "";
 
-      if (targetSite === "ALL" || eSite === targetSite) {
+      if (isSiteMatchingBackend(eSite, eDept, targetSite)) {
         var amount = (kjkMapByUid[eUid] !== undefined) ? kjkMapByUid[eUid] : 0;
         exportList.push({
           nik: eNik,
