@@ -24,6 +24,36 @@
   // Tracker Filter Sebelumnya (Untuk Mencegah Auto Reset Halaman Saat Approve)
   var lastOvtFilterState = { period: '', site: '', emp: '' };
 
+  /**
+   * HELPER SMART SITE & DEPT MATCHER
+   * Memastikan penyaringan site (seperti CGK1) dapat mencakup variasi penamaan
+   * seperti "CGK1", "CGK1 KPPTI", "KPPTI", baik pada kolom site maupun departemen.
+   */
+  function isSiteMatching(itemSite, itemDept, selectedSite) {
+    if (!selectedSite || selectedSite === "ALL") return true;
+    var sSite = String(itemSite || "").toUpperCase().trim();
+    var sDept = String(itemDept || "").toUpperCase().trim();
+    var target = String(selectedSite).toUpperCase().trim().replace(/^SITE\s+/, "");
+
+    // Kecocokan langsung
+    if (sSite === target || sDept === target) return true;
+
+    // Aturan fleksibel site CGK1 (mencakup CGK1, CGK1 KPPTI, KPPTI)
+    if (target === "CGK1") {
+      if (sSite.indexOf("CGK1") !== -1 || sSite.indexOf("KPPTI") !== -1) return true;
+      if (sDept.indexOf("CGK1") !== -1 || sDept.indexOf("KPPTI") !== -1) return true;
+    } else if (target === "CGK3") {
+      // Khusus CGK3 pastikan bukan CGK3A
+      if (sSite === "CGK3" || (sSite.indexOf("CGK3") !== -1 && sSite.indexOf("CGK3A") === -1)) return true;
+      if (sDept.indexOf("CGK3") !== -1 && sDept.indexOf("CGK3A") === -1) return true;
+    } else if (target === "CGK3A") {
+      if (sSite.indexOf("CGK3A") !== -1 || sDept.indexOf("CGK3A") !== -1) return true;
+    } else {
+      if (sSite.indexOf(target) !== -1 || sDept.indexOf(target) !== -1) return true;
+    }
+    return false;
+  }
+
   function UtilitiesFormatDateMonth() {
     var d = new Date();
     var month = '' + (d.getMonth() + 1);
@@ -162,7 +192,7 @@
     var filtered = overtimeMasterEmployees;
     if (selectedSite && selectedSite !== "ALL") {
       filtered = overtimeMasterEmployees.filter(function(emp) {
-        return (emp.site === selectedSite);
+        return isSiteMatching(emp.site, emp.departemen, selectedSite);
       });
     }
 
@@ -197,7 +227,7 @@
       var empVal = document.getElementById("overtimeEmployeeFilter") ? document.getElementById("overtimeEmployeeFilter").value : "ALL";
 
       currentFilteredOvertimeCache = currentOvertimeCache.filter(function(item) {
-        var matchSite = (siteVal === "ALL" || item.site === siteVal);
+        var matchSite = isSiteMatching(item.site, item.departemen, siteVal);
         var matchEmp = (empVal === "ALL" || item.user_id === empVal);
         return matchSite && matchEmp;
       });
@@ -258,7 +288,7 @@
 
       if (overtimeMasterEmployees && overtimeMasterEmployees.length > 0) {
         overtimeMasterEmployees.forEach(function(emp) {
-          var matchSite = (siteVal2 === "ALL" || emp.site === siteVal2);
+          var matchSite = isSiteMatching(emp.site, emp.departemen, siteVal2);
           var matchEmp = (empVal2 === "ALL" || emp.user_id === empVal2);
           if (matchSite && matchEmp) {
             targetUsersForKjk.push(emp.user_id);
@@ -267,7 +297,7 @@
       } else {
         var seen = {};
         currentOvertimeCache.forEach(function(item) {
-          var matchSite = (siteVal2 === "ALL" || item.site === siteVal2);
+          var matchSite = isSiteMatching(item.site, item.departemen, siteVal2);
           var matchEmp = (empVal2 === "ALL" || item.user_id === empVal2);
           if (matchSite && matchEmp && item.user_id && !seen[item.user_id]) {
             seen[item.user_id] = true;
