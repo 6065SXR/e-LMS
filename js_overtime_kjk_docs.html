@@ -118,7 +118,7 @@
     }
 
     var filteredEmps = baseEmployees.filter(function(emp) {
-      var matchSite = (siteVal === "ALL" || emp.site === siteVal);
+      var matchSite = isSiteMatching(emp.site, emp.departemen, siteVal);
       var matchEmp = (empVal === "ALL" || emp.user_id === empVal);
       return matchSite && matchEmp;
     });
@@ -310,7 +310,7 @@
 
   function closeUploadAttendanceModal() {
     var modal = document.getElementById("uploadAttendanceModal");
-    if (modal) modal.classList.add("hidden");
+    if (!modal) return;
   }
 
   function handleDeleteSlotFile(slotKey) {
