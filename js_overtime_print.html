@@ -2,15 +2,9 @@
   /**
    * Sub-modul Template Dokumen & Print PDF Engine (Rekap Bulanan, KJK, STL & Gabungan)
    * System: e-LMS Data Center KSPS
-   * Revisi Presisi Terpadu:
-   * 1. Presisi Vertikal Tabel Rekapitulasi (Identik Gambar 1 & Gambar 2):
-   *    - Teks deskripsi 2 baris tidak lagi memotong / menabrak garis bawah border.
-   *    - Teks deskripsi 1 baris berdiri presisi tepat di titik tengah vertikal sel.
-   *    - Tanda centang (✓) melayang di tengah kotak sel tanpa menusuk garis bawah.
-   *    - Setiap baris tanggal 1 s/d 30/31 memiliki tinggi baris dasar yang seragam (18px).
-   * 2. Alur Cetak Gabungan:
-   *    - TIDAK membuka tab browser baru, melainkan langsung memunculkan Dialog Print Native Browser
-   *      (Save as PDF) di atas web apps persis seperti tombol Cetak Rekap (PDF) pada Gambar 1.
+   * Penyesuaian Role Admin Site:
+   * - Menghilangkan formulir KJK dari susunan Cetak Gabungan secara otomatis
+   * - Menjaga presisi tata letak dokumen rekap dan surat tugas lembur
    */
 
   var KSPS_LOGO_CUSTOM_URL = "";
@@ -76,15 +70,6 @@
     return dateStr;
   }
 
-  /**
-   * Generator Baris Tabel Rekapitulasi Lembur (Shift)
-   * Menyediakan kalkulasi metrik presisi:
-   * - Tinggi minimum baris: 18px (konsisten pada tanggal kosong maupun terisi).
-   * - Kolom deskripsi: font 9px, line-height 1.18, padding 2.5px 5px.
-   *   Teks 2 baris tidak akan menabrak garis bawah border.
-   *   Teks 1 baris melayang tepat di titik tengah vertikal sel.
-   * - Tanda centang (✓): terangkat -1.5px melayang tepat di titik tengah kotak.
-   */
   function generateRekapRowsHtml(entryByDay, daysInMonth) {
     var rowsHtml = "";
     for (var day = 1; day <= daysInMonth; day++) {
@@ -119,7 +104,7 @@
       return;
     }
 
-    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var isKaryawan = currentUser && (currentUser.role === 'Karyawan' || currentUser.role === 'Admin Site');
     var empFilter = document.getElementById("overtimeEmployeeFilter");
     var selectedEmpId = empFilter ? empFilter.value : "ALL";
 
@@ -420,6 +405,7 @@
   function buildDynamicReorderConfig() {
     var uid = currentUser ? currentUser.user_id : 'USR-0003';
     var userSlots = (currentAttendanceMap && currentAttendanceMap[uid]) ? currentAttendanceMap[uid] : {};
+    var isAdminSite = (currentUser && currentUser.role === 'Admin Site');
 
     docOrderMeta = {};
     docPrintOrder = [];
@@ -474,13 +460,16 @@
     };
     docPrintOrder.push("rekap");
 
-    // 5. Masukkan lembar KJK
-    docOrderMeta["kjk"] = {
-      title: "Lembar Rekapitulasi KJK",
-      desc: "Form perhitungan Kelebihan Jam Kerja karyawan shift",
-      icon: "fa-solid fa-clock-rotate-left text-amber-500"
-    };
-    docPrintOrder.push("kjk");
+    // 5. Masukkan lembar KJK (KHUSUS ROLE SELAIN ADMIN SITE)
+    // Admin Site tidak memiliki kewajiban lembar KJK dalam Cetak Gabungan
+    if (!isAdminSite) {
+      docOrderMeta["kjk"] = {
+        title: "Lembar Rekapitulasi KJK",
+        desc: "Form perhitungan Kelebihan Jam Kerja karyawan shift",
+        icon: "fa-solid fa-clock-rotate-left text-amber-500"
+      };
+      docPrintOrder.push("kjk");
+    }
 
     // 6. Masukkan lembar Surat Tugas Lembur (STL)
     docOrderMeta["stl"] = {
@@ -583,10 +572,6 @@
     });
   }
 
-  /**
-   * Menyiapkan seluruh dokumen dan langsung membuka Dialog Cetak Native Browser
-   * tepat di atas Web Apps (Persis Gambar 1), tanpa berpindah ke tab baru.
-   */
   function executeCombinedPrintWithOrder() {
     closeReorderDocumentsModal();
 
@@ -599,12 +584,12 @@
     }
 
     var targetItem = dataset[0];
-    var isKaryawan = currentUser && currentUser.role === 'Karyawan';
+    var isKaryawan = currentUser && (currentUser.role === 'Karyawan' || currentUser.role === 'Admin Site');
     var targetUid = isKaryawan ? currentUser.user_id : targetItem.user_id;
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : "2026-09";
 
-    // Buka jendela popup berukuran modal dialog tepat di atas web apps (Menghindari popup blocker)
+    // Buka jendela popup tepat di atas web apps
     var printWindow = window.open('', '_blank', 'width=900,height=750');
     if (printWindow) {
       printWindow.document.open();
@@ -733,7 +718,6 @@
       if (currentUser.nik) latestApproverNik = currentUser.nik;
     }
 
-    // Baris tabel Rekapitulasi dengan metrik presisi tinggi identik Gambar 2
     var rowsHtml = generateRekapRowsHtml(entryByDay, daysInMonth);
 
     var fallbackEmpSvg = '<svg viewBox="0 0 100 40" style="height: 42px;"><path d="M10,25 Q30,5 40,25 T70,10 T90,30" fill="none" stroke="#000" stroke-width="2"/></svg>';
@@ -745,7 +729,7 @@
 
     var sections = {};
 
-    // 1, 2, 3: Form Absensi & Dokumen Pendukung (Halaman Gambar Full-Page A4)
+    // 1, 2, 3: Form Absensi & Dokumen Pendukung
     ["slot1", "slot2", "slot3"].forEach(function(sKey) {
       var imgArr = (slotImagesMap && slotImagesMap[sKey]) ? slotImagesMap[sKey] : [];
       sections[sKey] = imgArr.map(function(imgUrl) {
@@ -974,7 +958,7 @@
     });
     sections.stl = stlPagesHtml;
 
-    // Rangkai urutan lembaran sesuai konfigurasi modal
+    // Rangkai urutan lembaran sesuai konfigurasi modal (otomatis tanpa kjk untuk Admin Site)
     var fullDocHtml = "";
     docPrintOrder.forEach(function(sectionKey) {
       if (sections[sectionKey] && sections[sectionKey].length > 0) {
