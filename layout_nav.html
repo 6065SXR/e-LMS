@@ -130,7 +130,7 @@
   </div>
 </aside>
 
-<!-- MOBILE FLOATING NAVIGATION BAR (KHUSUS TAMPIL DI HANDPHONE & SINKRON DENGAN ROLE PM / SUPER ADMIN) -->
+<!-- MOBILE FLOATING NAVIGATION BAR (KHUSUS TAMPIL DI HANDPHONE & SINKRON DENGAN ROLE PM / SUPER ADMIN / ADMIN SITE / KARYAWAN) -->
 <nav class="md:hidden floating-bottom-nav">
   <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="floating-nav-item active-mobile-nav">
     <div class="floating-icon-wrapper">
@@ -192,7 +192,8 @@
 
 <script>
   /**
-   * SINKRONISASI VISIBILITAS MENU MOBILE NAV DENGAN ROLE USER (PM, ADMIN, SUPER ADMIN & KARYAWAN)
+   * SINKRONISASI VISIBILITAS MENU DENGAN ROLE USER:
+   * (Super Admin, Admin, Project Manager, Admin Site & Karyawan)
    */
   function syncRoleNavigationVisibility() {
     if (!window.currentUser) return;
@@ -201,6 +202,7 @@
     var isSuperAdmin = (role === 'super admin');
     var isAdmin = (role === 'admin' || isSuperAdmin);
     var isPM = (role === 'project manager' || role === 'pm' || isAdmin);
+    var isAdminSite = (role === 'admin site');
     var isKaryawan = (role === 'karyawan');
 
     // Filter Super Admin
@@ -221,11 +223,24 @@
       else el.classList.add("hidden");
     });
 
-    // Filter Karyawan
+    // Filter Karyawan & Admin Site (Memiliki menu dasar yang identik)
     document.querySelectorAll(".role-karyawan").forEach(function(el) {
-      if (isKaryawan || (!isPM && !isAdmin)) el.classList.remove("hidden");
+      if (isKaryawan || isAdminSite || (!isPM && !isAdmin)) el.classList.remove("hidden");
       else el.classList.add("hidden");
     });
+
+    // PENGATURAN KHUSUS ROLE ADMIN SITE:
+    // 1. Tombol Input KJK wajib disembunyikan
+    // 2. Tombol Download KJK (Excel) & Download hr.Overtime wajib dimunculkan
+    var inputKjkBtn = document.getElementById("btnInputKjk");
+    var btnDownloadKjk = document.getElementById("btnDownloadKjkExcel");
+    var btnDownloadHr = document.getElementById("btnDownloadHrOvertime");
+
+    if (isAdminSite) {
+      if (inputKjkBtn) inputKjkBtn.classList.add("hidden");
+      if (btnDownloadKjk) btnDownloadKjk.classList.remove("hidden");
+      if (btnDownloadHr) btnDownloadHr.classList.remove("hidden");
+    }
   }
 
   // Jalankan sinkronisasi role setiap 500ms
