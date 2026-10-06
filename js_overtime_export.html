@@ -5,7 +5,7 @@
    * System: e-LMS Data Center KSPS
    * Responsibility:
    * 1. Dynamic Library Loader (SheetJS XLSX & JSZip)
-   * 2. Export Excel Rekap KJK Per Site
+   * 2. Export Excel Rekap KJK Per Site (Admin Site Scoped)
    * 3. Export hr.Overtime (Excel Tunggal & Bundel ZIP Terkompresi)
    * =========================================================
    */
@@ -35,8 +35,14 @@
   }
 
   function handleDownloadKjkExcel() {
+    var isAdminSite = (currentUser && currentUser.role === 'Admin Site');
     var siteSelect = document.getElementById("overtimeSiteFilter");
     var selectedSite = siteSelect ? siteSelect.value : "ALL";
+
+    // Khusus Admin Site: Kunci target unduhan hanya pada site penugasannya
+    if (isAdminSite) {
+      selectedSite = currentUser.site || "CGK1";
+    }
 
     var periodFilter = document.getElementById("overtimePeriodFilter");
     var periodVal = periodFilter ? periodFilter.value : UtilitiesFormatDateMonth();
@@ -115,11 +121,67 @@
     var modal = document.getElementById("downloadOvertimeModal");
     if (!modal) return;
 
-    var chkAllSites = document.getElementById("chkAllSites");
-    if (chkAllSites) chkAllSites.checked = true;
+    var isAdminSite = (currentUser && currentUser.role === 'Admin Site');
 
-    var siteCheckboxes = document.querySelectorAll(".site-chk");
-    siteCheckboxes.forEach(function(chk) { chk.checked = true; });
+    if (isAdminSite) {
+      // Penentuan kode site yang cocok untuk Admin Site
+      var mySite = (currentUser.site || "CGK1").toUpperCase();
+      var normalizedSite = "CGK1";
+      if (mySite.indexOf("CGK2") !== -1) normalizedSite = "CGK2";
+      else if (mySite.indexOf("CGK3A") !== -1) normalizedSite = "CGK3A";
+      else if (mySite.indexOf("CGK3") !== -1) normalizedSite = "CGK3";
+      else if (mySite.indexOf("CGK4") !== -1) normalizedSite = "CGK4";
+
+      // Kunci checkbox: sembunyikan site lain agar Admin Site hanya mengunduh site miliknya
+      var chkAll = document.getElementById("chkAllSites");
+      if (chkAll) {
+        chkAll.checked = false;
+        chkAll.disabled = true;
+        if (chkAll.parentElement) chkAll.parentElement.classList.add("hidden");
+      }
+
+      var siteCheckboxes = document.querySelectorAll(".site-chk");
+      siteCheckboxes.forEach(function(chk) {
+        if (chk.value === normalizedSite) {
+          chk.checked = true;
+          chk.disabled = true;
+          chk.parentElement.classList.remove("hidden");
+        } else {
+          chk.checked = false;
+          chk.disabled = true;
+          chk.parentElement.classList.add("hidden");
+        }
+      });
+
+      // Pastikan data akun Admin Site terdaftar dalam master karyawan
+      if (currentUser) {
+        var alreadyIn = overtimeMasterEmployees.some(function(emp) { return emp.user_id === currentUser.user_id; });
+        if (!alreadyIn) {
+          overtimeMasterEmployees.push({
+            user_id: currentUser.user_id,
+            nama_lengkap: currentUser.name,
+            nik: currentUser.nik || "-",
+            site: currentUser.site || "CGK1",
+            departemen: currentUser.departemen || "Operations"
+          });
+        }
+      }
+    } else {
+      // Reset untuk akun PM & Super Admin
+      var chkAllSites = document.getElementById("chkAllSites");
+      if (chkAllSites) {
+        chkAllSites.checked = true;
+        chkAllSites.disabled = false;
+        if (chkAllSites.parentElement) chkAllSites.parentElement.classList.remove("hidden");
+      }
+
+      var siteCheckboxes = document.querySelectorAll(".site-chk");
+      siteCheckboxes.forEach(function(chk) {
+        chk.checked = true;
+        chk.disabled = false;
+        chk.parentElement.classList.remove("hidden");
+      });
+    }
 
     if (overtimeMasterEmployees.length === 0) {
       var listContainer = document.getElementById("downloadOvertimeEmployeeList");
@@ -129,6 +191,19 @@
       callBackend('getEmployeesList', [], function(empRes) {
         if (empRes && empRes.success) {
           overtimeMasterEmployees = empRes.data || [];
+          // Pastikan akun aktif ada di daftar
+          if (currentUser) {
+            var alreadyIn = overtimeMasterEmployees.some(function(emp) { return emp.user_id === currentUser.user_id; });
+            if (!alreadyIn) {
+              overtimeMasterEmployees.push({
+                user_id: currentUser.user_id,
+                nama_lengkap: currentUser.name,
+                nik: currentUser.nik || "-",
+                site: currentUser.site || "CGK1",
+                departemen: currentUser.departemen || "Operations"
+              });
+            }
+          }
           renderDownloadOvertimeEmployees();
         } else {
           if (listContainer) listContainer.innerHTML = '<p class="text-rose-500 text-center py-4">Gagal memuat karyawan.</p>';
